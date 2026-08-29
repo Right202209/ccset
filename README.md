@@ -1,5 +1,7 @@
 # ccset
 
+[中文说明](README.zh-CN.md) | English
+
 A terminal UI that writes Claude Code settings files correctly.
 
 Pointing Claude Code at a third-party Anthropic-compatible endpoint means

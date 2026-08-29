@@ -1,0 +1,56 @@
+# Repository Guidelines
+
+## Project Structure & Module Organization
+
+This is an ESM TypeScript CLI/TUI built with Ink and React. Runtime code lives
+under `src/`:
+
+- `src/core/` contains agent-independent file I/O, validation, merging,
+  masking, backups, paths, and error handling.
+- `src/agents/<id>/` contains integrations for a supported coding agent.
+- `src/ui/` contains Ink screens and reusable form/list components.
+- `src/i18n/` contains the English message catalog and translation helper.
+- `src/cli.tsx` is the CLI entry point; `src/registry.ts` is the static agent
+  registry; `src/types.ts` defines shared interfaces.
+
+`README.md` documents user behavior, while `Important Documentation.md` is the
+manual verification register. Build output is generated in `dist/` and should
+not be edited by hand.
+
+## Build, Test, and Development Commands
+
+Run `npm install` to install dependencies (Node.js 18+ is required). Use
+`npm run typecheck` for a no-emit TypeScript check and `npm run build` to bundle
+the executable to `dist/cli.js` with tsup. The package currently has no
+automated test script; verify interactive changes manually using the scenarios
+listed in `Important Documentation.md`.
+
+## Coding Style & Naming Conventions
+
+Follow the existing TypeScript style: two-space indentation, no semicolons, and
+single-quoted strings. Use `camelCase` for variables/functions, `PascalCase`
+for React components and types, and lowercase kebab-case IDs for agent
+directories (for example, `src/agents/claude-code`). Keep shared behavior in
+`src/core` and prefer existing interfaces and helpers over duplicated logic.
+
+## Testing Guidelines
+
+There is no configured test framework or coverage threshold yet. New behavior
+should include focused tests when a framework is introduced; until then,
+exercise the relevant TUI flow and filesystem edge cases manually, including
+invalid JSON, unmanaged keys, backups, and non-TTY execution.
+
+## Commit & Pull Request Guidelines
+
+Use concise conventional-style subjects such as `feat:`, `fix:`, or `docs:`
+followed by an imperative description. Keep commits focused. Pull requests
+should explain the user-visible change, list verification commands and manual
+scenarios, link the relevant issue or design note, and include terminal output
+or screenshots when changing the TUI.
+
+## Adding an Agent
+
+Implement `detect()` and `getActions()` in `src/agents/<id>/`, conforming to the
+`Agent` interface in `src/types.ts`, then add the module to the array in
+`src/registry.ts`. Keep agent-specific paths and codecs inside that module;
+reuse the generic core for merges, atomic writes, masking, and backups.
