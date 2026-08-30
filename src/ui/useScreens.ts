@@ -107,5 +107,13 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
     })
   }, [run])
 
-  return { frames, current: frames[frames.length - 1], busy, open, replace, setTop, back }
+  return {
+    frames,
+    current: frames[frames.length - 1]?.screen,
+    busy,
+    open,
+    replace,
+    setTop,
+    back,
+  }
 }

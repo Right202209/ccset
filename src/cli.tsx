@@ -49,6 +49,10 @@ function requireTty(): void {
   process.exit(EXIT_NOT_TTY)
 }
 
+function clearScreen(): void {
+  process.stdout.write('\x1b[2J\x1b[H')
+}
+
 function resolveAgentId(requested: string | undefined): string | undefined {
   if (requested === undefined) return undefined
   if (findAgent(requested) === undefined) {
@@ -60,6 +64,7 @@ function resolveAgentId(requested: string | undefined): string | undefined {
 async function main(): Promise<void> {
   const options = parseArgs(process.argv)
   requireTty()
+  clearScreen()
   const agentId = resolveAgentId(options.agent)
   const ctx: Ctx = { home: resolveHome() }
   // A fatal error is carried out of the render tree rather than thrown through
