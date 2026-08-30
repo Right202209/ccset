@@ -220,6 +220,7 @@ Read-only checks, no build and no execution:
 | T9 | Exit with unsaved edits, via both Esc and the Cancel row. | The prompt appears in both cases and "Keep editing" returns to the form with the edits intact. |
 | T10 | Terminal narrower than the 30-column label gutter in `ui/Field.tsx` and the 22-column gutter in `ui/Status.tsx`. | Rows wrap without corrupting the layout (relates to E6). |
 | T11 | Fill in a provider form against a malformed target, save, then decline the "start fresh" question. | The form comes back with every field as typed, the token included; nothing was written; the backup directory did not grow. |
+| T12 | Save a form whose **first invalid field is advanced**, and one whose invalid field sits before an advanced field in the manifest. | The Advanced section expands and the cursor lands on the offending field itself. `ReviewForm.save` now maps through `rowIndexOf` because a manifest index equals a row index only while every advanced field trails the list; `PROVIDER_FIELDS` currently satisfies that, so a regression here would be silent until a manifest interleaves them. |
 
 ### 9.4 Not built, by design
 

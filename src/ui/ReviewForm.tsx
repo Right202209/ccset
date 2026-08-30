@@ -45,6 +45,16 @@ function buildRows(fields: FieldSpec[], showAdvanced: boolean): Row[] {
   return rows
 }
 
+/**
+ * Row position of a field, not its index in the manifest: with advanced fields
+ * collapsed the two only coincide while every advanced field happens to sit at
+ * the end of the list.
+ */
+function rowIndexOf(target: FieldSpec, fields: FieldSpec[], showAdvanced: boolean): number {
+  const visible = fields.filter((field) => field.advanced !== true || showAdvanced)
+  return Math.max(0, visible.indexOf(target))
+}
+
 export function ReviewForm({
   screen,
   onSubmit,
@@ -96,8 +106,10 @@ export function ReviewForm({
       onSubmit(values)
       return
     }
+    // An invalid field the user cannot see is an invalid field they cannot fix.
+    const reveal = showAdvanced || firstBad.advanced === true
     if (firstBad.advanced === true) setShowAdvanced(true)
-    setIndex(Math.max(0, screen.fields.indexOf(firstBad)))
+    setIndex(rowIndexOf(firstBad, screen.fields, reveal))
   }
 
   function activate(): void {
