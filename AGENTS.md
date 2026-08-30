@@ -54,3 +54,19 @@ Implement `detect()` and `getActions()` in `src/agents/<id>/`, conforming to the
 `Agent` interface in `src/types.ts`, then add the module to the array in
 `src/registry.ts`. Keep agent-specific paths and codecs inside that module;
 reuse the generic core for merges, atomic writes, masking, and backups.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues using the `gh` CLI. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repository uses a single-context domain documentation layout. See
+`docs/agents/domain.md`.

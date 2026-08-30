@@ -106,6 +106,32 @@ Run before any commit, per project rules.
 
 ## 6. Build and publish
 
+### Release gates
+
+Every npm release must satisfy all of these:
+
+- [ ] `npm run typecheck` and `npm run build` pass.
+- [ ] `npm pack` contents are reviewed, then the tarball is installed and its core
+      flow is run.
+- [ ] Changes involving writes, backups, credentials, or migrations pass the
+      relevant data-safety checks in this register.
+- [ ] The core flow receives a manual smoke test on macOS and Linux, normally with
+      CI covering typecheck, build, pack, and install on both platforms.
+- [ ] There is no known data loss, credential exposure, startup failure, or failed
+      mandatory release check.
+
+If a general change lacks one platform's manual smoke test, the release notes must
+say that the platform was not manually verified. The release must not describe the
+missing check as passed. A change to platform-specific paths, permissions, or
+terminal behavior remains blocked until it is manually verified on that platform.
+
+Releases are made as needed under SemVer. During `0.x`, UI, CLI, and managed-field
+breaking changes are allowed when release notes identify them. A patch must not
+intentionally change the meaning of configuration already written. Security and
+data-safety fixes normally ship as patches. Only the latest npm version receives
+support; release notes record verified environments without creating a long-term
+compatibility window.
+
 - [ ] `tsup` emits a single ESM bundle with a `#!/usr/bin/env node` shebang, and the
       output file is executable.
 - [ ] **No dynamic `import()` of scanned paths** anywhere — this is why §4.3 uses a
@@ -228,4 +254,3 @@ Milestone 1 stops here. Not present, and not stubbed: `apiKeyHelper` support
 (gated on U1), a second agent module (M2), non-interactive mode (M3), and any
 additional i18n catalog. `--agent <id>` is parsed and validated but has only one
 legal value while the registry holds one agent.
-

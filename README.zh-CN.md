@@ -14,6 +14,10 @@ npx @droite/ccset
 
 要求 Node.js 18 或更高版本。支持 macOS 和 Linux；Windows 为尽力支持。
 
+ccset 是尽力维护的开源项目，并非托管服务。仅支持 npm 上的最新版本。平台与维护边界见
+[支持政策](https://github.com/Right202209/ccset/blob/master/SUPPORT.md)，报告安全问题前请阅读
+[安全政策](https://github.com/Right202209/ccset/blob/master/SECURITY.md)。
+
 ## 功能
 
 | 菜单项 | 操作对象 |
@@ -57,6 +61,8 @@ npm run build
 ```
 
 `Important Documentation.md` 是需要实际运行工具验证的场景清单。
+Pull Request 可以直接提出产品改动；验收和验证要求见
+[贡献指南](https://github.com/Right202209/ccset/blob/master/CONTRIBUTING.md)。
 
 ## 许可证
 

@@ -1,0 +1,59 @@
+name: Public security report
+description: Report a security or credential-safety problem in public
+title: "security: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This report will be public immediately. Do not include a real token, a
+        complete settings file, an unredacted home-directory path, or unchecked
+        logs. Rotate any credential that has already been exposed.
+
+        The project does not offer confidentiality, coordinated disclosure, or a
+        response-time guarantee. Read `SECURITY.md` before continuing.
+
+  - type: checkboxes
+    id: redaction
+    attributes:
+      label: Redaction confirmation
+      options:
+        - label: I replaced all credentials with obvious placeholders.
+          required: true
+        - label: I removed personal paths and checked every log excerpt.
+          required: true
+        - label: I understand this report and its history may remain public.
+          required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Describe what an affected user or attacker can cause.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use placeholders and include only the detail needed to reproduce.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Verified environment
+      description: Include ccset, Agent, Node.js, OS, terminal, and shell versions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested mitigation
+      description: Optional ideas for reducing impact or correcting the behavior.
+    validations:
+      required: false

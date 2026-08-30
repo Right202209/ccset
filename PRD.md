@@ -291,9 +291,9 @@ a warning and the remaining agents still load.
 
 - Node.js 18+ (required for global `fetch`, §4.2.6).
 - **macOS, Linux: supported and verified.**
-- **Windows: best-effort, unverified.** Code is Windows-correct — `os.homedir()`,
-  `path.join`, no shell-outs. Targets Windows Terminal and PowerShell; cmd.exe is
-  explicitly out of scope.
+- **WSL and Windows: best-effort.** Code is Windows-correct — `os.homedir()`,
+  `path.join`, no shell-outs. Native Windows targets Windows Terminal and
+  PowerShell; cmd.exe is explicitly out of scope.
 - **Windows security caveat (must appear in the README, not only here):** Node's
   `fs.chmod` on win32 can only toggle the read-only bit — owner/group/other are not
   implemented and NTFS ACLs are untouched. §2.2 criterion 6 is a **POSIX-only
@@ -469,7 +469,7 @@ condition for writing `settings.json` without data loss.
 **Milestone 3 — reach.**
 
 - Non-interactive mode (§5.6 constraints binding).
-- Windows verification to promote §5.2 to tier 1.
+- Windows and WSL verification to improve best-effort compatibility evidence.
 - Additional i18n catalogs.
 
 ---

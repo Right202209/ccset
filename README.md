@@ -20,6 +20,12 @@ npx @droite/ccset
 Node 18 or newer. macOS and Linux are supported; Windows is best-effort (see
 [Windows](#windows)).
 
+ccset is a best-effort open source project, not a managed service. Only the latest
+npm release is supported. See the [support policy](https://github.com/Right202209/ccset/blob/master/SUPPORT.md)
+for platform and maintenance boundaries and the
+[security policy](https://github.com/Right202209/ccset/blob/master/SECURITY.md)
+before reporting a security issue.
+
 ## What it does
 
 | Menu entry | What it touches |
@@ -122,6 +128,9 @@ npm run build      # tsup -> dist/cli.js, single ESM bundle with a shebang
 
 `Important Documentation.md` is the verification register: everything that needs
 to be confirmed by running the tool, rather than by reading it, is listed there.
+Pull requests may propose product changes directly; see the
+[contribution guide](https://github.com/Right202209/ccset/blob/master/CONTRIBUTING.md)
+for acceptance and verification requirements.
 
 ## Licence
 
