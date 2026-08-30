@@ -183,6 +183,13 @@ Read-only checks, no build and no execution:
   listing and shows the file that was just written. A `replace()` result
   (a save's success message, a confirm's outcome) never keeps a task, so backing
   out of a message can never re-run the write behind it. **T7 verifies this.**
+- **A confirm stacks; it never supersedes.** A save that returns a question
+  rather than a result — the malformed-target case below — is pushed on top of
+  the form instead of replacing it, and `App.submit` parks the submitted values
+  on the form's frame first. Declining therefore returns a form that still holds
+  the token the user typed. Without both halves, refusing to overwrite a broken
+  file would cost the user their input, which is the outcome the refusal exists
+  to prevent. **T11 verifies this.**
 - **Malformed-target recovery** (`agents/claude-code/save.ts`). PRD §4.4 exit
   code 4 says "offers to back it up and start fresh; never silently overwrites".
   A save that hits `JsonParseError` now returns a confirm screen instead of
@@ -212,6 +219,7 @@ Read-only checks, no build and no execution:
 | T8 | Fatal error path: make `~/.claude` read-only, then save. | Ink unmounts and restores the terminal *before* the message is printed; message on stderr; exit 3; nothing written. |
 | T9 | Exit with unsaved edits, via both Esc and the Cancel row. | The prompt appears in both cases and "Keep editing" returns to the form with the edits intact. |
 | T10 | Terminal narrower than the 30-column label gutter in `ui/Field.tsx` and the 22-column gutter in `ui/Status.tsx`. | Rows wrap without corrupting the layout (relates to E6). |
+| T11 | Fill in a provider form against a malformed target, save, then decline the "start fresh" question. | The form comes back with every field as typed, the token included; nothing was written; the backup directory did not grow. |
 
 ### 9.4 Not built, by design
 

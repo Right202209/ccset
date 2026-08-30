@@ -71,6 +71,10 @@ export function App({ ctx, agents, agentId, onFatal }: AppProps): React.ReactEle
     const screen = screens.current
     if (screen?.kind !== 'form') return
     setDirty(false)
+    // Park what was typed on the frame first: if the save comes back with a
+    // question rather than a result -- a target that no longer parses --
+    // declining it has to return a form that still holds the user's input.
+    screens.setTop({ ...screen, values })
     screens.replace(() => screen.submit(values))
   }
 

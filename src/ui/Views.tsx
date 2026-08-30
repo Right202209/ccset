@@ -145,6 +145,7 @@ export function ScreenView({ screen, handlers }: ScreenViewProps): React.ReactEl
     case 'form':
       return (
         <ReviewForm
+          key={screen.title}
           screen={screen}
           onSubmit={handlers.onSubmit}
           onCancel={handlers.onCancel}

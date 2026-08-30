@@ -20,14 +20,20 @@ export interface Screens {
   busy: boolean
   /** Push the result of a navigation. */
   open: (task: Task) => void
-  /** Replace the top frame, for results that supersede what produced them. */
+  /** Supersede the top frame with what the task returns. */
   replace: (task: Task) => void
+  /** Swap the top screen without running anything. */
+  setTop: (screen: ActionResult) => void
   back: () => void
 }
 
 /** Re-running these is a read; re-running anything else could repeat a write. */
 function isReloadable(screen: ActionResult): boolean {
   return screen.kind === 'list' || screen.kind === 'status'
+}
+
+function toFrame(screen: ActionResult, task: Task): Frame {
+  return { screen, reload: isReloadable(screen) ? task : undefined }
 }
 
 export function useScreens(onFatal: (error: CcsetError) => void): Screens {
@@ -40,14 +46,14 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
     framesRef.current = frames
   }, [frames])
 
-  const settle = useCallback(
-    async (task: Task, apply: (frame: Frame) => void): Promise<void> => {
+  const run = useCallback(
+    async (task: Task): Promise<ActionResult | null> => {
       setBusy(true)
       try {
-        const screen = await task()
-        apply({ screen, reload: isReloadable(screen) ? task : undefined })
+        return await task()
       } catch (err) {
         onFatal(toCcsetError(err))
+        return null
       } finally {
         setBusy(false)
       }
@@ -57,29 +63,49 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
 
   const open = useCallback(
     (task: Task): void => {
-      void settle(task, (frame) => setFrames((prev) => [...prev, frame]))
+      void run(task).then((screen) => {
+        if (screen !== null) setFrames((prev) => [...prev, toFrame(screen, task)])
+      })
     },
-    [settle],
+    [run],
   )
 
-  // A replacement never carries a reload: the task behind it may have written.
+  /**
+   * A confirm stacks instead of superseding: it is a question about the action,
+   * not its outcome, so cancelling has to return to the screen that asked --
+   * including a form holding values the user has not managed to save yet.
+   * Nothing produced here carries a reload: the task behind it may have written.
+   */
   const replace = useCallback(
     (task: Task): void => {
-      void settle(task, (frame) =>
-        setFrames((prev) => [...prev.slice(0, -1), { screen: frame.screen }]),
-      )
+      void run(task).then((screen) => {
+        if (screen === null) return
+        setFrames((prev) =>
+          screen.kind === 'confirm'
+            ? [...prev, { screen }]
+            : [...prev.slice(0, -1), { screen }],
+        )
+      })
     },
-    [settle],
+    [run],
   )
+
+  const setTop = useCallback((screen: ActionResult): void => {
+    setFrames((prev) => {
+      const top = prev[prev.length - 1]
+      return top === undefined ? prev : [...prev.slice(0, -1), { ...top, screen }]
+    })
+  }, [])
 
   const back = useCallback((): void => {
     const next = framesRef.current.slice(0, -1)
     setFrames(next)
-    const revealed = next[next.length - 1]
-    if (revealed?.reload === undefined) return
-    const task = revealed.reload
-    void settle(task, (frame) => setFrames([...next.slice(0, -1), frame]))
-  }, [settle])
+    const task = next[next.length - 1]?.reload
+    if (task === undefined) return
+    void run(task).then((screen) => {
+      if (screen !== null) setFrames([...next.slice(0, -1), toFrame(screen, task)])
+    })
+  }, [run])
 
-  return { frames, current: frames[frames.length - 1], busy, open, replace, back }
+  return { frames, current: frames[frames.length - 1], busy, open, replace, setTop, back }
 }
