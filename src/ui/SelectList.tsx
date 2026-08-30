@@ -86,7 +86,13 @@ function SelectRow({ option, position, focused }: SelectRowProps): React.ReactEl
       <Text color={color} bold={focused}>
         {option.label}
       </Text>
-      {option.detail !== undefined && <Text dimColor>{`  ${option.detail}`}</Text>}
+      {option.detail !== undefined && (
+        <Box flexGrow={1} flexShrink={1}>
+          <Text dimColor wrap="wrap">
+            {`  ${option.detail}`}
+          </Text>
+        </Box>
+      )}
     </Box>
   )
 }

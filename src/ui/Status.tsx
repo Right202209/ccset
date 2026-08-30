@@ -53,7 +53,11 @@ function SectionView({ section }: { section: StatusSection }): React.ReactElemen
           <Box width={LABEL_WIDTH}>
             <Text dimColor>{`  ${line.label}`}</Text>
           </Box>
-          <Text color={toneColor(line.tone)}>{line.value}</Text>
+          <Box flexGrow={1} flexShrink={1}>
+            <Text color={toneColor(line.tone)} wrap="wrap">
+              {line.value}
+            </Text>
+          </Box>
         </Box>
       ))}
       {section.note !== undefined && (

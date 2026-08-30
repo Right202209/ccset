@@ -2,9 +2,9 @@
 
 Verification and test register for **ccset** (`@droite/ccset`).
 
-Nothing in this repository has been executed, built, or installed. Per project
-convention, everything requiring runtime confirmation is recorded here instead of
-being run. Each item states what to check, how, and what a pass looks like.
+Runtime checks are recorded below as they are performed. Each item states what
+to check, how, and what a pass looks like; entries without an explicit result
+remain pending.
 
 ---
 
@@ -178,7 +178,46 @@ original draft's "`0600` or `0644`, depending on system defaults."
 
 ---
 
-## 9. Implementation register (code complete, nothing executed)
+## 9. Implementation register (code complete)
+
+### 9.0 Runtime prototype smoke test (2026-08-30)
+
+Executed the built CLI with an isolated temporary `CCSET_HOME`, Node PTY, and
+`COLUMNS=80 LINES=24`.
+
+- `npm run typecheck`: passed.
+- `npm run build`: passed; `dist/cli.js` emitted successfully.
+- Main menu: rendered with five actions, detail text, numeric shortcuts, and
+  the expected navigation help. A single registered agent skipped agent select.
+- Global ReviewForm: rendered seeded defaults, changed markers, field hints,
+  Save/Cancel rows, and the proxy toggle explanation without visible overlap.
+- Status: rendered state/global/providers/backups sections and action list. The
+  empty-provider state and absent files were visible and readable at 80 columns.
+- Confirm page: rendered the destructive warning over wrapped lines and placed
+  the cursor on `Cancel` by default; numeric selection reached the page.
+- Narrow-layout result: no observed label/value overlap or terminal corruption
+  in these screens at 80 columns. Long values and copy-ready commands still
+  need a fixture-driven check with deliberately oversized URLs/paths.
+
+This was a smoke test only; the data-safety, malformed JSON, masking, and
+save/exit scenarios below remain pending unless separately marked.
+
+### 9.0.1 Follow-up narrow-layout check (2026-08-30)
+
+Ran Status at `COLUMNS=80` with an intentionally long `CCSET_HOME` path and a
+malformed `settings.bad.json` fixture. Long paths wrapped across lines without
+label/value overlap or terminal corruption; the malformed provider remained
+visible as an error entry. The menu detail and Status value cells now explicitly
+use shrinkable flex regions (`flexGrow`/`flexShrink`) so long unbroken values
+have room to wrap. The full long-URL provider fixture is still pending.
+
+After this layout fix, `npm run typecheck`, `npm run build`, and
+`git diff --check` were rerun successfully.
+
+Secret masking remains supported by the existing `Field.tsx` implementation
+(`ink-text-input` mask on focus and `maskSecret` when blurred), but a complete
+interactive token-entry transcript was not captured in this pass. Dirty-exit
+and malformed-save confirmation likewise remain manual follow-ups.
 
 The Milestone 1 surface is written: `src/cli.tsx`, `src/ui/App.tsx`,
 `useScreens.ts`, `Menu.tsx`, `Status.tsx`, `Views.tsx`, the `src/i18n/en.ts`
@@ -244,7 +283,7 @@ Read-only checks, no build and no execution:
 | T7 | Esc from a save-success message. | Returns to the screen beneath, and **no second write occurs** — verify by mtime and backup count. |
 | T8 | Fatal error path: make `~/.claude` read-only, then save. | Ink unmounts and restores the terminal *before* the message is printed; message on stderr; exit 3; nothing written. |
 | T9 | Exit with unsaved edits, via both Esc and the Cancel row. | The prompt appears in both cases and "Keep editing" returns to the form with the edits intact. |
-| T10 | Terminal narrower than the 30-column label gutter in `ui/Field.tsx` and the 22-column gutter in `ui/Status.tsx`. | Rows wrap without corrupting the layout (relates to E6). |
+| T10 | Terminal narrower than the 30-column label gutter in `ui/Field.tsx` and the 22-column gutter in `ui/Status.tsx`. | Rows wrap without corrupting the layout (relates to E6). **Partial:** 80-column long-path Status check passed; narrower-than-gutter and long-URL fixture remain pending. |
 | T11 | Fill in a provider form against a malformed target, save, then decline the "start fresh" question. | The form comes back with every field as typed, the token included; nothing was written; the backup directory did not grow. |
 | T12 | Save a form whose **first invalid field is advanced**, and one whose invalid field sits before an advanced field in the manifest. | The Advanced section expands and the cursor lands on the offending field itself. `ReviewForm.save` now maps through `rowIndexOf` because a manifest index equals a row index only while every advanced field trails the list; `PROVIDER_FIELDS` currently satisfies that, so a regression here would be silent until a manifest interleaves them. |
 
