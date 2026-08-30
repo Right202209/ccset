@@ -12,6 +12,7 @@ type Row =
 
 interface ReviewFormProps {
   screen: FormScreen
+  active?: boolean
   onSubmit: (values: FormValues) => void
   onCancel: () => void
   onDirtyChange: (dirty: boolean) => void
@@ -57,6 +58,7 @@ function rowIndexOf(target: FieldSpec, fields: FieldSpec[], showAdvanced: boolea
 
 export function ReviewForm({
   screen,
+  active = true,
   onSubmit,
   onCancel,
   onDirtyChange,
@@ -121,14 +123,17 @@ export function ReviewForm({
     else cycle(row.field, 1)
   }
 
-  useInput((input, key) => {
-    if (key.upArrow) move(-1)
-    else if (key.downArrow || key.tab) move(1)
-    else if (key.return) activate()
-    else if (editing) return
-    else if (key.leftArrow) cycleFocused(-1)
-    else if (key.rightArrow || input === ' ') cycleFocused(1)
-  })
+  useInput(
+    (input, key) => {
+      if (key.upArrow) move(-1)
+      else if (key.downArrow || key.tab) move(1)
+      else if (key.return) activate()
+      else if (editing) return
+      else if (key.leftArrow) cycleFocused(-1)
+      else if (key.rightArrow || input === ' ') cycleFocused(1)
+    },
+    { isActive: active },
+  )
 
   function cycleFocused(delta: number): void {
     if (row?.kind === 'field') cycle(row.field, delta)
@@ -141,7 +146,7 @@ export function ReviewForm({
         <FormRow
           key={rowKey(current, position)}
           row={current}
-          focused={position === index}
+          focused={active && position === index}
           state={{ values, errors, baseline: screen.baseline, showAdvanced }}
           onChange={update}
         />

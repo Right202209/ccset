@@ -293,3 +293,168 @@ Milestone 1 stops here. Not present, and not stubbed: `apiKeyHelper` support
 (gated on U1), a second agent module (M2), non-interactive mode (M3), and any
 additional i18n catalog. `--agent <id>` is parsed and validated but has only one
 legal value while the registry holds one agent.
+
+### 9.5 Build and package gate (2026-08-30)
+
+- `npm run typecheck`: passed.
+- `npm run build`: passed; `dist/cli.js` emitted as a single ESM bundle.
+- `npm pack --dry-run`: passed; tarball contents are limited to `dist/`, the two
+  READMEs, `LICENSE`, and `package.json`.
+- `git diff --check`: passed.
+
+External or interactive checks remain pending: D1-D9 fixture-driven write tests,
+E1-E6 platform checks, T1-T12 runtime checks, U1-U5 experiments, and a full
+tarball install smoke test.
+
+### 9.6 Non-interactive runtime spot checks (2026-08-30)
+
+- `node dist/cli.js --version`: passed, printed `0.1.0`.
+- `printf '' | node dist/cli.js`: passed, exited `2` with a clear non-TTY
+  message and no ANSI escape sequences.
+
+These checks cover T1 and E1; the remaining runtime scenarios are still pending.
+
+### 9.7 Global settings preservation (2026-08-30)
+
+`npm run verify:global-settings` passed against the real `saveGlobal` path in an
+isolated temporary home. The repeatable fixture verifies:
+
+- D1 and D3: unmanaged top-level values and nested objects (`hooks`,
+  `statusLine`, `enabledPlugins`, `effortLevel`, `tui`, `verbose`, and a custom
+  `env` key) remain structurally identical after managed values change.
+- D2: disabling the proxy removes both `env.HTTPS_PROXY` and `env.HTTP_PROXY`;
+  neither is retained as an empty string.
+- D8: a second save with identical values produces byte-identical target
+  content. Its backup is exactly the complete result of the first save.
+- The first backup is byte-identical to the original file, every resulting file
+  parses as complete JSON, and the target and backups are mode `0600` on POSIX.
+
+The verification uses only generated placeholder values and removes its
+temporary home and bundle after completion. `npm run typecheck`, `npm run
+build`, and `git diff --check` also passed after adding the fixture.
+
+### 9.8 External platform and Claude Code gates (2026-08-30)
+
+This audit records only evidence available in the current environment. It does
+not treat a local build, an installed executable, or a proposed CI workflow as a
+substitute for a real platform or provider experiment.
+
+| Gate | Result | Evidence / remaining work |
+| --- | --- | --- |
+| U1: `apiKeyHelper` on the third-party Bearer path | **Pending** | Claude Code `2.1.251` is installed, and its help describes `apiKeyHelper` for Anthropic API-key authentication. No disposable third-party provider credential was available, so no request was sent and Bearer behavior remains unknown. |
+| U2: `--settings` precedence and `env` merge behavior | **Pending** | `claude --settings` is present, but proving effective values requires an isolated real Claude Code run with conflicting global/provider settings. No user settings or credentials were used or changed during this audit. |
+| U3: settings-file `fallbackModel` shape | **Pending** | Claude Code help confirms that the CLI flag accepts a comma-separated list, but that does not prove whether settings JSON accepts `string[]` or a string. Both forms still need isolated real runs. |
+| U4: Claude Code backup pruning | **Pending** | Testing requires placing a marked foreign file under Claude Code's backup area and waiting for real rotation. The current audit did not mutate `~/.claude/backups/`; ccset's separate `backups/ccset/` directory remains the conservative design. |
+| U5: npm scope ownership and publish authentication | **Pending** | `npm whoami` failed with `ENEEDAUTH`. An unauthenticated `npm org ls droite --json` returned `{"droite":"owner"}`, which shows registry-side organization data but does not identify an authenticated publisher or prove this machine can publish `@droite/ccset`. Re-run both commands with the intended publisher logged in before release. |
+
+Runtime compatibility checks used the built `dist/cli.js` on Linux x64. Node
+`18.20.8`, `20.19.5`, and `22.23.2` each exposed global `fetch`, printed ccset
+version `0.1.0`, and handled non-TTY input with exit code `2`, a clear message,
+and zero ANSI escape bytes. This passes that bounded Linux/non-interactive check
+for E1 and E2; it is not a full interactive smoke test for every Node version.
+
+Platform status is therefore:
+
+- **Linux x64: partial pass.** The Node matrix above passed, and §9.0 records an
+  interactive PTY smoke test in this environment. Real provider behavior covered
+  by U1-U3 and the remaining interactive/data-safety scenarios are separate gates.
+- **macOS: pending.** No macOS runner or manual terminal was available. The core
+  flow has not been evidenced on macOS in this register.
+- **Windows/WSL: pending, best-effort.** No Windows Terminal, PowerShell, or WSL
+  run was available. The README correctly limits the `0600` guarantee to POSIX
+  and labels native Windows best-effort and unverified.
+
+The untracked `.github/workflows/ci.yml` describes Ubuntu jobs for Node 18/20/22,
+but it has no GitHub Actions runs and covers neither macOS nor Windows. It is not
+counted as evidence. Before an npm release, the maintainer must still record a
+macOS core-flow smoke test, authenticate as the intended npm publisher and pass
+U5, and either execute U1-U4 or explicitly keep dependent features and claims
+blocked. Release notes must name only the environments actually verified.
+
+### 9.9 Provider settings and credential safety (2026-08-30)
+
+`npm run verify:provider-safety` passed against the real provider save, backup,
+Status, masking, and connection-error paths in an isolated temporary home:
+
+- D7: nested unmanaged provider keys and a custom nested `env` value survive
+  edits unchanged.
+- D9: thirteen writes to one provider retain exactly ten backups, while a write
+  to a second provider retains its own backup independently.
+- The provider files and every retained backup are mode `0600` on POSIX.
+- Status contains the fixed-width masked token and never the complete token;
+  masks for different token lengths have the same displayed length.
+- The focused secret field still passes `MASK_CHAR` to the installed
+  `ink-text-input` `mask` prop, and the blurred field uses `maskSecret`.
+- A simulated transport exception containing the complete token produces only
+  a sanitized probe result; the token is absent from the serialized error path.
+
+The fixture contains only an obvious test token and removes its temporary home
+and bundle. `npm run typecheck`, `npm run build`, and `git diff --check` passed
+after the verification was added.
+
+### 9.10 Malformed recovery and dirty-exit flows (2026-08-30)
+
+`npm run verify:malformed-dirty` passed through the built CLI in an isolated
+Linux PTY and temporary home:
+
+- T6: after the global form opened, the target was replaced externally with
+  malformed JSON. Saving displayed the explicit backup-and-start-fresh
+  confirmation. Declining left the target byte-identical, created no backup,
+  and returned to the form with the changed proxy value intact. Confirming then
+  wrote only managed values and preserved the complete malformed original in a
+  backup.
+- T9: leaving an unchanged form returned directly to the menu. Both Esc and the
+  Cancel row displayed the unsaved-edits prompt after a change; Keep editing
+  returned to the same form with that change intact, and explicit discard
+  returned to the menu.
+
+The PTY check exposed and fixed a state-lifetime defect: rendering the prompt in
+place of `ReviewForm` unmounted the form and discarded its local draft. The app
+now keeps the form mounted but hidden while the prompt owns input, so declining
+the prompt preserves the draft without allowing both controls to handle a key.
+The generated fixture and verification bundle are removed after every run.
+
+### 9.11 Status and terminal boundaries (2026-08-30)
+
+`npm run verify:status-terminal` passed against `buildStatus` and the built CLI
+using an isolated temporary home:
+
+- Complete, incomplete, and malformed `settings.<name>.json` files are all
+  returned in filename order; one malformed file does not hide the others.
+- Status includes each absolute provider path and its absolute `claude
+  --settings` activation command. The complete token is absent while the
+  fixed-width masked token is present.
+- A deliberately long provider URL remains complete in the Status data. A
+  provider added after the first read appears on the next read, proving that
+  reopening Status refreshes the filesystem listing.
+- `--version` succeeds without a TTY and matches `package.json`. Empty piped
+  input exits `2`, writes a clear terminal error, and emits no ANSI escape byte.
+
+A separate real Ink PTY smoke test entered Status directly from the single-Agent
+menu at 40 columns. Long absolute state, settings, and backup paths wrapped
+without overlap or terminal corruption; Esc returned to the menu and a second
+Esc exited with code `0`. A 28-column main-menu run also wrapped and exited
+cleanly. This completes E1, T1, and the narrow-layout and Status/list-refresh
+checks scoped by issue #5. The resize-during-render portion of E6 remains a
+separate manual platform check; provider editing and dirty-exit flows remain
+covered by their separate verification ticket.
+
+### 9.12 Installed release artifact (2026-08-30)
+
+`npm run verify:release-artifact` passed using a newly built tarball installed
+into an isolated temporary npm project:
+
+- The tarball contains exactly `dist/cli.js`, `package.json`, `LICENSE`,
+  `README.md`, and `README.zh-CN.md`; it contains no source, fixtures, local
+  configuration, or environment files.
+- The installed package exposes `ccset` as `./dist/cli.js`, declares Node
+  `>=18`, and has public scoped-package publish metadata.
+- `dist/` contains one ESM bundle. It starts with the Node shebang and retains
+  executable permission on POSIX.
+- The installed `node_modules/.bin/ccset --version` prints `0.1.0`.
+- Launching that installed bin without a TTY exits `2`, prints the clear
+  terminal requirement, and emits no ANSI escape bytes.
+
+The tarball, installed project, and verification bundle are removed after the
+run. This validates the artifact locally; npm publisher authentication (U5) and
+the pending macOS/Windows gates in §9.8 remain separate release prerequisites.

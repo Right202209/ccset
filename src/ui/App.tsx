@@ -90,16 +90,6 @@ export function App({ ctx, agents, agentId, onFatal }: AppProps): React.ReactEle
   }
 
   function body(): React.ReactElement {
-    if (prompt !== null) {
-      return (
-        <Prompt
-          lineKey={`prompt.${prompt}Line`}
-          confirmKey={`prompt.${prompt}Confirm`}
-          onConfirm={resolvePrompt}
-          onCancel={() => setPrompt(null)}
-        />
-      )
-    }
     if (screens.busy) return <Busy />
     if (agent === null) return <AgentSelect agents={agents} onSelect={setAgent} onExit={exit} />
     const screen = screens.current
@@ -113,7 +103,21 @@ export function App({ ctx, agents, agentId, onFatal }: AppProps): React.ReactEle
         />
       )
     }
-    return <ScreenView screen={screen} handlers={handlers} />
+    return (
+      <>
+        <Box display={prompt === null ? 'flex' : 'none'}>
+          <ScreenView screen={screen} handlers={handlers} active={prompt === null} />
+        </Box>
+        {prompt !== null && (
+          <Prompt
+            lineKey={`prompt.${prompt}Line`}
+            confirmKey={`prompt.${prompt}Confirm`}
+            onConfirm={resolvePrompt}
+            onCancel={() => setPrompt(null)}
+          />
+        )}
+      </>
+    )
   }
 
   return (

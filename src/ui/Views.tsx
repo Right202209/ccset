@@ -138,15 +138,17 @@ export interface ScreenHandlers {
 interface ScreenViewProps {
   screen: ActionResult
   handlers: ScreenHandlers
+  active?: boolean
 }
 
-export function ScreenView({ screen, handlers }: ScreenViewProps): React.ReactElement {
+export function ScreenView({ screen, handlers, active = true }: ScreenViewProps): React.ReactElement {
   switch (screen.kind) {
     case 'form':
       return (
         <ReviewForm
           key={screen.title}
           screen={screen}
+          active={active}
           onSubmit={handlers.onSubmit}
           onCancel={handlers.onCancel}
           onDirtyChange={handlers.onDirtyChange}
