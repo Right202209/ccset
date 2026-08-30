@@ -149,3 +149,74 @@ Actions, unrelated to ccset's code but relevant to the machine it was designed o
 
 This is also the concrete reason `PRD.md` §5.3 mandates `0600` rather than the
 original draft's "`0600` or `0644`, depending on system defaults."
+
+---
+
+## 9. Implementation register (code complete, nothing executed)
+
+The Milestone 1 surface is written: `src/cli.tsx`, `src/ui/App.tsx`,
+`useScreens.ts`, `Menu.tsx`, `Status.tsx`, `Views.tsx`, the `src/i18n/en.ts`
+catalog, `src/agents/claude-code/save.ts`, and `README.md`.
+
+### 9.1 Static checks already performed
+
+Read-only checks, no build and no execution:
+
+- **i18n completeness, both directions.** Every key-shaped string literal under
+  `src/` resolves to an entry in `en.ts`, and every entry in `en.ts` is reachable.
+  Both difference sets are empty. The check covered indirect references as well
+  as literal `t('…')` calls: `FieldSpec.labelKey`/`helpKey` from `manifest.ts`,
+  the keys returned by `core/validate.ts`, `ProbeResult.key`, `CcsetError`
+  `messageKey`, and the two template-built families (`prompt.${kind}Line` etc.
+  and `` `${action.labelKey}Detail` `` behind `hasKey`).
+- **File sizes.** Every file is under the 300-line limit; the largest is
+  `agents/claude-code/actions.ts` at 230 lines.
+- **Dead-export sweep.** `successMessage` and `WriteReport` moved to `save.ts`
+  with no stale references left behind.
+- **No secret-shaped literals** anywhere in `src/`, the Markdown, or the JSON.
+
+### 9.2 Design decisions made while finishing, worth knowing about
+
+- **Screen stack with selective reload** (`ui/useScreens.ts`). A frame keeps its
+  producing task only when the screen it produced was a `list` or `status` —
+  both reads. Going back to a provider list after a save therefore re-runs the
+  listing and shows the file that was just written. A `replace()` result
+  (a save's success message, a confirm's outcome) never keeps a task, so backing
+  out of a message can never re-run the write behind it. **T7 verifies this.**
+- **Malformed-target recovery** (`agents/claude-code/save.ts`). PRD §4.4 exit
+  code 4 says "offers to back it up and start fresh; never silently overwrites".
+  A save that hits `JsonParseError` now returns a confirm screen instead of
+  aborting the process; only on confirmation does `saveGlobal`/`saveProvider`
+  take the `startFresh` path, which skips the read and writes over `{}`. The
+  backup is taken in both paths, so the unreadable original survives.
+- **Confirm screens start on the safe row.** `SelectList` gained an
+  `initialIndex`; every confirm and the unsaved-edits prompt point the cursor at
+  Cancel, so a stray Enter cannot clear backups or transmit a token.
+- **`detect()` is advisory.** A false result renders a note in the main menu
+  rather than hiding the agent — ccset can legitimately configure Claude Code
+  before it has ever run.
+- **Argument parsing runs before the TTY guard**, so `ccset --help` and
+  `--version` still work in a pipe and exit 0. Only the interactive path exits 2.
+
+### 9.3 New runtime checks required
+
+| # | Check | Pass condition |
+| --- | --- | --- |
+| T1 | `import packageJson from '../package.json'` in `cli.tsx`. | `ccset --version` prints the `package.json` version from the built bundle. tsup is expected to inline the JSON; if it emits a bare specifier instead, Node ESM will demand an import attribute — fall back to a constant in `core/constants.ts` and record the drift risk. |
+| T2 | `ink-text-input` v6 exposes the `mask` prop used by `ui/Field.tsx`. | Typing into the token field shows `•`, never the characters. **This is the masking-on-entry guarantee in §3; if the prop is gone, the field must not fall back to plain text.** |
+| T3 | Several mounted `useInput` consumers at once (App + ReviewForm + TextInput). | Esc reaches App's handler and goes back while a text field has focus; arrow keys still reach the form; no double handling. |
+| T4 | Back out of a saved provider into the provider list. | The list re-runs and shows the new or edited file (§9.2 reload rule). |
+| T5 | Enter pressed immediately on any confirm screen. | Nothing happens beyond cancelling — the cursor starts on the safe row. |
+| T6 | Save against a `settings.json` that is malformed JSON. | Confirm screen appears; declining writes nothing; confirming produces a backup that still holds the malformed original, and a target containing only managed keys. |
+| T7 | Esc from a save-success message. | Returns to the screen beneath, and **no second write occurs** — verify by mtime and backup count. |
+| T8 | Fatal error path: make `~/.claude` read-only, then save. | Ink unmounts and restores the terminal *before* the message is printed; message on stderr; exit 3; nothing written. |
+| T9 | Exit with unsaved edits, via both Esc and the Cancel row. | The prompt appears in both cases and "Keep editing" returns to the form with the edits intact. |
+| T10 | Terminal narrower than the 30-column label gutter in `ui/Field.tsx` and the 22-column gutter in `ui/Status.tsx`. | Rows wrap without corrupting the layout (relates to E6). |
+
+### 9.4 Not built, by design
+
+Milestone 1 stops here. Not present, and not stubbed: `apiKeyHelper` support
+(gated on U1), a second agent module (M2), non-interactive mode (M3), and any
+additional i18n catalog. `--agent <id>` is parsed and validated but has only one
+legal value while the registry holds one agent.
+
