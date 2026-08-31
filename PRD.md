@@ -311,6 +311,9 @@ a warning and the remaining agents still load.
 ### 5.4 Usability
 
 - Arrow-key and vim-style (`j`/`k`) navigation, Enter to select, Esc to go back.
+- A nested Screen's header shows the Frame-title path that Esc walks back through.
+  If it exceeds the Viewport columns, an ellipsis replaces the earlier Frames and
+  the final two titles remain visible. The separator follows Terminal capability.
   Numeric shortcuts are
   hand-implemented via Ink's `useInput` — Ink ships no form widgets, so this is
   explicit work, not a library feature.

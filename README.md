@@ -37,7 +37,8 @@ before reporting a security issue.
 
 Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
 back. Long lists state the visible range and total row count. A form asks before
-discarding unsaved edits and never asks otherwise.
+discarding unsaved edits and never asks otherwise. Nested screens show their full
+navigation path in the header; narrow terminals keep the final two steps visible.
 
 ## What it will not do to your files
 

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
+import stringWidth from 'string-width'
 import type { Action, Agent, ConfirmScreen, Ctx, FormValues, ListItem, Viewport } from '../types.js'
 import type { CcsetError } from '../core/errors.js'
 import { t } from '../i18n/index.js'
@@ -7,7 +8,7 @@ import { AgentSelect, MainMenu } from './Menu.js'
 import { TerminalContext, useTerminal, type Terminal } from './terminal.js'
 import { Busy, Prompt, ScreenView, type ScreenHandlers } from './Views.js'
 import { useScreens } from './useScreens.js'
-import { useTerminalViewport, ViewportProvider } from './Viewport.js'
+import { useTerminalViewport, useViewport, ViewportProvider } from './Viewport.js'
 
 export interface AppProps {
   ctx: Ctx
@@ -136,7 +137,13 @@ export function App({
     <TerminalContext.Provider value={terminal}>
       <ViewportProvider viewport={viewport}>
         <Box flexDirection="column" padding={1}>
-          <Header title={headerTitle(screens.current?.title, agent, prompt)} />
+          <Header
+            segments={headerSegments(
+              screens.frames.map((frame) => frame.screen.title),
+              agent,
+              prompt,
+            )}
+          />
           {body()}
         </Box>
       </ViewportProvider>
@@ -144,18 +151,25 @@ export function App({
   )
 }
 
-function headerTitle(
-  screenTitle: string | undefined,
+function headerSegments(
+  frameTitles: string[],
   agent: Agent | null,
   prompt: PromptKind | null,
-): string {
-  if (prompt !== null) return t(`prompt.${prompt}Title`)
-  if (screenTitle !== undefined) return screenTitle
-  return agent === null ? t('menu.agentTitle') : t('app.agent', { name: agent.name })
+): string[] {
+  if (prompt !== null) return [t(`prompt.${prompt}Title`)]
+  if (frameTitles.length > 0) return frameTitles
+  return [agent === null ? t('menu.agentTitle') : t('app.agent', { name: agent.name })]
 }
 
-function Header({ title }: { title: string }): React.ReactElement {
-  const { colors, fold } = useTerminal()
+function Header({ segments }: { segments: string[] }): React.ReactElement {
+  const { colors, fold, glyphs } = useTerminal()
+  const { columns } = useViewport()
+  const separator = ` ${glyphs.pathSeparator} `
+  const fullPath = segments.join(separator)
+  const path =
+    segments.length > 2 && stringWidth(fold(fullPath)) > Math.max(1, columns - 2)
+      ? ['…', ...segments.slice(-2)].join(separator)
+      : fullPath
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Box>
@@ -164,7 +178,7 @@ function Header({ title }: { title: string }): React.ReactElement {
         </Text>
         <Text dimColor>{fold(`  ${t('app.tagline')}`)}</Text>
       </Box>
-      <Text bold>{fold(title)}</Text>
+      <Text bold>{fold(path)}</Text>
     </Box>
   )
 }

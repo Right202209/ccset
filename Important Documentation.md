@@ -287,6 +287,7 @@ Read-only checks, no build and no execution:
 | T11 | Fill in a provider form against a malformed target, save, then decline the "start fresh" question. | The form comes back with every field as typed, the token included; nothing was written; the backup directory did not grow. |
 | T12 | Save a form whose **first invalid field is advanced**, and one whose invalid field sits before an advanced field in the manifest. | The Advanced section expands and the cursor lands on the offending field itself. `ReviewForm.save` now maps through `rowIndexOf` because a manifest index equals a row index only while every advanced field trails the list; `PROVIDER_FIELDS` currently satisfies that, so a regression here would be silent until a manifest interleaves them. |
 | T13 | From the first editable row of each review form, press `Ctrl+S` in a real terminal (Linux and macOS). | The form follows the Save row's validation path: valid input writes, while an invalid hidden advanced field expands and receives focus. Enter still advances one row. Automated `verify:review-form` covers the component path; real-terminal evidence: Linux x64 PTY verified 2026-08-31. macOS verification remains pending before claiming the supported-platform check. |
+| T14 | Open a three-Frame path at wide and narrow terminal widths under the Unicode and ASCII capabilities. | The header names every Frame when it fits; once wider than the Viewport, it shows an ellipsis followed by the final two titles. Unicode uses `›`, ASCII uses `>`, and the top-level menu has no Frame path. Automated by `npm run verify:header-path`. |
 
 ### 9.4 Not built, by design
 
@@ -723,3 +724,14 @@ fit the column budget, and the ASCII paint contains only seven-bit characters.
 The existing focus/window scenarios still cover advanced expansion, validation
 hints and errors, and Save/Cancel reachability. `verify:ui-render` remains the
 full-application physical-width gate for narrow Unicode and ASCII paints.
+
+### 9.19 Frame path header (2026-08-31)
+
+`npm run verify:header-path` drives the real `App` through a three-Frame nested
+navigation using numbered key input. At 80 columns the header paints all three
+titles. At 50 columns a double-width CJK first title proves terminal display width,
+rather than JavaScript string length, triggers the ellipsis and retains the last
+two titles. The same drive runs under Unicode and ASCII Terminal capabilities,
+asserting `›` and `>` respectively, and checks that the top-level agent menu does
+not paint a Frame path. The implementation derives titles from the existing stack;
+it introduces no second navigation history.

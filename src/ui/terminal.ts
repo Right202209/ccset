@@ -28,6 +28,8 @@ export interface GlyphSet {
   radioOn: string
   radioOff: string
   mask: string
+  /** Separates Frame titles in the header's navigation path. */
+  pathSeparator: string
 }
 
 export interface ColorSet {
@@ -51,6 +53,7 @@ export const UNICODE_GLYPHS: GlyphSet = {
   radioOn: '(•)',
   radioOff: '( )',
   mask: '•',
+  pathSeparator: '›',
 }
 
 /**
@@ -63,6 +66,7 @@ export const ASCII_GLYPHS: GlyphSet = {
   radioOn: '(*)',
   radioOff: '( )',
   mask: '*',
+  pathSeparator: '>',
 }
 
 export const UNICODE_BUSY_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const
