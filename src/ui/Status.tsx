@@ -14,6 +14,7 @@ interface StatusViewProps {
 
 /** Read-only by construction: nothing here can write, only the items can. */
 export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactElement {
+  const { fold } = useTerminal()
   const options: SelectOption[] = screen.items.map((item) => ({
     id: item.id,
     label: item.label,
@@ -37,18 +38,18 @@ export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactEl
         </Box>
       )}
       <Box marginTop={1}>
-        <Text dimColor>{t('status.help')}</Text>
+        <Text dimColor>{fold(t('status.help'))}</Text>
       </Box>
     </Box>
   )
 }
 
 function SectionView({ section }: { section: StatusSection }): React.ReactElement {
-  const { colors } = useTerminal()
+  const { colors, fold } = useTerminal()
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Text bold color={colors.heading}>
-        {section.title}
+        {fold(section.title)}
       </Text>
       {section.lines.map((line) => (
         <Box key={`${section.title}:${line.label}`}>
@@ -57,14 +58,14 @@ function SectionView({ section }: { section: StatusSection }): React.ReactElemen
           </Box>
           <Box flexGrow={1} flexShrink={1}>
             <Text color={toneColor(colors, line.tone)} wrap="wrap">
-              {line.value}
+              {fold(line.value)}
             </Text>
           </Box>
         </Box>
       ))}
       {section.note !== undefined && (
         <Box paddingLeft={2}>
-          <Text dimColor>{section.note}</Text>
+          <Text dimColor>{fold(section.note)}</Text>
         </Box>
       )}
     </Box>

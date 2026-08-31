@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import packageJson from '../package.json'
-import { FILE_MODE, MASK_CHAR } from '../src/core/constants.js'
+import { FILE_MODE } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import {
   claudeDir,
@@ -84,24 +84,24 @@ async function driveProviderList(session: UiSession): Promise<void> {
 }
 
 /** The token sits unfocused here, so the review form paints maskSecret's form. */
-async function driveProviderForm(session: UiSession): Promise<void> {
+async function driveProviderForm(session: UiSession, terminal: Terminal): Promise<void> {
   await session.send(LIST_PROVIDER_ROW)
   const paint = await session.waitFor(t('action.providerEdit', { name: PROVIDER }))
   session.assertSingleFocus(paint, 'review form')
   assertPainted(paint, session.focusedRow(t('field.providerName')), 'The form does not focus row 1')
-  assertPainted(paint, maskSecret(TOKEN), 'The form does not carry the masked token')
+  assertPainted(paint, terminal.fold(maskSecret(TOKEN)), 'The form does not carry the masked token')
 }
 
 /** Focused, the same field becomes an editor -- which masks every character. */
-async function driveTokenEditor(session: UiSession): Promise<void> {
+async function driveTokenEditor(session: UiSession, terminal: Terminal): Promise<void> {
   await session.sendEach(DOWN, STEPS_TO_TOKEN_ROW)
-  const paint = await session.waitFor(MASK_CHAR.repeat(TOKEN.length))
+  const paint = await session.waitFor(terminal.glyphs.mask.repeat(TOKEN.length))
   session.assertSingleFocus(paint, 'token editor')
   const row = session.focusedRow(t('field.token'))
   assertPainted(paint, row, 'The editor does not focus the token row')
 }
 
-async function driveStatus(session: UiSession): Promise<void> {
+async function driveStatus(session: UiSession, terminal: Terminal): Promise<void> {
   await session.send(ESC)
   await session.waitFor(t('action.providerAddDetail'))
   await session.send(ESC)
@@ -109,7 +109,7 @@ async function driveStatus(session: UiSession): Promise<void> {
   await session.send(MENU_STATUS)
   const paint = await session.waitFor(t('status.providerTitle', { name: PROVIDER }))
   session.assertSingleFocus(paint, 'Status')
-  assertPainted(paint, maskSecret(TOKEN), 'The Status paint does not carry the masked token')
+  assertPainted(paint, terminal.fold(maskSecret(TOKEN)), 'The Status paint does not carry the masked token')
 }
 
 /** Never confirmed: the cursor is read, then Esc backs out, so no backup is cleared. */
@@ -129,11 +129,11 @@ async function driveConfirm(session: UiSession): Promise<void> {
  * A token never reaches a Rendered paint. Asserted over every paint rather than
  * the visited ones, so a transitional paint cannot leak what a settled one hides.
  */
-function assertTokenNeverPainted(paints: string[]): void {
+function assertTokenNeverPainted(paints: string[], terminal: Terminal): void {
   for (const paint of paints) {
     assert.equal(paint.includes(TOKEN), false, `The token reached a Rendered paint:\n${paint}`)
   }
-  const masked = paints.some((paint) => paint.includes(maskSecret(TOKEN)))
+  const masked = paints.some((paint) => paint.includes(terminal.fold(maskSecret(TOKEN))))
   assert.ok(masked, 'No paint carried the masked token, so nothing proved the mask was reached')
 }
 
@@ -145,7 +145,27 @@ function assertTestLibraryIsDevOnly(): void {
   assert.equal(shipped.includes(TEST_LIBRARY), false, `${TEST_LIBRARY} would ship in the artifact`)
 }
 
-const ASCII_PRINTABLE = /^[\x20-\x7e]+$/
+/** A glyph is one or more printable ASCII characters -- an empty glyph is not one. */
+const ASCII_GLYPH = /^[\x20-\x7e]+$/
+
+/**
+ * A paint spans lines, so the line breaks and tabs Ink emits are allowed beside
+ * printable ASCII -- and nothing else. `\s` would have admitted U+00A0, U+2028
+ * and U+3000, which are precisely the characters this assertion exists to catch.
+ */
+const ASCII_PAINT = /^[\x20-\x7e\n\r\t]*$/
+
+/**
+ * The seven-bit guarantee, asserted over every paint rather than the visited
+ * ones. Any paint site that forgets to fold turns this red on its own, which is
+ * what makes the fold safe to spread across the interface.
+ */
+function assertPaintsAreAscii(paints: string[]): void {
+  const unrenderable = 'A paint under the ASCII set carries a character it cannot draw'
+  for (const paint of paints) {
+    assert.match(paint, ASCII_PAINT, `${unrenderable}:\n${paint}`)
+  }
+}
 
 /**
  * The environment override, checked without touching process.env: the ASCII set
@@ -154,7 +174,7 @@ const ASCII_PRINTABLE = /^[\x20-\x7e]+$/
  */
 function assertGlyphSetsAreSelectable(): void {
   for (const [name, glyph] of Object.entries(ASCII_GLYPHS)) {
-    assert.ok(ASCII_PRINTABLE.test(glyph), `The ASCII glyph set's ${name} is not ASCII: ${glyph}`)
+    assert.ok(ASCII_GLYPH.test(glyph), `The ASCII glyph set's ${name} is not ASCII: ${glyph}`)
   }
   const ascii = resolveTerminal({ CCSET_ASCII: '1' })
   assert.equal(ascii, ASCII_TERMINAL, 'CCSET_ASCII=1 must select the ASCII set')
@@ -167,9 +187,9 @@ async function verifyRenderedPaints(home: string, set: string, terminal: Termina
   try {
     await driveMenu(session)
     await driveProviderList(session)
-    await driveProviderForm(session)
-    await driveTokenEditor(session)
-    await driveStatus(session)
+    await driveProviderForm(session, terminal)
+    await driveTokenEditor(session, terminal)
+    await driveStatus(session, terminal)
     await driveConfirm(session)
     session.assertNoFatal()
     const paints = session.paints()
@@ -177,7 +197,8 @@ async function verifyRenderedPaints(home: string, set: string, terminal: Termina
       paints.length >= MIN_PAINTS,
       `Only ${paints.length} ${set} paints were captured; the drive did not exercise the interface`,
     )
-    assertTokenNeverPainted(paints)
+    assertTokenNeverPainted(paints, terminal)
+    if (set === ASCII_SET) assertPaintsAreAscii(paints)
     session.assertFocusIsSingular()
     process.stdout.write(`  ${set} glyph set: ${paints.length} paints.\n`)
   } finally {
@@ -186,9 +207,10 @@ async function verifyRenderedPaints(home: string, set: string, terminal: Termina
 }
 
 /** Every set the drive runs against. Unicode first: it is what an unset environment gets. */
+const ASCII_SET = 'ASCII'
 const GLYPH_SETS: Array<[string, Terminal]> = [
   ['Unicode', UNICODE_TERMINAL],
-  ['ASCII', ASCII_TERMINAL],
+  [ASCII_SET, ASCII_TERMINAL],
 ]
 
 async function main(): Promise<void> {

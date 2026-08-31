@@ -19,8 +19,8 @@ const CANCEL_INDEX = 1
 
 /** Transient and informational, so it takes the info tone rather than a color of its own. */
 export function Busy(): React.ReactElement {
-  const { colors } = useTerminal()
-  return <Text color={colors.tone.info}>{t('app.busy')}</Text>
+  const { colors, fold } = useTerminal()
+  return <Text color={colors.tone.info}>{fold(t('app.busy'))}</Text>
 }
 
 function toOption(item: ListItem): SelectOption {
@@ -33,8 +33,9 @@ interface ListViewProps {
 }
 
 export function ListView({ screen, onSelect }: ListViewProps): React.ReactElement {
+  const { fold } = useTerminal()
   if (screen.items.length === 0) {
-    return <Text dimColor>{screen.empty ?? t('list.empty')}</Text>
+    return <Text dimColor>{fold(screen.empty ?? t('list.empty'))}</Text>
   }
   return (
     <Box flexDirection="column">
@@ -46,7 +47,7 @@ export function ListView({ screen, onSelect }: ListViewProps): React.ReactElemen
         }}
       />
       <Box marginTop={1}>
-        <Text dimColor>{t('menu.help')}</Text>
+        <Text dimColor>{fold(t('menu.help'))}</Text>
       </Box>
     </Box>
   )
@@ -58,7 +59,7 @@ interface MessageViewProps {
 }
 
 export function MessageView({ screen, onDone }: MessageViewProps): React.ReactElement {
-  const { colors } = useTerminal()
+  const { colors, fold } = useTerminal()
   useInput((_input, key) => {
     if (key.return) onDone()
   })
@@ -69,11 +70,11 @@ export function MessageView({ screen, onDone }: MessageViewProps): React.ReactEl
           key={`${position}:${line}`}
           color={position === 0 ? toneColor(colors, screen.tone) : undefined}
         >
-          {line}
+          {fold(line)}
         </Text>
       ))}
       <Box marginTop={1}>
-        <Text dimColor>{t('message.continue')}</Text>
+        <Text dimColor>{fold(t('message.continue'))}</Text>
       </Box>
     </Box>
   )
@@ -86,6 +87,7 @@ interface ConfirmViewProps {
 }
 
 export function ConfirmView({ screen, onConfirm, onCancel }: ConfirmViewProps): React.ReactElement {
+  const { fold } = useTerminal()
   const options: SelectOption[] = [
     { id: 'confirm', label: screen.confirmLabel, tone: 'warn' },
     { id: 'cancel', label: t('form.cancel') },
@@ -93,7 +95,7 @@ export function ConfirmView({ screen, onConfirm, onCancel }: ConfirmViewProps): 
   return (
     <Box flexDirection="column">
       {screen.lines.map((line, position) => (
-        <Text key={`${position}:${line}`}>{line}</Text>
+        <Text key={`${position}:${line}`}>{fold(line)}</Text>
       ))}
       <Box marginTop={1}>
         <SelectList
@@ -115,13 +117,14 @@ interface PromptProps {
 
 /** The unsaved-edits guard. Not an ActionResult: no agent produces it. */
 export function Prompt({ lineKey, confirmKey, onConfirm, onCancel }: PromptProps): React.ReactElement {
+  const { fold } = useTerminal()
   const options: SelectOption[] = [
     { id: 'confirm', label: t(confirmKey), tone: 'warn' },
     { id: 'cancel', label: t('prompt.stay') },
   ]
   return (
     <Box flexDirection="column">
-      <Text>{t(lineKey)}</Text>
+      <Text>{fold(t(lineKey))}</Text>
       <Box marginTop={1}>
         <SelectList
           options={options}

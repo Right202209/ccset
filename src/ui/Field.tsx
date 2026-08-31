@@ -2,7 +2,6 @@ import React from 'react'
 import { Box, Text } from 'ink'
 import TextInput from 'ink-text-input'
 import type { FieldSpec, FieldValue } from '../types.js'
-import { MASK_CHAR } from '../core/constants.js'
 import { maskSecret } from '../core/mask.js'
 import { t } from '../i18n/index.js'
 import { focusGutter, markerGutter, useTerminal } from './terminal.js'
@@ -20,7 +19,7 @@ export interface FieldRowProps {
 
 export function FieldRow(props: FieldRowProps): React.ReactElement {
   const { field, focused, changed, error } = props
-  const { glyphs, colors } = useTerminal()
+  const { glyphs, colors, fold } = useTerminal()
   const labelColor = focused ? colors.focus : undefined
   return (
     <Box flexDirection="column">
@@ -28,17 +27,17 @@ export function FieldRow(props: FieldRowProps): React.ReactElement {
         <Text color={labelColor}>{focusGutter(glyphs, focused)}</Text>
         <Box width={LABEL_WIDTH}>
           <Text color={labelColor} bold={focused}>
-            {t(field.labelKey)}
+            {fold(t(field.labelKey))}
           </Text>
         </Box>
         <Text color={colors.tone.warn}>{markerGutter(glyphs.changed, changed)}</Text>
         <FieldValueView {...props} />
       </Box>
-      {focused && field.helpKey !== undefined && <Hint text={t(field.helpKey)} />}
+      {focused && field.helpKey !== undefined && <Hint text={fold(t(field.helpKey))} />}
       {focused && field.suggestions !== undefined && (
-        <Hint text={t('hint.suggestions', { list: field.suggestions.join(', ') })} />
+        <Hint text={fold(t('hint.suggestions', { list: field.suggestions.join(', ') }))} />
       )}
-      {error !== undefined && <Hint text={t(error)} color={colors.tone.error} />}
+      {error !== undefined && <Hint text={fold(t(error))} color={colors.tone.error} />}
     </Box>
   )
 }
@@ -62,6 +61,7 @@ function FieldValueView(props: FieldRowProps): React.ReactElement {
 
 /** Text, secret and csv share one editor; only the display differs. */
 function TextValue({ field, value, focused, onChange }: FieldRowProps): React.ReactElement {
+  const { glyphs, fold } = useTerminal()
   const text = typeof value === 'string' ? value : ''
   if (focused && field.readOnly !== true) {
     return (
@@ -69,19 +69,19 @@ function TextValue({ field, value, focused, onChange }: FieldRowProps): React.Re
         value={text}
         onChange={onChange}
         focus
-        mask={field.type === 'secret' ? MASK_CHAR : undefined}
-        placeholder={t('hint.empty')}
+        mask={field.type === 'secret' ? glyphs.mask : undefined}
+        placeholder={fold(t('hint.empty'))}
       />
     )
   }
   const shown = field.type === 'secret' ? maskSecret(text) : text
-  if (shown.length === 0) return <Text dimColor>{t('status.unset')}</Text>
-  return <Text dimColor={field.readOnly === true}>{shown}</Text>
+  if (shown.length === 0) return <Text dimColor>{fold(t('status.unset'))}</Text>
+  return <Text dimColor={field.readOnly === true}>{fold(shown)}</Text>
 }
 
 function ChoiceValue({ field, value, focused }: FieldRowProps): React.ReactElement {
   const current = typeof value === 'string' ? value : ''
-  const { glyphs, colors } = useTerminal()
+  const { glyphs, colors, fold } = useTerminal()
   const selectedColor = focused ? colors.focus : colors.tone.success
   return (
     <Box>
@@ -92,7 +92,7 @@ function ChoiceValue({ field, value, focused }: FieldRowProps): React.ReactEleme
             dimColor={choice.value !== current}
           >
             {`${choice.value === current ? glyphs.radioOn : glyphs.radioOff} `}
-            {t(choice.labelKey)}
+            {fold(t(choice.labelKey))}
           </Text>
         </Box>
       ))}
@@ -102,11 +102,11 @@ function ChoiceValue({ field, value, focused }: FieldRowProps): React.ReactEleme
 
 function BooleanValue({ value, focused }: FieldRowProps): React.ReactElement {
   const on = value === true
-  const { colors } = useTerminal()
+  const { colors, fold } = useTerminal()
   return (
     <Text color={focused ? colors.focus : on ? colors.tone.success : undefined}>
-      {on ? t('choice.on') : t('choice.off')}
-      <Text dimColor>{focused ? t('hint.toggle') : ''}</Text>
+      {fold(on ? t('choice.on') : t('choice.off'))}
+      <Text dimColor>{focused ? fold(t('hint.toggle')) : ''}</Text>
     </Text>
   )
 }

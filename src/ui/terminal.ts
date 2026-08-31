@@ -14,9 +14,10 @@ import { createContext, useContext } from 'react'
 import type { MessageTone } from '../types.js'
 
 /**
- * Decorative glyphs only. The mask character is not here: it is load-bearing
- * (`core/mask.ts` builds masked values an agent puts into Status data) and the
- * agent layer knows nothing about the terminal.
+ * Decorative glyphs, plus the character the secret editor masks with. `MASK_CHAR`
+ * in `core/constants.ts` still owns what `maskSecret()` produces, because that
+ * output is Status *data* an agent assembles and the agent layer knows nothing
+ * about the terminal. `fold` is what reconciles the two at paint time.
  */
 export interface GlyphSet {
   /** Marks the row Enter acts on. Exactly one row of a paint carries it. */
@@ -26,6 +27,7 @@ export interface GlyphSet {
   /** The selected and unselected states of a choice field. */
   radioOn: string
   radioOff: string
+  mask: string
 }
 
 export interface ColorSet {
@@ -39,6 +41,7 @@ export interface ColorSet {
 export interface Terminal {
   glyphs: GlyphSet
   colors: ColorSet
+  fold: (text: string) => string
 }
 
 export const UNICODE_GLYPHS: GlyphSet = {
@@ -46,6 +49,7 @@ export const UNICODE_GLYPHS: GlyphSet = {
   changed: '*',
   radioOn: '(•)',
   radioOff: '( )',
+  mask: '•',
 }
 
 /**
@@ -57,7 +61,37 @@ export const ASCII_GLYPHS: GlyphSet = {
   changed: '*',
   radioOn: '(*)',
   radioOff: '( )',
+  mask: '*',
 }
+
+/**
+ * The non-ASCII characters `src/i18n/en.ts` actually uses, each mapped to what a
+ * seven-bit terminal can draw. Only these are mapped: a catalog in another
+ * language has to pass through untouched rather than be transliterated.
+ */
+const ASCII_FOLDS: Record<string, string> = {
+  '↑': '^',
+  '↓': 'v',
+  '←': '<',
+  '→': '>',
+  '·': '.',
+  '—': '--',
+  '…': '...',
+  '•': '*',
+}
+
+/**
+ * Built from the keys so adding a fold cannot forget to widen the pattern. Every
+ * key is non-ASCII, so none of them can be a character class metacharacter.
+ */
+const FOLDABLE = new RegExp(`[${Object.keys(ASCII_FOLDS).join('')}]`, 'g')
+
+function foldAscii(text: string): string {
+  return text.replace(FOLDABLE, (character) => ASCII_FOLDS[character] ?? character)
+}
+
+/** The Unicode terminal draws the catalog as written. */
+const identity = (text: string): string => text
 
 /**
  * One color set, shared by both glyph sets: what the terminal can *draw* and what
@@ -74,8 +108,8 @@ export const COLORS: ColorSet = {
   },
 }
 
-export const UNICODE_TERMINAL: Terminal = { glyphs: UNICODE_GLYPHS, colors: COLORS }
-export const ASCII_TERMINAL: Terminal = { glyphs: ASCII_GLYPHS, colors: COLORS }
+export const UNICODE_TERMINAL: Terminal = { glyphs: UNICODE_GLYPHS, colors: COLORS, fold: identity }
+export const ASCII_TERMINAL: Terminal = { glyphs: ASCII_GLYPHS, colors: COLORS, fold: foldAscii }
 
 /**
  * CCSET_ASCII=1 for a terminal that cannot draw the Unicode set, following the

@@ -59,7 +59,7 @@ async function verifySecretFieldMaskingContract(): Promise<void> {
     path.join(process.cwd(), 'node_modules/ink-text-input/build/index.d.ts'),
     'utf8',
   )
-  assert.match(fieldSource, /mask=\{field\.type === 'secret' \? MASK_CHAR : undefined\}/)
+  assert.match(fieldSource, /mask=\{field\.type === 'secret' \? glyphs\.mask : undefined\}/)
   assert.match(fieldSource, /field\.type === 'secret' \? maskSecret\(text\) : text/)
   assert.match(inputTypes, /mask\?: string/)
 }

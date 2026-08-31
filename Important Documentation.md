@@ -574,3 +574,75 @@ in `cli.tsx`:
 | `CCSET_ASCII=1` | `❯` absent, `> 1. Global settings` painted | `(*)` / `( )` |
 | `CCSET_ASCII=0` | `❯` present — only `1` switches | `(•)` / `( )` |
 
+### 9.15 Terminal folding closes the seven-bit gap (2026-08-31)
+
+§9.14 recorded `CCSET_ASCII=1` as switching four decorative glyphs and named the
+gap that left: a paint still carried `↑↓ · ←→` from the help lines and `•` from
+`MASK_CHAR`, so the console the flag exists for still got replacement glyphs.
+That gap is now closed. `Terminal` carries a `fold`, identity for the Unicode set
+and a punctuation map for the ASCII set, applied at the UI paint boundaries; and
+the glyph set carries the `mask` character the secret editor draws with.
+
+`MASK_CHAR` stayed in `core/constants.ts` and `maskSecret()` is unchanged —
+signature, visible-character count and fixed-width middle all identical. Its
+output is Status *data* an agent assembles, and the agent layer knows nothing
+about the terminal, so the fold converts the `•` run at paint time instead. The
+fold maps only the characters `en.ts` actually uses and passes everything else
+through, so a future non-English catalog is not transliterated.
+
+`verify:ui-render` asserts every Rendered paint of the ASCII run matches
+`` `/^[\x20-\x7e\n\r\t]*$/` `` — Ink's line breaks and tabs beside printable
+ASCII, and nothing else. `\s` was rejected for that character class because it
+admits U+00A0, U+2028 and U+3000, which are exactly what the assertion exists to
+catch. The Unicode run is left unrestricted.
+
+Proven capable of failing. Removing the fold from `menu.help` — a paint no other
+assertion depends on, so only this one can catch it — gave:
+
+| Glyph set | Gate result |
+| --- | --- |
+| Unicode | green, 25 paints: the assertion does not fire on the Unicode run |
+| ASCII | red: `A paint under the ASCII set carries a character it cannot draw`, and the reported paint showed `↑↓ move · 1-9 jump …` unfolded while the same paint's focus marker was already `>` |
+
+The fold was restored (`git diff --stat` back to its pre-experiment 5/4) and both
+runs returned green.
+
+End-to-end through the built artifact, since the render gate mounts `App`
+directly and never executes `resolveTerminal()`. `dist/cli.js` driven in a real
+PTY, ANSI stripped, every code point above U+007E collected:
+
+| Environment | Code points above U+007E in the paint |
+| --- | --- |
+| unset | `U+00B7 ·`, `U+2014 —`, `U+2191 ↑`, `U+2193 ↓`, `U+276F ❯` |
+| `CCSET_ASCII=1` | none |
+
+Review of the first implementation found four defects, all fixed before this
+entry was written:
+
+- `useTerminal()` was called inline in JSX in three places, one of them inside a
+  `notes.map()` callback in `FormNotes`, which returns `null` above that map.
+  The hook therefore ran zero times on some renders and once per note on others
+  — React's "rendered more hooks than during the previous render". Hoisted above
+  the early return in all three.
+- `FieldValueView` destructured `glyphs` and `fold` and used neither.
+- The paint regex had been reused for the per-glyph ASCII check with a `*`
+  quantifier, which silently made an **empty** glyph pass. Split into
+  `ASCII_GLYPH` (`+`) and `ASCII_PAINT` (`*`).
+- The fold's character class was written out a second time beside the map, so
+  adding a fold could silently fail to apply. It is now built from the keys.
+
+`npm run typecheck`, `npm run build` and all six gates pass on Linux x64 / Node
+20.19.5, run sequentially. Sequentially matters: run in parallel, the gates fail
+spuriously, because each one is `tsup --clean` against the shared `dist/` and
+`.verify/` directories, so one run empties what another is reading — that
+presents as `verify:status-terminal` seeing an empty `--version` and
+`verify:release-artifact` finding no tarball. Neither is a regression.
+
+Known limit, accepted: the fold applies to agent-provided values as well as
+catalog strings, so under `CCSET_ASCII=1` a value containing one of the folded
+characters paints folded. For the copy-ready `claude --settings <path>` line of
+F9 that means a path containing, say, an em-dash would print with `--` and would
+not run as printed. No such path occurs in any fixture, and the alternative —
+folding catalog text but not the masked values that arrive as data — would
+reopen the gap this entry closes.
+

@@ -68,19 +68,19 @@ interface SelectRowProps {
 }
 
 function SelectRow({ option, position, focused }: SelectRowProps): React.ReactElement {
-  const { glyphs, colors } = useTerminal()
+  const { glyphs, colors, fold } = useTerminal()
   const color = focused ? colors.focus : toneColor(colors, option.tone)
   return (
     <Box>
       <Text color={color}>{focusGutter(glyphs, focused)}</Text>
       <Text dimColor>{position < 9 ? `${position + 1}. ` : '   '}</Text>
       <Text color={color} bold={focused}>
-        {option.label}
+        {fold(option.label)}
       </Text>
       {option.detail !== undefined && (
         <Box flexGrow={1} flexShrink={1}>
           <Text dimColor wrap="wrap">
-            {`  ${option.detail}`}
+            {fold(`  ${option.detail}`)}
           </Text>
         </Box>
       )}

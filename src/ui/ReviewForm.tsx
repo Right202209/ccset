@@ -140,6 +140,8 @@ export function ReviewForm({
     if (row?.kind === 'field') cycle(row.field, delta)
   }
 
+  const { fold } = useTerminal()
+
   return (
     <Box flexDirection="column">
       <FormNotes notes={screen.notes} />
@@ -153,7 +155,7 @@ export function ReviewForm({
         />
       ))}
       <Box marginTop={1}>
-        <Text dimColor>{t('form.help')}</Text>
+        <Text dimColor>{fold(t('form.help'))}</Text>
       </Box>
     </Box>
   )
@@ -168,12 +170,15 @@ function rowKey(row: Row, position: number): string {
 }
 
 function FormNotes({ notes }: { notes?: string[] }): React.ReactElement | null {
+  // Above the early return: a hook called once per note, or not at all, changes
+  // the hook count between renders.
+  const { fold } = useTerminal()
   if (notes === undefined || notes.length === 0) return null
   return (
     <Box flexDirection="column" marginBottom={1}>
       {notes.map((note) => (
         <Text key={note} dimColor>
-          {note}
+          {fold(note)}
         </Text>
       ))}
     </Box>

@@ -27,12 +27,12 @@ function actionOption(action: Action): SelectOption {
 export function MainMenu({ agent, detected, onRun, onExit }: MainMenuProps): React.ReactElement {
   const actions = useMemo(() => agent.getActions(), [agent])
   const options = [...actions.map(actionOption), { id: EXIT_ID, label: t('menu.exit') }]
-  const { colors } = useTerminal()
+  const { colors, fold } = useTerminal()
   return (
     <Box flexDirection="column">
       {detected === false && (
         <Box marginBottom={1}>
-          <Text color={colors.tone.warn}>{t('menu.notDetected')}</Text>
+          <Text color={colors.tone.warn}>{fold(t('menu.notDetected'))}</Text>
         </Box>
       )}
       <SelectList
@@ -44,7 +44,7 @@ export function MainMenu({ agent, detected, onRun, onExit }: MainMenuProps): Rea
         }}
       />
       <Box marginTop={1}>
-        <Text dimColor>{t('menu.help')}</Text>
+        <Text dimColor>{fold(t('menu.help'))}</Text>
       </Box>
     </Box>
   )
@@ -61,6 +61,7 @@ interface AgentSelectProps {
  * ccset enters it directly rather than asking a question with one answer.
  */
 export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): React.ReactElement {
+  const { fold } = useTerminal()
   const options = [
     ...agents.map((agent) => ({ id: agent.id, label: agent.name })),
     { id: EXIT_ID, label: t('menu.exit') },
@@ -77,7 +78,7 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
         }}
       />
       <Box marginTop={1}>
-        <Text dimColor>{t('menu.help')}</Text>
+        <Text dimColor>{fold(t('menu.help'))}</Text>
       </Box>
     </Box>
   )
