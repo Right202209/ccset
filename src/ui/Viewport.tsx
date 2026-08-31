@@ -6,6 +6,7 @@ import { useTerminal } from './terminal.js'
 
 const DEFAULT_ROWS = 24
 const DEFAULT_COLUMNS = 80
+const WINDOW_COUNT_ROWS = 1
 
 const ViewportContext = createContext<Viewport>({ rows: DEFAULT_ROWS, columns: DEFAULT_COLUMNS })
 
@@ -87,7 +88,9 @@ export function WindowRegion({
   children: React.ReactNode
 }): React.ReactElement {
   const viewport = useViewport()
-  const countRows = window.total > window.items.length ? 1 : 0
+  const countRows = window.total > window.items.length && rows > WINDOW_COUNT_ROWS
+    ? WINDOW_COUNT_ROWS
+    : 0
   const bounded = countRows > 0 || viewport.columns < 60
   return (
     <Box flexDirection="column" width={Math.max(1, viewport.columns - 2)}>
@@ -98,7 +101,7 @@ export function WindowRegion({
       >
         {children}
       </Box>
-      <WindowCount window={window} />
+      {countRows > 0 && <WindowCount window={window} />}
     </Box>
   )
 }
