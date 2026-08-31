@@ -6,6 +6,8 @@ compatibility evidence, and maintenance commitments.
 
 ## Language
 
+### Scope and maintenance
+
 **Core user**:
 An individual developer configuring a coding agent to use a third-party
 Anthropic-compatible API service.
@@ -62,3 +64,29 @@ _Avoid_: Ordinary bug, known limitation
 The interactive path from launching ccset through reading, reviewing, and safely
 writing a configuration, including the resulting activation command.
 _Avoid_: Every menu action, exhaustive manual test suite
+
+### Interface
+
+**Screen**:
+The data an Action returns for the core user to act on — one of form, list, status,
+confirm, or message. The component that renders one is a View, never a Screen.
+_Avoid_: Page, dialog
+
+**Frame**:
+One Screen on the navigation stack. Esc pops a Frame.
+_Avoid_: Rendered paint, history entry
+
+**Rendered paint**:
+One draw of the terminal. Distinct from a Frame, which is a position in navigation
+rather than a moment in rendering.
+_Avoid_: Frame, screenshot
+
+**Viewport**:
+The row and column budget a windowed region is cut to. ccset does not own the whole
+terminal, so a Viewport bounds a region, never the application.
+_Avoid_: Screen size, full screen
+
+**Terminal capability**:
+What the terminal in front of the core user can render: the glyph set and the color
+set. It is a property of the environment, not a user preference.
+_Avoid_: Theme, style
