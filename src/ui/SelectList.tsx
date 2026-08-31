@@ -29,6 +29,7 @@ export function SelectList({
 }: SelectListProps): React.ReactElement {
   const [index, setIndex] = useState(initialIndex)
   const count = options.length
+  const { fold } = useTerminal()
 
   useInput((input, key) => {
     if (count === 0) return
@@ -45,7 +46,7 @@ export function SelectList({
     onSelect(option, target)
   }
 
-  if (count === 0) return <Text dimColor>{t('list.empty')}</Text>
+  if (count === 0) return <Text dimColor>{fold(t('list.empty'))}</Text>
 
   return (
     <Box flexDirection="column">

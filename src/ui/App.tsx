@@ -144,16 +144,16 @@ function headerTitle(
 }
 
 function Header({ title }: { title: string }): React.ReactElement {
-  const { colors } = useTerminal()
+  const { colors, fold } = useTerminal()
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Box>
         <Text bold color={colors.heading}>
-          {t('app.title')}
+          {fold(t('app.title'))}
         </Text>
-        <Text dimColor>{`  ${t('app.tagline')}`}</Text>
+        <Text dimColor>{fold(`  ${t('app.tagline')}`)}</Text>
       </Box>
-      <Text bold>{title}</Text>
+      <Text bold>{fold(title)}</Text>
     </Box>
   )
 }

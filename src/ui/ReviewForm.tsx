@@ -225,13 +225,13 @@ function ControlRow({ kind, focused, showAdvanced }: ControlRowProps): React.Rea
     kind === 'advanced'
       ? t(showAdvanced ? 'form.hideAdvanced' : 'form.showAdvanced')
       : t(kind === 'save' ? 'form.save' : 'form.cancel')
-  const { glyphs, colors } = useTerminal()
+  const { glyphs, colors, fold } = useTerminal()
   const color = focused ? colors.focus : kind === 'save' ? colors.tone.success : undefined
   return (
     <Box marginTop={kind === 'advanced' ? 1 : 0}>
       <Text color={color} bold={focused}>
         {focusGutter(glyphs, focused)}
-        {label}
+        {fold(label)}
       </Text>
     </Box>
   )

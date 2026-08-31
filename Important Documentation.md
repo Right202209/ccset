@@ -646,3 +646,45 @@ not run as printed. No such path occurs in any fixture, and the alternative —
 folding catalog text but not the masked values that arrive as data — would
 reopen the gap this entry closes.
 
+### 9.16 Folding reaches the last paint sites (2026-08-31)
+
+§9.15 applied `fold` at the UI paint boundaries. Review before merge found five
+paint sites it had not reached: the header's screen title, application title and
+tagline (`App.tsx`), the agent-select title (`Menu.tsx`), a Status line's label
+(`Status.tsx` — whose value, note and section title were already folded), the
+review form's control-row labels (`ReviewForm.tsx`), and `SelectList`'s empty-list
+line. Every one of those catalog strings is seven-bit today, so no paint changed
+and the gate was green before the fix as well as after. What changed is the rule:
+every paint site folds, rather than every paint site whose string happens to be
+ASCII this week.
+
+Proven capable of failing, since a fix that changes no paint has to be shown to
+be load-bearing. `app.tagline` was temporarily given an em dash — the header is
+painted on every Screen, and no other assertion reads it:
+
+| Header fold | Gate result |
+| --- | --- |
+| present | green, 25 paints per glyph set |
+| removed | Unicode green; ASCII red, `A paint under the ASCII set carries a character it cannot draw` |
+
+Both the fold and the tagline were restored, and `git diff src/i18n/` is empty.
+
+Two paint sites stay unfolded on purpose. The focus and changed gutters come from
+the glyph set itself, which the ASCII set already guarantees is `\x20-\x7e`. And
+the value inside a focused text editor is the core user's own input — folding what
+someone is typing would rewrite it under the cursor, and a secret is masked there
+by the glyph set rather than shown.
+
+`npm run typecheck`, `npm run build` and all six verify gates pass on Linux x64 /
+Node 20.19.5, run sequentially.
+
+One flake worth recording rather than papering over. `npm run verify:malformed-dirty`
+failed on its first run of this session and passed on the four later runs — one
+immediately after, three back to back. The failure was in the run's second PTY
+session, which timed out after its 5-second budget waiting for the main menu with
+**empty** output: the built CLI had painted nothing at all. The first run is the
+cold one, spawning `python3`, a `pty.fork()` and a cold `node dist/cli.js`, so the
+5-second first-paint budget is the suspect rather than anything in ccset — the
+earlier phase of that same run, which exercises the malformed-target confirm and
+the backup, had already passed. Left as it is: a longer budget is the fix if it
+recurs, but it also buys a slower red.

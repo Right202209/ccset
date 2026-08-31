@@ -54,7 +54,7 @@ function SectionView({ section }: { section: StatusSection }): React.ReactElemen
       {section.lines.map((line) => (
         <Box key={`${section.title}:${line.label}`}>
           <Box width={LABEL_WIDTH}>
-            <Text dimColor>{`  ${line.label}`}</Text>
+            <Text dimColor>{fold(`  ${line.label}`)}</Text>
           </Box>
           <Box flexGrow={1} flexShrink={1}>
             <Text color={toneColor(colors, line.tone)} wrap="wrap">

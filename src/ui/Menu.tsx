@@ -68,7 +68,7 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
   ]
   return (
     <Box flexDirection="column">
-      <Text bold>{t('menu.agentTitle')}</Text>
+      <Text bold>{fold(t('menu.agentTitle'))}</Text>
       <SelectList
         options={options}
         onSelect={(option, index) => {
