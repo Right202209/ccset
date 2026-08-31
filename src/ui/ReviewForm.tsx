@@ -4,7 +4,7 @@ import type { FieldSpec, FieldValue, FormScreen, FormValues } from '../types.js'
 import { t } from '../i18n/index.js'
 import { FieldRow } from './Field.js'
 import { focusGutter, useTerminal } from './terminal.js'
-import { helpFor } from './keymap.js'
+import { helpFor, pressed } from './keymap.js'
 
 type Row =
   | { kind: 'field'; field: FieldSpec }
@@ -127,7 +127,8 @@ export function ReviewForm({
 
   useInput(
     (input, key) => {
-      if (key.upArrow) move(-1)
+      if (pressed(input, key).includes('ctrl+s')) save()
+      else if (key.upArrow) move(-1)
       else if (key.downArrow || key.tab) move(1)
       else if (key.return) activate()
       else if (editing) return

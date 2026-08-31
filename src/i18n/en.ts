@@ -14,7 +14,7 @@ export const en: Record<string, string> = {
   'menu.exit': 'Exit',
   'menu.help': '↑↓ move · 1-9 jump · enter select · esc back',
   'key.moveUp': 'move up', 'key.moveDown': 'move down', 'key.jump': 'jump', 'key.select': 'select', 'key.back': 'back',
-  'key.change': 'change', 'key.next': 'next', 'key.cancel': 'cancel', 'key.continue': 'continue', 'key.choose': 'choose', 'key.confirm': 'confirm',
+  'key.change': 'change', 'key.next': 'next', 'key.save': 'save', 'key.cancel': 'cancel', 'key.continue': 'continue', 'key.choose': 'choose', 'key.confirm': 'confirm',
   'menu.notDetected': 'No ~/.claude found yet — ccset will create what it needs.',
   'menu.agentTitle': 'Select an agent',
 
