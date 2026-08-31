@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import type {
   ActionResult,
@@ -18,9 +18,18 @@ import { toneColor, useTerminal } from './terminal.js'
 const CANCEL_INDEX = 1
 
 /** Transient and informational, so it takes the info tone rather than a color of its own. */
-export function Busy(): React.ReactElement {
-  const { colors, fold } = useTerminal()
-  return <Text color={colors.tone.info}>{fold(t('app.busy'))}</Text>
+export function Busy({ label }: { label?: string }): React.ReactElement {
+  const { busyFrames, colors, fold } = useTerminal()
+  const [frame, setFrame] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setFrame((current) => (current + 1) % busyFrames.length), 80)
+    return () => clearInterval(timer)
+  }, [busyFrames])
+  return (
+    <Text color={colors.tone.info}>
+      {busyFrames[frame]} {fold(label ?? t('app.busy'))}
+    </Text>
+  )
 }
 
 function toOption(item: ListItem): SelectOption {

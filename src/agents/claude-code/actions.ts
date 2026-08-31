@@ -9,7 +9,7 @@ import type {
 import { clearBackups } from '../../core/backup.js'
 import { readJsonFile } from '../../core/json-file.js'
 import { maskSecret } from '../../core/mask.js'
-import { globalSettingsPath } from '../../core/paths.js'
+import { globalSettingsPath, providerSettingsPath } from '../../core/paths.js'
 import { t } from '../../i18n/index.js'
 import { seedGlobal, seedGlobalFromDisk, saveGlobal } from './global.js'
 import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
@@ -30,8 +30,13 @@ async function openGlobal(ctx: Ctx): Promise<ActionResult> {
     values: seedGlobal(file.data),
     baseline: seedGlobalFromDisk(file.data),
     notes: [t('note.globalPath', { path: globalSettingsPath(ctx.home) }), t('note.preserved')],
+    busyLabel: () => t('app.busyWriting', { path: globalSettingsPath(ctx.home) }),
     submit: async (values: FormValues) =>
-      runSave('write.globalSaved', (fresh) => saveGlobal(ctx, values, fresh)),
+      runSave(
+        'write.globalSaved',
+        (fresh) => saveGlobal(ctx, values, fresh),
+        t('app.busyWriting', { path: globalSettingsPath(ctx.home) }),
+      ),
   }
 }
 
@@ -55,8 +60,18 @@ function providerForm(ctx: Ctx, record: ProviderRecord | null): ActionResult {
     values,
     baseline: { ...values },
     notes: [t('note.providerPath'), t('note.preserved')],
+    busyLabel: (next) =>
+      t('app.busyWriting', {
+        path: providerSettingsPath(ctx.home, String(next['name'] ?? '').trim()),
+      }),
     submit: async (next: FormValues) =>
-      runSave('write.providerSaved', (fresh) => saveProvider(ctx, next, fresh)),
+      runSave(
+        'write.providerSaved',
+        (fresh) => saveProvider(ctx, next, fresh),
+        t('app.busyWriting', {
+          path: providerSettingsPath(ctx.home, String(next['name'] ?? '').trim()),
+        }),
+      ),
   }
 }
 
@@ -179,6 +194,7 @@ function probeConfirm(record: ProviderRecord): ActionResult {
       t('confirm.testWarning'),
     ],
     confirmLabel: t('confirm.send'),
+    busyLabel: t('app.busyConnecting', { host: probeHost(record.baseUrl) }),
     confirm: async () => {
       const result = await probeEndpoint(record)
       return {
