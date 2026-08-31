@@ -27,6 +27,12 @@ export interface Ctx {
   home: string
 }
 
+/** Terminal budget used to cut long interface regions. */
+export interface Viewport {
+  rows: number
+  columns: number
+}
+
 /* ------------------------------------------------------------------ forms */
 
 export type FieldType = 'text' | 'secret' | 'choice' | 'boolean' | 'csv'

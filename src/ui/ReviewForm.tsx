@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import type { FieldSpec, FieldValue, FormScreen, FormValues } from '../types.js'
 import { t } from '../i18n/index.js'
-import { FieldRow } from './Field.js'
+import { FieldRow, fieldHints } from './Field.js'
 import { focusGutter, useTerminal } from './terminal.js'
 import { helpFor, pressed } from './keymap.js'
+import { useViewport, WindowRegion, windowAround } from './Viewport.js'
 
 type Row =
   | { kind: 'field'; field: FieldSpec }
@@ -69,9 +70,19 @@ export function ReviewForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [index, setIndex] = useState(0)
+  const viewport = useViewport()
+  const { colors, fold } = useTerminal()
 
   const rows = useMemo(() => buildRows(screen.fields, showAdvanced), [screen.fields, showAdvanced])
+  const compact = viewport.rows < 16 || viewport.columns < 60
   const row = rows[Math.min(index, rows.length - 1)]
+  const hint = formHint(row, errors)
+  const noteCount = screen.notes?.length ?? 0
+  const notesRows = compact || noteCount === 0 ? 0 : noteCount + 1
+  const footerRows = compact ? 0 : 2
+  const hintRows = hint === null ? 0 : 1
+  const rowBudget = Math.max(2, viewport.rows - 5 - notesRows - footerRows - hintRows)
+  const window = windowAround(rows, index, rowBudget)
   const editing = row?.kind === 'field' && isTextual(row.field)
 
   useEffect(() => {
@@ -142,23 +153,44 @@ export function ReviewForm({
     if (row?.kind === 'field') cycle(row.field, delta)
   }
 
-  const { fold } = useTerminal()
-
   return (
     <Box flexDirection="column">
-      <FormNotes notes={screen.notes} />
-      {rows.map((current, position) => (
-        <FormRow
-          key={rowKey(current, position)}
-          row={current}
-          focused={active && position === index}
-          state={{ values, errors, baseline: screen.baseline, showAdvanced }}
-          onChange={update}
-        />
-      ))}
-      <Box marginTop={1}>
-        <Text dimColor>{fold(helpFor('form'))}</Text>
-      </Box>
+      {!compact && <FormNotes notes={screen.notes} />}
+      <WindowRegion window={window} rows={rowBudget}>
+        {window.items.map((current, visiblePosition) => {
+          const position = window.start + visiblePosition
+          return (
+            <Box
+              key={rowKey(current, position)}
+              height={1}
+              overflow="hidden"
+            >
+              <FormRow
+                row={current}
+                focused={active && position === index}
+                state={{ values, errors, baseline: screen.baseline, showAdvanced }}
+                onChange={update}
+              />
+            </Box>
+          )
+        })}
+      </WindowRegion>
+      {hint !== null && (
+        <Box height={1} overflow="hidden">
+          <Text
+            color={hint.tone === undefined ? undefined : colors.tone[hint.tone]}
+            dimColor={hint.tone === undefined}
+            wrap="truncate-end"
+          >
+            {fold(hint.text)}
+          </Text>
+        </Box>
+      )}
+      {!compact && (
+        <Box marginTop={1}>
+          <Text dimColor>{fold(helpFor('form'))}</Text>
+        </Box>
+      )}
     </Box>
   )
 }
@@ -172,19 +204,27 @@ function rowKey(row: Row, position: number): string {
 }
 
 function FormNotes({ notes }: { notes?: string[] }): React.ReactElement | null {
-  // Above the early return: a hook called once per note, or not at all, changes
-  // the hook count between renders.
   const { fold } = useTerminal()
   if (notes === undefined || notes.length === 0) return null
   return (
     <Box flexDirection="column" marginBottom={1}>
-      {notes.map((note) => (
-        <Text key={note} dimColor>
-          {fold(note)}
-        </Text>
+      {notes.map((note, position) => (
+        <Box key={`${position}:${note}`} height={1} overflow="hidden">
+          <Text dimColor wrap="truncate-end">{fold(note)}</Text>
+        </Box>
       ))}
     </Box>
   )
+}
+
+function formHint(
+  row: Row | undefined,
+  errors: Record<string, string>,
+): ReturnType<typeof fieldHints>[number] | null {
+  if (row?.kind !== 'field') return null
+  const error = errors[row.field.id]
+  const hints = fieldHints(row.field, error !== undefined && error.length > 0 ? error : undefined)
+  return hints.find((hint) => hint.tone === 'error') ?? hints[0] ?? null
 }
 
 interface FormRowProps {
@@ -208,6 +248,7 @@ function FormRow({ row, focused, state, onChange }: FormRowProps): React.ReactEl
         value={state.values[row.field.id] ?? ''}
         focused={focused}
         changed={textOf(state.values[row.field.id]) !== textOf(state.baseline[row.field.id])}
+        showHints={false}
         error={error !== undefined && error.length > 0 ? error : undefined}
         onChange={(next) => onChange(row.field, next)}
       />
@@ -230,7 +271,7 @@ function ControlRow({ kind, focused, showAdvanced }: ControlRowProps): React.Rea
   const { glyphs, colors, fold } = useTerminal()
   const color = focused ? colors.focus : kind === 'save' ? colors.tone.success : undefined
   return (
-    <Box marginTop={kind === 'advanced' ? 1 : 0}>
+    <Box>
       <Text color={color} bold={focused}>
         {focusGutter(glyphs, focused)}
         {fold(label)}

@@ -85,6 +85,7 @@ export const en: Record<string, string> = {
 
   /* ------------------------------------------------------------------ list */
   'list.empty': 'Nothing to show.',
+  'list.count': 'Showing {start}-{end} of {total}',
 
   /* ---------------------------------------------------------------- status */
   'status.stateTitle': 'Claude Code state (~/.claude.json)',

@@ -5,6 +5,7 @@ import { App } from '../src/ui/App.js'
 import { AGENTS } from '../src/registry.js'
 import type { CcsetError } from '../src/core/errors.js'
 import type { Terminal } from '../src/ui/terminal.js'
+import type { Agent, Viewport } from '../src/types.js'
 
 /**
  * Harness for verify-ui-render. Not a gate itself -- it holds no assertion about
@@ -59,13 +60,18 @@ export class UiSession {
   private readonly marker: string
   private fatal: CcsetError | null = null
 
-  constructor(home: string, terminal: Terminal) {
+  constructor(
+    home: string,
+    terminal: Terminal,
+    options: { agents?: Agent[]; viewport?: Viewport } = {},
+  ) {
     this.marker = terminal.glyphs.focus
     this.instance = render(
       createElement(App, {
         ctx: { home },
-        agents: AGENTS,
+        agents: options.agents ?? AGENTS,
         terminal,
+        viewport: options.viewport,
         onFatal: (error: CcsetError) => {
           this.fatal = error
         },

@@ -689,3 +689,20 @@ cold one, spawning `python3`, a `pty.fork()` and a cold `node dist/cli.js`, so t
 earlier phase of that same run, which exercises the malformed-target confirm and
 the backup, had already passed. Left as it is: a longer budget is the fix if it
 recurs, but it also buys a slower red.
+
+### 9.17 Viewport-windowed regions (2026-08-31)
+
+`npm run verify:ui-render` now mounts the application with an explicit 12-row,
+80-column Viewport. Every captured Rendered paint is asserted to use no more than
+12 rows. A separate 13-row menu proves that a long list is cut to four visible
+rows plus a count line, Down keeps the focused row inside the window, and shortcut
+`1` selects the first visible row rather than the first underlying item. Pressing
+a digit outside that visible range is also asserted to do nothing.
+
+The application resolves terminal rows and columns at runtime, falls back to 24
+rows and 80 columns when the stream reports no usable dimensions, and subscribes
+to the stream's `resize` event. Select lists, review-form rows, and Status rows use
+the shared window calculation. Status actions stay below the windowed read-only
+region, preserving access to actions while long status output is counted rather
+than allowed to run off screen. A 40-column fixture with wrapping list details
+proves that columns bound the physical window as well as rows.

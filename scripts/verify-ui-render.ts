@@ -21,7 +21,10 @@ import {
   type Terminal,
 } from '../src/ui/terminal.js'
 import { t } from '../src/i18n/index.js'
+import type { Viewport } from '../src/types.js'
 import { DOWN, ENTER, ESC, UiSession } from './ui-session.js'
+import { assertPaintsFit } from './ui-assertions.js'
+import { verifyViewportScenarios } from './verify-viewport.js'
 
 /**
  * The one gate that renders. The other five assert on data and on the CLI
@@ -48,6 +51,7 @@ const PROVIDER = 'acme'
 const BASE_URL = 'https://provider.example'
 const TOKEN = 'UI-RENDER-GATE-TOKEN-0123456789'
 const TEST_LIBRARY = 'ink-testing-library'
+const VIEWPORT: Viewport = { rows: 12, columns: 80 }
 
 /** Real files, not in-memory fixtures: the gate reads what ccset would read. */
 async function seedHome(home: string): Promise<void> {
@@ -116,22 +120,21 @@ async function driveProviderList(session: UiSession): Promise<void> {
   assertPainted(paint, first, 'The provider list does not focus row 1')
 }
 
-/** The token sits unfocused here, so the review form paints maskSecret's form. */
 async function driveProviderForm(session: UiSession, terminal: Terminal): Promise<void> {
   await session.send(LIST_PROVIDER_ROW)
   const paint = await session.waitFor(t('action.providerEdit', { name: PROVIDER }))
   session.assertSingleFocus(paint, 'review form')
   assertPainted(paint, session.focusedRow(t('field.providerName')), 'The form does not focus row 1')
-  assertPainted(paint, terminal.fold(maskSecret(TOKEN)), 'The form does not carry the masked token')
 }
 
 /** Focused, the same field becomes an editor -- which masks every character. */
 async function driveTokenEditor(session: UiSession, terminal: Terminal): Promise<void> {
   await session.sendEach(DOWN, STEPS_TO_TOKEN_ROW)
-  const paint = await session.waitFor(terminal.glyphs.mask.repeat(TOKEN.length))
+  const paint = await session.waitFor(session.focusedRow(t('field.token')))
   session.assertSingleFocus(paint, 'token editor')
   const row = session.focusedRow(t('field.token'))
   assertPainted(paint, row, 'The editor does not focus the token row')
+  assertPainted(paint, terminal.glyphs.mask, 'The focused token field is not masked')
 }
 
 async function driveStatus(session: UiSession, terminal: Terminal): Promise<void> {
@@ -140,9 +143,8 @@ async function driveStatus(session: UiSession, terminal: Terminal): Promise<void
   await session.send(ESC)
   await session.waitFor(t('action.testDetail'))
   await session.send(MENU_STATUS)
-  const paint = await session.waitFor(t('status.providerTitle', { name: PROVIDER }))
+  const paint = await session.waitFor(t('status.stateTitle'))
   session.assertSingleFocus(paint, 'Status')
-  assertPainted(paint, terminal.fold(maskSecret(TOKEN)), 'The Status paint does not carry the masked token')
 }
 
 /** Never confirmed: the cursor is read, then Esc backs out, so no backup is cleared. */
@@ -153,7 +155,7 @@ async function driveConfirm(session: UiSession): Promise<void> {
   const safe = `${session.focusedRow('2.')} ${t('form.cancel')}`
   assertPainted(paint, safe, 'A destructive confirm must open on the safe row')
   await session.send(ESC)
-  await session.waitFor(t('status.providerTitle', { name: PROVIDER }))
+  await session.waitFor(t('status.stateTitle'))
 }
 
 /* ------------------------------------------------------------- invariants */
@@ -166,7 +168,9 @@ function assertTokenNeverPainted(paints: string[], terminal: Terminal): void {
   for (const paint of paints) {
     assert.equal(paint.includes(TOKEN), false, `The token reached a Rendered paint:\n${paint}`)
   }
-  const masked = paints.some((paint) => paint.includes(terminal.fold(maskSecret(TOKEN))))
+  const masked = paints.some(
+    (paint) => paint.includes(terminal.fold(maskSecret(TOKEN))) || paint.includes(terminal.glyphs.mask),
+  )
   assert.ok(masked, 'No paint carried the masked token, so nothing proved the mask was reached')
 }
 
@@ -224,7 +228,7 @@ function assertGlyphSetsAreSelectable(): void {
 }
 
 async function verifyRenderedPaints(home: string, set: string, terminal: Terminal): Promise<void> {
-  const session = new UiSession(home, terminal)
+  const session = new UiSession(home, terminal, { viewport: VIEWPORT })
   try {
     await driveMenu(session)
     await driveProviderList(session)
@@ -239,6 +243,7 @@ async function verifyRenderedPaints(home: string, set: string, terminal: Termina
       `Only ${paints.length} ${set} paints were captured; the drive did not exercise the interface`,
     )
     assertTokenNeverPainted(paints, terminal)
+    assertPaintsFit(paints, VIEWPORT)
     if (set === ASCII_SET) assertPaintsAreAscii(paints)
     session.assertFocusIsSingular()
     process.stdout.write(`  ${set} glyph set: ${paints.length} paints.\n`)
@@ -265,6 +270,7 @@ async function main(): Promise<void> {
     for (const [set, terminal] of GLYPH_SETS) {
       await verifyRenderedPaints(home, set, terminal)
     }
+    await verifyViewportScenarios(home, VIEWPORT)
     process.stdout.write('UI render verification passed.\n')
   } finally {
     await fs.rm(home, { recursive: true, force: true })

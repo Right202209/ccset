@@ -314,6 +314,9 @@ a warning and the remaining agents still load.
   Numeric shortcuts are
   hand-implemented via Ink's `useInput` — Ink ships no form widgets, so this is
   explicit work, not a library feature.
+- Long regions state the visible range and total row count, and keep the focused
+  row inside the terminal Viewport. Numeric shortcuts are renumbered to visible
+  rows and cannot select a hidden row.
 - Every screen offers Back/Cancel.
 - Success messages state the absolute path written, the resulting mode, and the
   `claude --settings` command.
