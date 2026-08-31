@@ -34,10 +34,12 @@ export function SelectList({
 
   useInput((input, key) => {
     if (count === 0) return
+    const [upBinding, downBinding] = KEYMAPS.list
+    if (upBinding === undefined || downBinding === undefined) return
     const up = key.upArrow ? 'up' : input
     const down = key.downArrow ? 'down' : input
-    if (KEYMAPS.list[0].keys.includes(up)) setIndex((current) => (current - 1 + count) % count)
-    else if (KEYMAPS.list[1].keys.includes(down)) setIndex((current) => (current + 1) % count)
+    if (upBinding.keys.includes(up)) setIndex((current) => (current - 1 + count) % count)
+    else if (downBinding.keys.includes(down)) setIndex((current) => (current + 1) % count)
     else if (key.return) selectAt(index)
     else if (/^[1-9]$/.test(input)) selectAt(Number(input) - 1)
   })
