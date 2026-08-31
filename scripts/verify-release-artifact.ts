@@ -62,6 +62,11 @@ async function main(): Promise<void> {
       assert.notEqual((await fs.stat(bundle)).mode & 0o111, 0)
     }
 
+    // The render gate's library is a devDependency, so installing the artifact
+    // must not pull it in: a test renderer has no business on a user's machine.
+    const installedModules = await fs.readdir(path.join(install, 'node_modules'))
+    assert.equal(installedModules.includes('ink-testing-library'), false)
+
     const bin = path.join(install, 'node_modules', '.bin', 'ccset')
     assert.equal(run(bin, ['--version'], install).trim(), packageJson.version)
     const nonTty = spawnSync(bin, [], { cwd: install, input: '', encoding: 'utf8' })

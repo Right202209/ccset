@@ -21,6 +21,7 @@
     "typecheck": "tsc --noEmit",
     "verify:global-settings": "tsup scripts/verify-global-settings.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-global-settings.js; status=$?; rm -rf .verify; exit $status",
     "verify:provider-safety": "tsup scripts/verify-provider-safety.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-provider-safety.js; status=$?; rm -rf .verify; exit $status",
+    "verify:ui-render": "tsup scripts/verify-ui-render.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-ui-render.js; status=$?; rm -rf .verify; exit $status",
     "verify:malformed-dirty": "npm run build && tsup scripts/verify-malformed-dirty.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-malformed-dirty.js; status=$?; rm -rf .verify; exit $status",
     "verify:status-terminal": "npm run build && tsup scripts/verify-status-terminal.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-status-terminal.js; status=$?; rm -rf .verify; exit $status",
     "verify:release-artifact": "tsup scripts/verify-release-artifact.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-release-artifact.js; status=$?; rm -rf .verify; exit $status",
@@ -44,6 +45,7 @@
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
+    "ink-testing-library": "^4.0.0",
     "tsup": "^8.1.0",
     "typescript": "^5.5.0"
   }

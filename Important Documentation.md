@@ -458,3 +458,53 @@ into an isolated temporary npm project:
 The tarball, installed project, and verification bundle are removed after the
 run. This validates the artifact locally; npm publisher authentication (U5) and
 the pending macOS/Windows gates in §9.8 remain separate release prerequisites.
+
+### 9.13 Rendered-paint interface gate (2026-08-31)
+
+`npm run verify:ui-render` passed. It is the first gate that renders: the other
+five assert on data and on the CLI boundary, which left every interface change
+unverifiable. It mounts the real component tree against an isolated temporary
+home through `ink-testing-library` (a devDependency, version `4.0.0`) and drives
+it with simulated key input only — no component is called directly.
+
+The drive: numeric shortcut into Providers, numeric shortcut into the provider
+review form, two Down keys onto the Auth token row, Esc back to the list, Esc to
+the menu, numeric shortcut into Status, Enter onto the clear-backups confirm,
+Esc out. 25 Rendered paints were captured.
+
+- The provider token appears in **none** of the 25 paints. The fixed-width
+  masked form appears in the review-form paint and the Status paint, and the
+  focused field paints one mask character per token character. This is §3's
+  "masked on display in Status, review screen" checked at the paint rather than
+  at the data.
+- No paint carries more than one focus marker, and each of the five visited
+  Screens — menu, provider list, review form, Status, confirm — carries exactly
+  one. A paint with none stays legal: a message Screen and the busy line have
+  nothing for Enter to land on.
+- The clear-backups confirm opens on Cancel. The run never confirms it, so the
+  gate writes nothing and clears no backup.
+- Ink registers its stdin listener from an effect, so a key written on the paint
+  that follows mount is never read. The harness re-sends a key until Ink has
+  consumed it rather than sleeping for a guessed interval.
+
+Each assertion was proven capable of failing, by introducing a real regression,
+confirming the gate went red, and reverting:
+
+| Regression | Gate result |
+| --- | --- |
+| `Field.tsx` renders an unfocused secret unmasked | red: masked token missing from the review-form paint |
+| `Field.tsx` appends the field value to the focused field's hint | red: the token reached a Rendered paint — caught by the all-paints sweep, which the per-Screen assertions passed |
+| `SelectList.tsx` prints the focus marker on every row | red: the main menu paint has no single focused row |
+| `Views.tsx` points a confirm's cursor at the destructive row | red: a destructive confirm must open on the safe row |
+
+`npm run typecheck` and all six verify gates pass. `verify:release-artifact`
+gained one assertion: installing the tarball pulls in no `ink-testing-library`,
+so the test renderer cannot reach a user's machine.
+
+No `src/` file changed — `git diff src/` is empty — so this records the
+interface as it stands rather than an interface adjusted to be testable.
+
+Scope limits, both deliberate: the test renderer reports a fixed 100 columns and
+nothing in `src/ui/` measures the terminal, so ADR 0002's windowed-region
+invariants are not yet expressible and are not asserted here. The gate is not
+wired into CI, matching the other five.
