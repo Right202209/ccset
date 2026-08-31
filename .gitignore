@@ -1,5 +1,9 @@
-node_modules/
+# No trailing slash: a git worktree links node_modules to the main checkout, and
+# a symlink is not a directory.
+node_modules
 dist/
+# Scratch output directory the verify:* scripts build into and then remove.
+.verify/
 *.tgz
 .DS_Store
 .env
