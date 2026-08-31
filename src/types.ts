@@ -89,6 +89,8 @@ export interface FormScreen {
   /** Values as they exist on disk, so the UI can mark additions and changes. */
   baseline: FormValues
   notes?: string[]
+  /** Secret-free description shown while submit is running. */
+  busyLabel?: (values: FormValues) => string
   submit: (values: FormValues) => Promise<ActionResult>
 }
 
@@ -111,6 +113,8 @@ export interface ConfirmScreen {
   title: string
   lines: string[]
   confirmLabel: string
+  /** Secret-free description shown while confirm is running. */
+  busyLabel?: string
   confirm: () => Promise<ActionResult>
 }
 

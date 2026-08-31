@@ -78,7 +78,7 @@ export function App({ ctx, agents, agentId, terminal, onFatal }: AppProps): Reac
     // question rather than a result -- a target that no longer parses --
     // declining it has to return a form that still holds the user's input.
     screens.setTop({ ...screen, values })
-    screens.replace(() => screen.submit(values))
+    screens.replace(() => screen.submit(values), screen.busyLabel?.(values))
   }
 
   const onDirtyChange = useCallback((value: boolean) => setDirty(value), [])
@@ -86,14 +86,14 @@ export function App({ ctx, agents, agentId, terminal, onFatal }: AppProps): Reac
   const handlers: ScreenHandlers = {
     onSubmit: submit,
     onSelect: (item: ListItem) => screens.open(item.run),
-    onConfirm: (screen: ConfirmScreen) => screens.replace(screen.confirm),
+    onConfirm: (screen: ConfirmScreen) => screens.replace(screen.confirm, screen.busyLabel),
     onCancel: leave,
     onDone: leave,
     onDirtyChange,
   }
 
   function body(): React.ReactElement {
-    if (screens.busy) return <Busy />
+    if (screens.busy) return <Busy label={screens.busyLabel} />
     if (agent === null) return <AgentSelect agents={agents} onSelect={setAgent} onExit={exit} />
     const screen = screens.current
     if (screen === undefined) {

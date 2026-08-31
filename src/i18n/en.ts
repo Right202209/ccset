@@ -9,6 +9,8 @@ export const en: Record<string, string> = {
   'app.tagline': 'Writes Claude Code settings files. Activation stays yours.',
   'app.agent': 'Agent: {name}',
   'app.busy': 'Working…',
+  'app.busyConnecting': 'Connecting to {host}…',
+  'app.busyWriting': 'Writing {path}…',
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': 'Exit',

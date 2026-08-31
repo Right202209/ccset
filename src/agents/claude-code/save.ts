@@ -24,7 +24,12 @@ export function successMessage(titleKey: string, report: WriteReport): ActionRes
  * overwriting it silently would discard keys the user cannot get back
  * (PRD 4.4, exit code 4). The choice is put to the user instead.
  */
-function freshConfirm(titleKey: string, save: SaveFn, err: JsonParseError): ActionResult {
+function freshConfirm(
+  titleKey: string,
+  save: SaveFn,
+  err: JsonParseError,
+  busyLabel: string,
+): ActionResult {
   return {
     kind: 'confirm',
     title: t('confirm.freshTitle'),
@@ -37,15 +42,20 @@ function freshConfirm(titleKey: string, save: SaveFn, err: JsonParseError): Acti
       t('confirm.freshExplain'),
     ],
     confirmLabel: t('confirm.fresh'),
+    busyLabel,
     confirm: async () => successMessage(titleKey, await save(true)),
   }
 }
 
-export async function runSave(titleKey: string, save: SaveFn): Promise<ActionResult> {
+export async function runSave(
+  titleKey: string,
+  save: SaveFn,
+  busyLabel: string,
+): Promise<ActionResult> {
   try {
     return successMessage(titleKey, await save(false))
   } catch (err) {
     if (!(err instanceof JsonParseError)) throw err
-    return freshConfirm(titleKey, save, err)
+    return freshConfirm(titleKey, save, err, busyLabel)
   }
 }

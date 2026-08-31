@@ -18,10 +18,11 @@ export interface Screens {
   frames: Frame[]
   current: ActionResult | undefined
   busy: boolean
+  busyLabel: string | undefined
   /** Push the result of a navigation. */
-  open: (task: Task) => void
+  open: (task: Task, label?: string) => void
   /** Supersede the top frame with what the task returns. */
-  replace: (task: Task) => void
+  replace: (task: Task, label?: string) => void
   /** Swap the top screen without running anything. */
   setTop: (screen: ActionResult) => void
   back: () => void
@@ -39,6 +40,7 @@ function toFrame(screen: ActionResult, task: Task): Frame {
 export function useScreens(onFatal: (error: CcsetError) => void): Screens {
   const [frames, setFrames] = useState<Frame[]>([])
   const [busy, setBusy] = useState(false)
+  const [busyLabel, setBusyLabel] = useState<string>()
   // Input handlers close over the render that created them, so the stack is
   // mirrored into a ref rather than read from that stale closure.
   const framesRef = useRef<Frame[]>(frames)
@@ -47,7 +49,8 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
   }, [frames])
 
   const run = useCallback(
-    async (task: Task): Promise<ActionResult | null> => {
+    async (task: Task, label?: string): Promise<ActionResult | null> => {
+      setBusyLabel(label)
       setBusy(true)
       try {
         return await task()
@@ -56,14 +59,15 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
         return null
       } finally {
         setBusy(false)
+        setBusyLabel(undefined)
       }
     },
     [onFatal],
   )
 
   const open = useCallback(
-    (task: Task): void => {
-      void run(task).then((screen) => {
+    (task: Task, label?: string): void => {
+      void run(task, label).then((screen) => {
         if (screen !== null) setFrames((prev) => [...prev, toFrame(screen, task)])
       })
     },
@@ -77,8 +81,8 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
    * Nothing produced here carries a reload: the task behind it may have written.
    */
   const replace = useCallback(
-    (task: Task): void => {
-      void run(task).then((screen) => {
+    (task: Task, label?: string): void => {
+      void run(task, label).then((screen) => {
         if (screen === null) return
         setFrames((prev) =>
           screen.kind === 'confirm'
@@ -111,6 +115,7 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
     frames,
     current: frames[frames.length - 1]?.screen,
     busy,
+    busyLabel,
     open,
     replace,
     setTop,

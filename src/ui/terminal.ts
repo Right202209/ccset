@@ -41,6 +41,7 @@ export interface ColorSet {
 export interface Terminal {
   glyphs: GlyphSet
   colors: ColorSet
+  busyFrames: readonly string[]
   fold: (text: string) => string
 }
 
@@ -63,6 +64,9 @@ export const ASCII_GLYPHS: GlyphSet = {
   radioOff: '( )',
   mask: '*',
 }
+
+export const UNICODE_BUSY_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const
+export const ASCII_BUSY_FRAMES = ['-', '\\', '|', '/'] as const
 
 /**
  * The non-ASCII characters `src/i18n/en.ts` actually uses, each mapped to what a
@@ -108,8 +112,18 @@ export const COLORS: ColorSet = {
   },
 }
 
-export const UNICODE_TERMINAL: Terminal = { glyphs: UNICODE_GLYPHS, colors: COLORS, fold: identity }
-export const ASCII_TERMINAL: Terminal = { glyphs: ASCII_GLYPHS, colors: COLORS, fold: foldAscii }
+export const UNICODE_TERMINAL: Terminal = {
+  glyphs: UNICODE_GLYPHS,
+  colors: COLORS,
+  busyFrames: UNICODE_BUSY_FRAMES,
+  fold: identity,
+}
+export const ASCII_TERMINAL: Terminal = {
+  glyphs: ASCII_GLYPHS,
+  colors: COLORS,
+  busyFrames: ASCII_BUSY_FRAMES,
+  fold: foldAscii,
+}
 
 /**
  * CCSET_ASCII=1 for a terminal that cannot draw the Unicode set, following the

@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import packageJson from '../package.json'
+import { claudeCodeActions } from '../src/agents/claude-code/actions.js'
 import { FILE_MODE } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import {
@@ -60,6 +61,38 @@ async function seedHome(home: string): Promise<void> {
   await write(providerSettingsPath(home, PROVIDER), {
     env: { ANTHROPIC_BASE_URL: BASE_URL, ANTHROPIC_AUTH_TOKEN: TOKEN },
   })
+}
+
+async function assertBusyLabelsAreSpecificAndSecretFree(home: string): Promise<void> {
+  const [globalAction, providersAction, , testAction] = claudeCodeActions()
+  assert.ok(globalAction !== undefined && providersAction !== undefined && testAction !== undefined)
+
+  const globalScreen = await globalAction.run({ home })
+  assert.equal(globalScreen.kind, 'form')
+  if (globalScreen.kind !== 'form') return
+  assert.equal(
+    globalScreen.busyLabel?.(globalScreen.values),
+    t('app.busyWriting', { path: globalSettingsPath(home) }),
+  )
+
+  const providersScreen = await providersAction.run({ home })
+  assert.equal(providersScreen.kind, 'list')
+  if (providersScreen.kind !== 'list') return
+  const providerScreen = await providersScreen.items.find((item) => item.id === PROVIDER)?.run()
+  assert.equal(providerScreen?.kind, 'form')
+  if (providerScreen?.kind !== 'form') return
+  const providerBusy = providerScreen.busyLabel?.(providerScreen.values) ?? ''
+  assert.equal(providerBusy, t('app.busyWriting', { path: providerSettingsPath(home, PROVIDER) }))
+  assert.equal(providerBusy.includes(TOKEN), false, 'The token reached the provider save label')
+
+  const testScreen = await testAction.run({ home })
+  assert.equal(testScreen.kind, 'list')
+  if (testScreen.kind !== 'list') return
+  const confirm = await testScreen.items.find((item) => item.id === PROVIDER)?.run()
+  assert.equal(confirm?.kind, 'confirm')
+  if (confirm?.kind !== 'confirm') return
+  assert.equal(confirm.busyLabel, t('app.busyConnecting', { host: 'provider.example' }))
+  assert.equal(confirm.busyLabel.includes(TOKEN), false, 'The token reached the connection label')
 }
 
 /* ------------------------------------------------------------------ drive */
@@ -176,10 +209,18 @@ function assertGlyphSetsAreSelectable(): void {
   for (const [name, glyph] of Object.entries(ASCII_GLYPHS)) {
     assert.ok(ASCII_GLYPH.test(glyph), `The ASCII glyph set's ${name} is not ASCII: ${glyph}`)
   }
+  for (const frame of ASCII_TERMINAL.busyFrames) {
+    assert.ok(ASCII_GLYPH.test(frame), `The ASCII busy indicator is not ASCII: ${frame}`)
+  }
   const ascii = resolveTerminal({ CCSET_ASCII: '1' })
   assert.equal(ascii, ASCII_TERMINAL, 'CCSET_ASCII=1 must select the ASCII set')
   assert.equal(resolveTerminal({}), UNICODE_TERMINAL, 'An unset CCSET_ASCII must select Unicode')
   assert.notEqual(ASCII_GLYPHS.focus, UNICODE_GLYPHS.focus, 'The two focus markers are identical')
+  assert.notDeepEqual(
+    ASCII_TERMINAL.busyFrames,
+    UNICODE_TERMINAL.busyFrames,
+    'The two terminals use identical busy indicators',
+  )
 }
 
 async function verifyRenderedPaints(home: string, set: string, terminal: Terminal): Promise<void> {
@@ -219,6 +260,7 @@ async function main(): Promise<void> {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-ui-render-'))
   try {
     await seedHome(home)
+    await assertBusyLabelsAreSpecificAndSecretFree(home)
     // The drive never confirms anything, so both runs read the same seeded home.
     for (const [set, terminal] of GLYPH_SETS) {
       await verifyRenderedPaints(home, set, terminal)
