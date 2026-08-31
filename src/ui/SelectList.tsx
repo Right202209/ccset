@@ -4,6 +4,7 @@ import type { MessageTone } from '../types.js'
 import { t } from '../i18n/index.js'
 import { focusGutter, toneColor, useTerminal } from './terminal.js'
 import { KEYMAPS } from './keymap.js'
+import { useViewport, WindowRegion, windowAround } from './Viewport.js'
 
 export interface SelectOption {
   id: string
@@ -17,6 +18,8 @@ interface SelectListProps {
   onSelect: (option: SelectOption, index: number) => void
   /** Where the cursor starts; a destructive list points it at the safe row. */
   initialIndex?: number
+  /** Row budget when another windowed region shares the same Screen. */
+  rows?: number
 }
 
 /**
@@ -27,10 +30,14 @@ export function SelectList({
   options,
   onSelect,
   initialIndex = 0,
+  rows,
 }: SelectListProps): React.ReactElement {
   const [index, setIndex] = useState(initialIndex)
   const count = options.length
+  const viewport = useViewport()
   const { fold } = useTerminal()
+  const rowBudget = rows ?? Math.max(2, viewport.rows - (viewport.columns < 60 ? 10 : 7))
+  const window = windowAround(options, index, rowBudget)
 
   useInput((input, key) => {
     if (count === 0) return
@@ -41,7 +48,10 @@ export function SelectList({
     if (upBinding.keys.includes(up)) setIndex((current) => (current - 1 + count) % count)
     else if (downBinding.keys.includes(down)) setIndex((current) => (current + 1) % count)
     else if (key.return) selectAt(index)
-    else if (/^[1-9]$/.test(input)) selectAt(Number(input) - 1)
+    else if (/^[1-9]$/.test(input)) {
+      const visibleIndex = Number(input) - 1
+      if (visibleIndex < window.items.length) selectAt(window.start + visibleIndex)
+    }
   })
 
   function selectAt(target: number): void {
@@ -54,16 +64,19 @@ export function SelectList({
   if (count === 0) return <Text dimColor>{fold(t('list.empty'))}</Text>
 
   return (
-    <Box flexDirection="column">
-      {options.map((option, position) => (
-        <SelectRow
-          key={option.id}
-          option={option}
-          position={position}
-          focused={position === index}
-        />
-      ))}
-    </Box>
+    <WindowRegion window={window} rows={rowBudget}>
+      {window.items.map((option, visiblePosition) => {
+        const position = window.start + visiblePosition
+        return (
+          <SelectRow
+            key={option.id}
+            option={option}
+            position={visiblePosition}
+            focused={position === index}
+          />
+        )
+      })}
+    </WindowRegion>
   )
 }
 
@@ -77,7 +90,7 @@ function SelectRow({ option, position, focused }: SelectRowProps): React.ReactEl
   const { glyphs, colors, fold } = useTerminal()
   const color = focused ? colors.focus : toneColor(colors, option.tone)
   return (
-    <Box>
+    <Box height={1} overflow="hidden">
       <Text color={color}>{focusGutter(glyphs, focused)}</Text>
       <Text dimColor>{position < 9 ? `${position + 1}. ` : '   '}</Text>
       <Text color={color} bold={focused}>
@@ -85,7 +98,7 @@ function SelectRow({ option, position, focused }: SelectRowProps): React.ReactEl
       </Text>
       {option.detail !== undefined && (
         <Box flexGrow={1} flexShrink={1}>
-          <Text dimColor wrap="wrap">
+          <Text dimColor wrap="truncate-end">
             {fold(`  ${option.detail}`)}
           </Text>
         </Box>

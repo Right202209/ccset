@@ -35,7 +35,8 @@ before reporting a security issue.
 | Status | Reads everything above plus `~/.claude.json`. Writes nothing. |
 | Test connection | One opt-in request to a provider you pick |
 
-Arrow keys move, `1`-`9` jump, Enter selects, Esc goes back. A form asks before
+Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
+back. Long lists state the visible range and total row count. A form asks before
 discarding unsaved edits and never asks otherwise.
 
 ## What it will not do to your files

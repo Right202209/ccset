@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import TextInput from 'ink-text-input'
-import type { FieldSpec, FieldValue } from '../types.js'
+import type { FieldSpec, FieldValue, MessageTone } from '../types.js'
 import { maskSecret } from '../core/mask.js'
 import { t } from '../i18n/index.js'
 import { focusGutter, markerGutter, useTerminal } from './terminal.js'
@@ -13,12 +13,28 @@ export interface FieldRowProps {
   value: FieldValue
   focused: boolean
   changed: boolean
+  showHints?: boolean
   error?: string
   onChange: (next: FieldValue) => void
 }
 
+export interface FieldHint {
+  text: string
+  tone?: MessageTone
+}
+
+export function fieldHints(field: FieldSpec, error?: string): FieldHint[] {
+  const hints: FieldHint[] = []
+  if (field.helpKey !== undefined) hints.push({ text: t(field.helpKey) })
+  if (field.suggestions !== undefined) {
+    hints.push({ text: t('hint.suggestions', { list: field.suggestions.join(', ') }) })
+  }
+  if (error !== undefined) hints.push({ text: t(error), tone: 'error' })
+  return hints
+}
+
 export function FieldRow(props: FieldRowProps): React.ReactElement {
-  const { field, focused, changed, error } = props
+  const { field, focused, changed, error, showHints = true } = props
   const { glyphs, colors, fold } = useTerminal()
   const labelColor = focused ? colors.focus : undefined
   return (
@@ -33,11 +49,15 @@ export function FieldRow(props: FieldRowProps): React.ReactElement {
         <Text color={colors.tone.warn}>{markerGutter(glyphs.changed, changed)}</Text>
         <FieldValueView {...props} />
       </Box>
-      {focused && field.helpKey !== undefined && <Hint text={fold(t(field.helpKey))} />}
-      {focused && field.suggestions !== undefined && (
-        <Hint text={fold(t('hint.suggestions', { list: field.suggestions.join(', ') }))} />
-      )}
-      {error !== undefined && <Hint text={fold(t(error))} color={colors.tone.error} />}
+      {showHints && fieldHints(field, error)
+        .filter((hint) => focused || hint.tone === 'error')
+        .map((hint) => (
+          <Hint
+            key={`${hint.tone ?? 'hint'}:${hint.text}`}
+            text={fold(hint.text)}
+            color={hint.tone === undefined ? undefined : colors.tone[hint.tone]}
+          />
+        ))}
     </Box>
   )
 }

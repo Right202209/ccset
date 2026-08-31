@@ -1,20 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
-import type { Action, Agent, ConfirmScreen, Ctx, FormValues, ListItem } from '../types.js'
+import type { Action, Agent, ConfirmScreen, Ctx, FormValues, ListItem, Viewport } from '../types.js'
 import type { CcsetError } from '../core/errors.js'
 import { t } from '../i18n/index.js'
 import { AgentSelect, MainMenu } from './Menu.js'
 import { TerminalContext, useTerminal, type Terminal } from './terminal.js'
 import { Busy, Prompt, ScreenView, type ScreenHandlers } from './Views.js'
 import { useScreens } from './useScreens.js'
+import { useTerminalViewport, ViewportProvider } from './Viewport.js'
 
 export interface AppProps {
   ctx: Ctx
   agents: Agent[]
   agentId?: string
-  /** Passed in rather than read from the environment, so a caller can choose one. */
   terminal: Terminal
   onFatal: (error: CcsetError) => void
+  viewport?: Viewport
 }
 
 /** One registered agent means no question to ask (PRD 4.1). */
@@ -25,8 +26,16 @@ function initialAgent(agents: Agent[], agentId?: string): Agent | null {
 
 type PromptKind = 'exit' | 'discard'
 
-export function App({ ctx, agents, agentId, terminal, onFatal }: AppProps): React.ReactElement {
+export function App({
+  ctx,
+  agents,
+  agentId,
+  terminal,
+  onFatal,
+  viewport: explicitViewport,
+}: AppProps): React.ReactElement {
   const { exit } = useApp()
+  const viewport = useTerminalViewport(explicitViewport)
   const [agent, setAgent] = useState<Agent | null>(() => initialAgent(agents, agentId))
   const [detected, setDetected] = useState<boolean | null>(null)
   const [prompt, setPrompt] = useState<PromptKind | null>(null)
@@ -125,10 +134,12 @@ export function App({ ctx, agents, agentId, terminal, onFatal }: AppProps): Reac
 
   return (
     <TerminalContext.Provider value={terminal}>
-      <Box flexDirection="column" padding={1}>
-        <Header title={headerTitle(screens.current?.title, agent, prompt)} />
-        {body()}
-      </Box>
+      <ViewportProvider viewport={viewport}>
+        <Box flexDirection="column" padding={1}>
+          <Header title={headerTitle(screens.current?.title, agent, prompt)} />
+          {body()}
+        </Box>
+      </ViewportProvider>
     </TerminalContext.Provider>
   )
 }
