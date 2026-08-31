@@ -4,6 +4,7 @@ import type { Action, Agent } from '../types.js'
 import { hasKey, t } from '../i18n/index.js'
 import { SelectList, type SelectOption } from './SelectList.js'
 import { useTerminal } from './terminal.js'
+import { helpFor } from './keymap.js'
 
 const EXIT_ID = '__exit__'
 
@@ -44,7 +45,7 @@ export function MainMenu({ agent, detected, onRun, onExit }: MainMenuProps): Rea
         }}
       />
       <Box marginTop={1}>
-        <Text dimColor>{fold(t('menu.help'))}</Text>
+        <Text dimColor>{fold(helpFor('list'))}</Text>
       </Box>
     </Box>
   )
@@ -78,7 +79,7 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
         }}
       />
       <Box marginTop={1}>
-        <Text dimColor>{fold(t('menu.help'))}</Text>
+        <Text dimColor>{fold(helpFor('list'))}</Text>
       </Box>
     </Box>
   )
