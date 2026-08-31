@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import React from 'react'
 import { render } from 'ink-testing-library'
+import stringWidth from 'string-width'
 import type { FieldSpec, FormScreen, FormValues } from '../src/types.js'
 import { t } from '../src/i18n/index.js'
 import { ReviewForm } from '../src/ui/ReviewForm.js'
 import { ViewportProvider } from '../src/ui/Viewport.js'
+import { ASCII_TERMINAL, TerminalContext, UNICODE_TERMINAL, type Terminal } from '../src/ui/terminal.js'
 
 const CTRL_S = '\x13'
 const ENTER = '\r'
@@ -29,20 +31,29 @@ function screen(overrides: Partial<FormScreen> = {}): FormScreen {
   }
 }
 
-function mount(form: FormScreen, rows = 24): {
+interface MountOptions {
+  rows?: number
+  columns?: number
+  terminal?: Terminal
+}
+
+function mount(form: FormScreen, options: MountOptions = {}): {
   instance: ReturnType<typeof render>
   submissions: FormValues[]
 } {
+  const { rows = 24, columns = 80, terminal = UNICODE_TERMINAL } = options
   const submissions: FormValues[] = []
   const instance = render(
-    <ViewportProvider viewport={{ rows, columns: 80 }}>
-      <ReviewForm
-        screen={form}
-        onSubmit={(values) => submissions.push(values)}
-        onCancel={() => undefined}
-        onDirtyChange={() => undefined}
-      />
-    </ViewportProvider>,
+    <TerminalContext.Provider value={terminal}>
+      <ViewportProvider viewport={{ rows, columns }}>
+        <ReviewForm
+          screen={form}
+          onSubmit={(values) => submissions.push(values)}
+          onCancel={() => undefined}
+          onDirtyChange={() => undefined}
+        />
+      </ViewportProvider>
+    </TerminalContext.Provider>,
   )
   return { instance, submissions }
 }
@@ -101,7 +112,7 @@ async function verifyAdvancedToggleKeepsFocus(): Promise<void> {
       advanced: true,
     })),
   ]
-  const { instance } = mount(screen({ fields: manyFields }), 10)
+  const { instance } = mount(screen({ fields: manyFields }), { rows: 10 })
   await send(instance, DOWN)
   await send(instance, DOWN)
   await send(instance, ENTER)
@@ -134,7 +145,7 @@ async function verifyHintsAndErrorConsumeRows(): Promise<void> {
     fields: detailedFields,
     values: { required: '' },
     baseline: { required: '' },
-  }), 10)
+  }), { rows: 10 })
   for (let index = 0; index < detailedFields.length; index += 1) await send(instance, DOWN)
   await send(instance, ENTER)
   const paint = instance.lastFrame() ?? ''
@@ -148,7 +159,7 @@ async function verifyHintsAndErrorConsumeRows(): Promise<void> {
     fields: detailedFields,
     values: { required: '' },
     baseline: { required: '' },
-  }), 8).instance
+  }), { rows: 8 }).instance
   for (let index = 0; index < detailedFields.length; index += 1) await send(tiny, DOWN)
   await send(tiny, ENTER)
   const tinyPaint = tiny.lastFrame() ?? ''
@@ -167,7 +178,7 @@ async function verifyControlsStayReachable(): Promise<void> {
       advanced: true,
     })),
   ]
-  const { instance } = mount(screen({ fields: manyFields }), 6)
+  const { instance } = mount(screen({ fields: manyFields }), { rows: 6 })
   await send(instance, DOWN)
   await send(instance, ENTER)
   await send(instance, DOWN)
@@ -179,10 +190,41 @@ async function verifyControlsStayReachable(): Promise<void> {
   instance.unmount()
 }
 
+function verifyWinningLayout(): void {
+  const layoutFields: FieldSpec[] = [
+    { id: 'short', labelKey: 'Short', helpKey: 'A focused hint', type: 'text' },
+    { id: 'long', labelKey: 'Hidden advanced label', type: 'text', advanced: true },
+  ]
+  const layoutScreen = screen({
+    fields: layoutFields,
+    values: { short: 'value', long: 'hidden' },
+    baseline: { short: 'value', long: 'hidden' },
+  })
+
+  for (const columns of [80, 60]) {
+    for (const terminal of [UNICODE_TERMINAL, ASCII_TERMINAL]) {
+      const { instance } = mount(layoutScreen, { columns, terminal })
+      const paint = instance.lastFrame() ?? ''
+      const lines = paint.split('\n')
+      const fieldLine = lines.find((line) => line.includes('Short')) ?? ''
+      const hintLine = lines.find((line) => line.includes('A focused hint')) ?? ''
+      assert.match(fieldLine, /Short {19}value/, 'The hidden advanced label must size the stable column')
+      assert.ok(hintLine.startsWith('    A focused hint'), `The hint did not use the tightened indent:\n${paint}`)
+      assert.ok(
+        [fieldLine, hintLine].every((line) => stringWidth(line) <= columns),
+        `The winning layout exceeded ${columns} columns:\n${paint}`,
+      )
+      if (terminal === ASCII_TERMINAL) assert.match(paint, /^[\x20-\x7e\n\r\t]*$/)
+      instance.unmount()
+    }
+  }
+}
+
 await verifyCtrlSSavesFromAField()
 await verifyEnterStillMoves()
 await verifyCtrlSRevealsInvalidAdvancedField()
 await verifyAdvancedToggleKeepsFocus()
 await verifyHintsAndErrorConsumeRows()
 await verifyControlsStayReachable()
+verifyWinningLayout()
 process.stdout.write('Review form verification passed.\n')

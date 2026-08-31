@@ -1,8 +1,9 @@
 import React from 'react'
 import { Box, Text } from 'ink'
+import stringWidth from 'string-width'
 import type { FieldSpec, FieldValue, FormScreen, FormValues, MessageTone } from '../types.js'
 import { t } from '../i18n/index.js'
-import { FieldRow, type FieldHint } from './Field.js'
+import { FieldRow, FORM_HINT_INDENT, type FieldHint } from './Field.js'
 import { focusGutter, useTerminal } from './terminal.js'
 import { helpFor } from './keymap.js'
 import { WindowRegion } from './Viewport.js'
@@ -25,6 +26,7 @@ export function ReviewForm({
 }: ReviewFormProps): React.ReactElement {
   const form = useReviewForm({ screen, active, onSubmit, onCancel, onDirtyChange })
   const { colors, fold } = useTerminal()
+  const labelWidth = Math.max(...screen.fields.map((field) => stringWidth(fold(t(field.labelKey)))), 0) + 1
 
   return (
     <Box flexDirection="column">
@@ -40,6 +42,7 @@ export function ReviewForm({
             >
               <FormRow
                 row={current}
+                labelWidth={labelWidth}
                 focused={active && position === form.index}
                 state={{
                   values: form.values,
@@ -73,7 +76,12 @@ function FormHints({
   fold: (text: string) => string
 }): React.ReactElement {
   return <>{hints.map((hint) => (
-    <Box key={`${hint.tone ?? 'hint'}:${hint.text}`} height={1} overflow="hidden">
+    <Box
+      key={`${hint.tone ?? 'hint'}:${hint.text}`}
+      height={1}
+      overflow="hidden"
+      paddingLeft={FORM_HINT_INDENT}
+    >
       <Text color={hint.tone === undefined ? undefined : colors[hint.tone]} dimColor={hint.tone === undefined} wrap="truncate-end">
         {fold(hint.text)}
       </Text>
@@ -101,6 +109,7 @@ function FormNotes({ notes }: { notes?: string[] }): React.ReactElement | null {
 
 interface FormRowProps {
   row: Row
+  labelWidth: number
   focused: boolean
   state: {
     values: FormValues
@@ -111,12 +120,13 @@ interface FormRowProps {
   onChange: (field: FieldSpec, next: FieldValue) => void
 }
 
-function FormRow({ row, focused, state, onChange }: FormRowProps): React.ReactElement {
+function FormRow({ row, labelWidth, focused, state, onChange }: FormRowProps): React.ReactElement {
   if (row.kind === 'field') {
     const error = state.errors[row.field.id]
     return (
       <FieldRow
         field={row.field}
+        labelWidth={labelWidth}
         value={state.values[row.field.id] ?? ''}
         focused={focused}
         changed={textOf(state.values[row.field.id]) !== textOf(state.baseline[row.field.id])}
