@@ -286,6 +286,7 @@ Read-only checks, no build and no execution:
 | T10 | Terminal narrower than the 30-column label gutter in `ui/Field.tsx` and the 22-column gutter in `ui/Status.tsx`. | Rows wrap without corrupting the layout (relates to E6). **Partial:** 80-column long-path Status check passed; narrower-than-gutter and long-URL fixture remain pending. |
 | T11 | Fill in a provider form against a malformed target, save, then decline the "start fresh" question. | The form comes back with every field as typed, the token included; nothing was written; the backup directory did not grow. |
 | T12 | Save a form whose **first invalid field is advanced**, and one whose invalid field sits before an advanced field in the manifest. | The Advanced section expands and the cursor lands on the offending field itself. `ReviewForm.save` now maps through `rowIndexOf` because a manifest index equals a row index only while every advanced field trails the list; `PROVIDER_FIELDS` currently satisfies that, so a regression here would be silent until a manifest interleaves them. |
+| T13 | From the first editable row of each review form, press `Ctrl+S` in a real terminal (Linux and macOS). | The form follows the Save row's validation path: valid input writes, while an invalid hidden advanced field expands and receives focus. Enter still advances one row. Automated `verify:review-form` covers the component path; real-terminal evidence: Linux x64 PTY verified 2026-08-31. macOS verification remains pending before claiming the supported-platform check. |
 
 ### 9.4 Not built, by design
 
