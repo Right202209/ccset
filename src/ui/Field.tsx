@@ -6,10 +6,11 @@ import { maskSecret } from '../core/mask.js'
 import { t } from '../i18n/index.js'
 import { focusGutter, markerGutter, useTerminal } from './terminal.js'
 
-const LABEL_WIDTH = 30
+export const FORM_HINT_INDENT = 4
 
 export interface FieldRowProps {
   field: FieldSpec
+  labelWidth: number
   value: FieldValue
   focused: boolean
   changed: boolean
@@ -34,15 +35,15 @@ export function fieldHints(field: FieldSpec, error?: string): FieldHint[] {
 }
 
 export function FieldRow(props: FieldRowProps): React.ReactElement {
-  const { field, focused, changed, error, showHints = true } = props
+  const { field, labelWidth, focused, changed, error, showHints = true } = props
   const { glyphs, colors, fold } = useTerminal()
   const labelColor = focused ? colors.focus : undefined
   return (
     <Box flexDirection="column">
-      <Box>
+      <Box flexShrink={1}>
         <Text color={labelColor}>{focusGutter(glyphs, focused)}</Text>
-        <Box width={LABEL_WIDTH}>
-          <Text color={labelColor} bold={focused}>
+        <Box width={labelWidth} flexShrink={0}>
+          <Text color={labelColor} bold={focused} wrap="truncate-end">
             {fold(t(field.labelKey))}
           </Text>
         </Box>
@@ -64,7 +65,7 @@ export function FieldRow(props: FieldRowProps): React.ReactElement {
 
 function Hint({ text, color }: { text: string; color?: string }): React.ReactElement {
   return (
-    <Box paddingLeft={LABEL_WIDTH + 6}>
+    <Box paddingLeft={FORM_HINT_INDENT}>
       <Text color={color} dimColor={color === undefined}>
         {text}
       </Text>
@@ -84,7 +85,7 @@ function TextValue({ field, value, focused, onChange }: FieldRowProps): React.Re
   const { glyphs, fold } = useTerminal()
   const text = typeof value === 'string' ? value : ''
   if (focused && field.readOnly !== true) {
-    return (
+    return <Box flexGrow={1} flexShrink={1}>
       <TextInput
         value={text}
         onChange={onChange}
@@ -92,11 +93,13 @@ function TextValue({ field, value, focused, onChange }: FieldRowProps): React.Re
         mask={field.type === 'secret' ? glyphs.mask : undefined}
         placeholder={fold(t('hint.empty'))}
       />
-    )
+    </Box>
   }
   const shown = field.type === 'secret' ? maskSecret(text) : text
   if (shown.length === 0) return <Text dimColor>{fold(t('status.unset'))}</Text>
-  return <Text dimColor={field.readOnly === true}>{fold(shown)}</Text>
+  return <Box flexGrow={1} flexShrink={1}>
+    <Text dimColor={field.readOnly === true} wrap="truncate-end">{fold(shown)}</Text>
+  </Box>
 }
 
 function ChoiceValue({ field, value, focused }: FieldRowProps): React.ReactElement {
@@ -104,7 +107,7 @@ function ChoiceValue({ field, value, focused }: FieldRowProps): React.ReactEleme
   const { glyphs, colors, fold } = useTerminal()
   const selectedColor = focused ? colors.focus : colors.tone.success
   return (
-    <Box>
+    <Box flexGrow={1} flexShrink={1} flexWrap="wrap">
       {(field.choices ?? []).map((choice) => (
         <Box key={choice.value || 'unset'} marginRight={2}>
           <Text

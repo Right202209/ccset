@@ -706,3 +706,20 @@ the shared window calculation. Status actions stay below the windowed read-only
 region, preserving access to actions while long status output is counted rather
 than allowed to run off screen. A 40-column fixture with wrapping list details
 proves that columns bound the physical window as well as rows.
+
+### 9.18 Winning review-form treatment (2026-08-31)
+
+Issue #18 applies treatment A2 from `proto/review-form-treatments`: the form
+stays a flat row list, its label column measures the widest label across every
+declared field (including collapsed advanced fields), and hints start at a
+four-column indent. Measuring all fields keeps existing rows fixed when Advanced
+is revealed. The measurement uses terminal display width rather than JavaScript
+code-unit length.
+
+`verify:review-form` renders the collapsed form at 80 and 60 columns under both
+Unicode and ASCII terminal capabilities. It asserts that a hidden advanced label
+sets the stable column, the focused hint uses the tightened indent, relevant rows
+fit the column budget, and the ASCII paint contains only seven-bit characters.
+The existing focus/window scenarios still cover advanced expansion, validation
+hints and errors, and Save/Cancel reachability. `verify:ui-render` remains the
+full-application physical-width gate for narrow Unicode and ASCII paints.
