@@ -73,7 +73,11 @@ export function WindowCount({ window }: { window: WindowSlice<unknown> }): React
   if (window.total <= window.items.length) return null
   return (
     <Text dimColor>
-      {fold(t('list.count', { start: window.start + 1, end: window.end, total: window.total }))}
+      {fold(t('list.count', {
+        start: window.end === 0 ? 0 : window.start + 1,
+        end: window.end,
+        total: window.total,
+      }))}
     </Text>
   )
 }
