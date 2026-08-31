@@ -4,6 +4,7 @@ import type { FieldSpec, FieldValue, FormScreen, FormValues } from '../types.js'
 import { t } from '../i18n/index.js'
 import { FieldRow } from './Field.js'
 import { focusGutter, useTerminal } from './terminal.js'
+import { helpFor } from './keymap.js'
 
 type Row =
   | { kind: 'field'; field: FieldSpec }
@@ -155,7 +156,7 @@ export function ReviewForm({
         />
       ))}
       <Box marginTop={1}>
-        <Text dimColor>{fold(t('form.help'))}</Text>
+        <Text dimColor>{fold(helpFor('form'))}</Text>
       </Box>
     </Box>
   )

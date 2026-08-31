@@ -4,6 +4,7 @@ import type { ListItem, StatusScreen, StatusSection } from '../types.js'
 import { t } from '../i18n/index.js'
 import { SelectList, type SelectOption } from './SelectList.js'
 import { toneColor, useTerminal } from './terminal.js'
+import { helpFor } from './keymap.js'
 
 const LABEL_WIDTH = 22
 
@@ -38,7 +39,7 @@ export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactEl
         </Box>
       )}
       <Box marginTop={1}>
-        <Text dimColor>{fold(t('status.help'))}</Text>
+        <Text dimColor>{fold(helpFor('status'))}</Text>
       </Box>
     </Box>
   )

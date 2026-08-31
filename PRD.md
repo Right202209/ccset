@@ -310,7 +310,8 @@ a warning and the remaining agents still load.
 
 ### 5.4 Usability
 
-- Arrow-key navigation, Enter to select, Esc to go back. Numeric shortcuts are
+- Arrow-key and vim-style (`j`/`k`) navigation, Enter to select, Esc to go back.
+  Numeric shortcuts are
   hand-implemented via Ink's `useInput` — Ink ships no form widgets, so this is
   explicit work, not a library feature.
 - Every screen offers Back/Cancel.

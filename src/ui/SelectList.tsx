@@ -3,6 +3,7 @@ import { Box, Text, useInput } from 'ink'
 import type { MessageTone } from '../types.js'
 import { t } from '../i18n/index.js'
 import { focusGutter, toneColor, useTerminal } from './terminal.js'
+import { KEYMAPS } from './keymap.js'
 
 export interface SelectOption {
   id: string
@@ -33,8 +34,12 @@ export function SelectList({
 
   useInput((input, key) => {
     if (count === 0) return
-    if (key.upArrow || input === 'k') setIndex((current) => (current - 1 + count) % count)
-    else if (key.downArrow || input === 'j') setIndex((current) => (current + 1) % count)
+    const [upBinding, downBinding] = KEYMAPS.list
+    if (upBinding === undefined || downBinding === undefined) return
+    const up = key.upArrow ? 'up' : input
+    const down = key.downArrow ? 'down' : input
+    if (upBinding.keys.includes(up)) setIndex((current) => (current - 1 + count) % count)
+    else if (downBinding.keys.includes(down)) setIndex((current) => (current + 1) % count)
     else if (key.return) selectAt(index)
     else if (/^[1-9]$/.test(input)) selectAt(Number(input) - 1)
   })
