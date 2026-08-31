@@ -25,6 +25,7 @@
     "verify:malformed-dirty": "npm run build && tsup scripts/verify-malformed-dirty.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-malformed-dirty.js; status=$?; rm -rf .verify; exit $status",
     "verify:status-terminal": "npm run build && tsup scripts/verify-status-terminal.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-status-terminal.js; status=$?; rm -rf .verify; exit $status",
     "verify:release-artifact": "tsup scripts/verify-release-artifact.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-release-artifact.js; status=$?; rm -rf .verify; exit $status",
+    "proto:review-form": "tsup scripts/proto-review-form.tsx --format esm --platform node --out-dir .proto --clean && node .proto/proto-review-form.js; status=$?; rm -rf .proto; exit $status",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
