@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import type { MessageTone } from '../types.js'
 import { t } from '../i18n/index.js'
+import { focusGutter, toneColor, useTerminal } from './terminal.js'
 
 export interface SelectOption {
   id: string
@@ -15,17 +16,6 @@ interface SelectListProps {
   onSelect: (option: SelectOption, index: number) => void
   /** Where the cursor starts; a destructive list points it at the safe row. */
   initialIndex?: number
-}
-
-const TONE_COLORS: Record<MessageTone, string> = {
-  success: 'green',
-  error: 'red',
-  warn: 'yellow',
-  info: 'cyan',
-}
-
-export function toneColor(tone?: MessageTone): string | undefined {
-  return tone === undefined ? undefined : TONE_COLORS[tone]
 }
 
 /**
@@ -78,10 +68,11 @@ interface SelectRowProps {
 }
 
 function SelectRow({ option, position, focused }: SelectRowProps): React.ReactElement {
-  const color = focused ? 'cyan' : toneColor(option.tone)
+  const { glyphs, colors } = useTerminal()
+  const color = focused ? colors.focus : toneColor(colors, option.tone)
   return (
     <Box>
-      <Text color={color}>{focused ? '❯ ' : '  '}</Text>
+      <Text color={color}>{focusGutter(glyphs, focused)}</Text>
       <Text dimColor>{position < 9 ? `${position + 1}. ` : '   '}</Text>
       <Text color={color} bold={focused}>
         {option.label}

@@ -10,14 +10,17 @@ import type {
 } from '../types.js'
 import { t } from '../i18n/index.js'
 import { ReviewForm } from './ReviewForm.js'
-import { SelectList, toneColor, type SelectOption } from './SelectList.js'
+import { SelectList, type SelectOption } from './SelectList.js'
 import { StatusView } from './Status.js'
+import { toneColor, useTerminal } from './terminal.js'
 
 /** The cursor starts on the safe row: a confirm screen guards a real effect. */
 const CANCEL_INDEX = 1
 
+/** Transient and informational, so it takes the info tone rather than a color of its own. */
 export function Busy(): React.ReactElement {
-  return <Text color="cyan">{t('app.busy')}</Text>
+  const { colors } = useTerminal()
+  return <Text color={colors.tone.info}>{t('app.busy')}</Text>
 }
 
 function toOption(item: ListItem): SelectOption {
@@ -55,13 +58,17 @@ interface MessageViewProps {
 }
 
 export function MessageView({ screen, onDone }: MessageViewProps): React.ReactElement {
+  const { colors } = useTerminal()
   useInput((_input, key) => {
     if (key.return) onDone()
   })
   return (
     <Box flexDirection="column">
       {screen.lines.map((line, position) => (
-        <Text key={`${position}:${line}`} color={position === 0 ? toneColor(screen.tone) : undefined}>
+        <Text
+          key={`${position}:${line}`}
+          color={position === 0 ? toneColor(colors, screen.tone) : undefined}
+        >
           {line}
         </Text>
       ))}

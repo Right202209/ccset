@@ -3,6 +3,7 @@ import { Box, Text } from 'ink'
 import type { Action, Agent } from '../types.js'
 import { hasKey, t } from '../i18n/index.js'
 import { SelectList, type SelectOption } from './SelectList.js'
+import { useTerminal } from './terminal.js'
 
 const EXIT_ID = '__exit__'
 
@@ -26,11 +27,12 @@ function actionOption(action: Action): SelectOption {
 export function MainMenu({ agent, detected, onRun, onExit }: MainMenuProps): React.ReactElement {
   const actions = useMemo(() => agent.getActions(), [agent])
   const options = [...actions.map(actionOption), { id: EXIT_ID, label: t('menu.exit') }]
+  const { colors } = useTerminal()
   return (
     <Box flexDirection="column">
       {detected === false && (
         <Box marginBottom={1}>
-          <Text color="yellow">{t('menu.notDetected')}</Text>
+          <Text color={colors.tone.warn}>{t('menu.notDetected')}</Text>
         </Box>
       )}
       <SelectList

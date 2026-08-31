@@ -4,6 +4,7 @@ import type { Action, Agent, ConfirmScreen, Ctx, FormValues, ListItem } from '..
 import type { CcsetError } from '../core/errors.js'
 import { t } from '../i18n/index.js'
 import { AgentSelect, MainMenu } from './Menu.js'
+import { TerminalContext, useTerminal, type Terminal } from './terminal.js'
 import { Busy, Prompt, ScreenView, type ScreenHandlers } from './Views.js'
 import { useScreens } from './useScreens.js'
 
@@ -11,6 +12,8 @@ export interface AppProps {
   ctx: Ctx
   agents: Agent[]
   agentId?: string
+  /** Passed in rather than read from the environment, so a caller can choose one. */
+  terminal: Terminal
   onFatal: (error: CcsetError) => void
 }
 
@@ -22,7 +25,7 @@ function initialAgent(agents: Agent[], agentId?: string): Agent | null {
 
 type PromptKind = 'exit' | 'discard'
 
-export function App({ ctx, agents, agentId, onFatal }: AppProps): React.ReactElement {
+export function App({ ctx, agents, agentId, terminal, onFatal }: AppProps): React.ReactElement {
   const { exit } = useApp()
   const [agent, setAgent] = useState<Agent | null>(() => initialAgent(agents, agentId))
   const [detected, setDetected] = useState<boolean | null>(null)
@@ -121,10 +124,12 @@ export function App({ ctx, agents, agentId, onFatal }: AppProps): React.ReactEle
   }
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Header title={headerTitle(screens.current?.title, agent, prompt)} />
-      {body()}
-    </Box>
+    <TerminalContext.Provider value={terminal}>
+      <Box flexDirection="column" padding={1}>
+        <Header title={headerTitle(screens.current?.title, agent, prompt)} />
+        {body()}
+      </Box>
+    </TerminalContext.Provider>
   )
 }
 
@@ -139,10 +144,11 @@ function headerTitle(
 }
 
 function Header({ title }: { title: string }): React.ReactElement {
+  const { colors } = useTerminal()
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Box>
-        <Text bold color="cyan">
+        <Text bold color={colors.heading}>
           {t('app.title')}
         </Text>
         <Text dimColor>{`  ${t('app.tagline')}`}</Text>

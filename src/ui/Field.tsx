@@ -5,9 +5,9 @@ import type { FieldSpec, FieldValue } from '../types.js'
 import { MASK_CHAR } from '../core/constants.js'
 import { maskSecret } from '../core/mask.js'
 import { t } from '../i18n/index.js'
+import { focusGutter, markerGutter, useTerminal } from './terminal.js'
 
 const LABEL_WIDTH = 30
-const CHANGED_MARKER = '*'
 
 export interface FieldRowProps {
   field: FieldSpec
@@ -20,23 +20,25 @@ export interface FieldRowProps {
 
 export function FieldRow(props: FieldRowProps): React.ReactElement {
   const { field, focused, changed, error } = props
+  const { glyphs, colors } = useTerminal()
+  const labelColor = focused ? colors.focus : undefined
   return (
     <Box flexDirection="column">
       <Box>
-        <Text color={focused ? 'cyan' : undefined}>{focused ? '❯ ' : '  '}</Text>
+        <Text color={labelColor}>{focusGutter(glyphs, focused)}</Text>
         <Box width={LABEL_WIDTH}>
-          <Text color={focused ? 'cyan' : undefined} bold={focused}>
+          <Text color={labelColor} bold={focused}>
             {t(field.labelKey)}
           </Text>
         </Box>
-        <Text color="yellow">{changed ? `${CHANGED_MARKER} ` : '  '}</Text>
+        <Text color={colors.tone.warn}>{markerGutter(glyphs.changed, changed)}</Text>
         <FieldValueView {...props} />
       </Box>
       {focused && field.helpKey !== undefined && <Hint text={t(field.helpKey)} />}
       {focused && field.suggestions !== undefined && (
         <Hint text={t('hint.suggestions', { list: field.suggestions.join(', ') })} />
       )}
-      {error !== undefined && <Hint text={t(error)} color="red" />}
+      {error !== undefined && <Hint text={t(error)} color={colors.tone.error} />}
     </Box>
   )
 }
@@ -79,15 +81,17 @@ function TextValue({ field, value, focused, onChange }: FieldRowProps): React.Re
 
 function ChoiceValue({ field, value, focused }: FieldRowProps): React.ReactElement {
   const current = typeof value === 'string' ? value : ''
+  const { glyphs, colors } = useTerminal()
+  const selectedColor = focused ? colors.focus : colors.tone.success
   return (
     <Box>
       {(field.choices ?? []).map((choice) => (
         <Box key={choice.value || 'unset'} marginRight={2}>
           <Text
-            color={choice.value === current ? (focused ? 'cyan' : 'green') : undefined}
+            color={choice.value === current ? selectedColor : undefined}
             dimColor={choice.value !== current}
           >
-            {choice.value === current ? '(•) ' : '( ) '}
+            {`${choice.value === current ? glyphs.radioOn : glyphs.radioOff} `}
             {t(choice.labelKey)}
           </Text>
         </Box>
@@ -98,8 +102,9 @@ function ChoiceValue({ field, value, focused }: FieldRowProps): React.ReactEleme
 
 function BooleanValue({ value, focused }: FieldRowProps): React.ReactElement {
   const on = value === true
+  const { colors } = useTerminal()
   return (
-    <Text color={focused ? 'cyan' : on ? 'green' : undefined}>
+    <Text color={focused ? colors.focus : on ? colors.tone.success : undefined}>
       {on ? t('choice.on') : t('choice.off')}
       <Text dimColor>{focused ? t('hint.toggle') : ''}</Text>
     </Text>

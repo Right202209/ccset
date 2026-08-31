@@ -11,6 +11,7 @@ import {
   toCcsetError,
 } from './core/errors.js'
 import { resolveHome } from './core/paths.js'
+import { resolveTerminal } from './ui/terminal.js'
 import { t } from './i18n/index.js'
 import type { Ctx } from './types.js'
 
@@ -75,6 +76,7 @@ async function main(): Promise<void> {
       ctx={ctx}
       agents={AGENTS}
       agentId={agentId}
+      terminal={resolveTerminal()}
       onFatal={(error) => {
         fatal.error = error
         app.unmount()

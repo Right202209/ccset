@@ -2,7 +2,8 @@ import React from 'react'
 import { Box, Text } from 'ink'
 import type { ListItem, StatusScreen, StatusSection } from '../types.js'
 import { t } from '../i18n/index.js'
-import { SelectList, toneColor, type SelectOption } from './SelectList.js'
+import { SelectList, type SelectOption } from './SelectList.js'
+import { toneColor, useTerminal } from './terminal.js'
 
 const LABEL_WIDTH = 22
 
@@ -43,9 +44,10 @@ export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactEl
 }
 
 function SectionView({ section }: { section: StatusSection }): React.ReactElement {
+  const { colors } = useTerminal()
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <Text bold color="cyan">
+      <Text bold color={colors.heading}>
         {section.title}
       </Text>
       {section.lines.map((line) => (
@@ -54,7 +56,7 @@ function SectionView({ section }: { section: StatusSection }): React.ReactElemen
             <Text dimColor>{`  ${line.label}`}</Text>
           </Box>
           <Box flexGrow={1} flexShrink={1}>
-            <Text color={toneColor(line.tone)} wrap="wrap">
+            <Text color={toneColor(colors, line.tone)} wrap="wrap">
               {line.value}
             </Text>
           </Box>

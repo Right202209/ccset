@@ -508,3 +508,59 @@ Scope limits, both deliberate: the test renderer reports a fixed 100 columns and
 nothing in `src/ui/` measures the terminal, so ADR 0002's windowed-region
 invariants are not yet expressible and are not asserted here. The gate is not
 wired into CI, matching the other five.
+
+### 9.14 Terminal capability: one owner for glyphs and colors (2026-08-31)
+
+`src/ui/terminal.ts` now owns the glyph set and the color set. Before it, `cyan`
+appeared in six files and the focus marker `❯` in three, so changing how focus
+reads was a scattered edit; both now resolve from one module and no component
+names a color. This is a prefactor — no observed behaviour changed with the
+Unicode set, which is what the render gate holds it to.
+
+`CCSET_ASCII=1` selects an all-ASCII glyph set (focus `>`, radio `(*)`/`( )`),
+following the precedent `CCSET_HOME` set: an environment override read once, at
+the boundary. `App` takes the capability as a prop, so the gate selects a set
+without mutating `process.env` under a running render.
+
+Two things deliberately stayed out. `MASK_CHAR` is not in the glyph set: it is
+load-bearing rather than decorative — `core/mask.ts` builds masked values that an
+agent puts into Status *data*, and the agent layer knows nothing about the
+terminal. And no monochrome switch was added: Ink already honours `NO_COLOR`, so
+a second switch could only disagree with it. The `↑↓ · ←→` characters in the help
+lines are catalog strings, not glyphs, and are unchanged.
+
+`npm run verify:ui-render` runs the whole drive **twice**, once per glyph set,
+and passed: 25 Rendered paints each. The focus-marker count changed from a
+substring count to a line-anchored one, because the ASCII marker is `>` and
+`settings.<name>.json` puts that character into painted text — only a marker in a
+row's gutter means focus. The gate also asserts, without touching
+`process.env`, that `CCSET_ASCII=1` resolves to the ASCII set, that an unset
+value resolves to the Unicode set, that every ASCII glyph is in `\x20-\x7e`, and
+that the two focus markers actually differ.
+
+`scripts/ui-session.ts` was split out of the gate to hold the harness. The gate
+had 295 of its 300 permitted lines, and parametrising it by glyph set would have
+breached the limit; the split keeps the drive and the invariants in
+`verify-ui-render.ts` and puts no assertion about ccset in the harness.
+
+Proven capable of failing, per glyph set — `SelectList.tsx` printing the focus
+marker on every row went red on both:
+
+| Glyph set | Gate result |
+| --- | --- |
+| Unicode | red: the main menu paint has no single focused row (actual 5, expected 1) |
+| ASCII | red: same assertion, actual 5 — so the line-anchored count found the five gutter markers and was **not** inflated by the `>` inside `settings.<name>.json` |
+
+`npm run typecheck`, `npm run build`, and all six verify gates pass on Linux x64
+/ Node 20.19.5.
+
+The env var was also driven through the built `dist/cli.js` in a real PTY, since
+the render gate mounts `App` directly and so never executes `resolveTerminal()`
+in `cli.tsx`:
+
+| Environment | Main menu | Choice radio |
+| --- | --- | --- |
+| unset | `❯` present | `(•)` / `( )` |
+| `CCSET_ASCII=1` | `❯` absent, `> 1. Global settings` painted | `(*)` / `( )` |
+| `CCSET_ASCII=0` | `❯` present — only `1` switches | `(•)` / `( )` |
+

@@ -48,6 +48,15 @@ ccset [--agent <id>]
 
 这是交互式工具。通过管道或在 CI 中运行时会提示并以退出码 `2` 退出。
 
+### 环境变量
+
+| 变量 | 作用 |
+| --- | --- |
+| `CCSET_ASCII=1` | 使用纯 ASCII 字形绘制界面：焦点标记变为 `>`，单选字段变为 `(*)`/`( )`。不设置时使用 Unicode 字形。 |
+| `CCSET_HOME` | 覆盖 ccset 读写的主目录，供隔离测试使用，不建议日常使用。 |
+
+颜色开关不在 ccset：渲染经由 Ink，它已支持 `NO_COLOR`。
+
 ## 添加 Agent
 
 在 `src/agents/<id>/` 下实现 `src/types.ts` 中的 `Agent` 接口（`detect()` 和 `getActions()`），然后将其加入 `src/registry.ts` 的静态数组。通用文件读写、合并、备份、遮罩和路径解析位于 `src/core/`，应直接复用。

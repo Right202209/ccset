@@ -3,6 +3,7 @@ import { Box, Text, useInput } from 'ink'
 import type { FieldSpec, FieldValue, FormScreen, FormValues } from '../types.js'
 import { t } from '../i18n/index.js'
 import { FieldRow } from './Field.js'
+import { focusGutter, useTerminal } from './terminal.js'
 
 type Row =
   | { kind: 'field'; field: FieldSpec }
@@ -219,11 +220,12 @@ function ControlRow({ kind, focused, showAdvanced }: ControlRowProps): React.Rea
     kind === 'advanced'
       ? t(showAdvanced ? 'form.hideAdvanced' : 'form.showAdvanced')
       : t(kind === 'save' ? 'form.save' : 'form.cancel')
-  const color = focused ? 'cyan' : kind === 'save' ? 'green' : undefined
+  const { glyphs, colors } = useTerminal()
+  const color = focused ? colors.focus : kind === 'save' ? colors.tone.success : undefined
   return (
     <Box marginTop={kind === 'advanced' ? 1 : 0}>
       <Text color={color} bold={focused}>
-        {focused ? '❯ ' : '  '}
+        {focusGutter(glyphs, focused)}
         {label}
       </Text>
     </Box>
