@@ -110,7 +110,7 @@ exits `2` rather than emitting control sequences into a log.
 
 | Variable | Effect |
 | --- | --- |
-| `CCSET_ASCII=1` | Draws the interface with an ASCII-only glyph set: the focus marker becomes `>` and a choice field's radio becomes `(*)`/`( )`. Leave it unset for the Unicode set. |
+| `CCSET_ASCII=1` | Switches the decorative glyphs to ASCII: the focus marker becomes `>` and a choice field's radio becomes `(*)`/`( )`. Help lines still use `↑↓ · ←→` and a masked value still uses `•`, so this narrows what the interface draws rather than making it seven-bit. Leave it unset for the Unicode glyphs. |
 | `CCSET_HOME` | Overrides the home directory ccset reads and writes under. Intended for isolated test runs, not daily use. |
 
 Colour is not ccset's switch: it renders through Ink, which already honours

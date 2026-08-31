@@ -529,6 +529,16 @@ terminal. And no monochrome switch was added: Ink already honours `NO_COLOR`, so
 a second switch could only disagree with it. The `↑↓ · ←→` characters in the help
 lines are catalog strings, not glyphs, and are unchanged.
 
+Those two omissions bound what the flag delivers, and review caught the README
+overclaiming past them: `CCSET_ASCII=1` was described as drawing the interface
+with an ASCII-only glyph set, which a reader on the `LANG=C` console this flag
+exists for would take as a seven-bit interface. It is not one — a paint under the
+ASCII set still carries `↑↓ · ←→` from `menu.help`, `status.help` and `form.help`
+and `•` from `MASK_CHAR`, so a `\x20-\x7e` assertion over the ASCII run's paints
+would go red today. Both READMEs now name the flag's limit instead. Extending the
+set to cover the help lines is an i18n-catalog change and the mask is across the
+agent seam; neither is in this ticket.
+
 `npm run verify:ui-render` runs the whole drive **twice**, once per glyph set,
 and passed: 25 Rendered paints each. The focus-marker count changed from a
 substring count to a line-anchored one, because the ASCII marker is `>` and
