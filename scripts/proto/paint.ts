@@ -16,18 +16,19 @@ import { render } from 'ink'
 const SETTLE_MS = 25
 
 class ProtoStdout extends EventEmitter {
-  readonly frames: string[] = []
+  /** CONTEXT.md's term is a rendered paint, not a frame, even here. */
+  readonly paints: string[] = []
 
   constructor(readonly columns: number) {
     super()
   }
 
-  write = (frame: string): void => {
-    this.frames.push(frame)
+  write = (paint: string): void => {
+    this.paints.push(paint)
   }
 
   last(): string {
-    return this.frames[this.frames.length - 1] ?? ''
+    return this.paints[this.paints.length - 1] ?? ''
   }
 }
 

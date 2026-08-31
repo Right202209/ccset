@@ -9,8 +9,15 @@ here is layout.
 
 The baseline is `src/ui/ReviewForm.tsx` as it stands, mounted unmodified. Its
 Advanced state is internal to the component, so it has no static expanded paint
-and appears collapsed only. Its focus starts on row one, where each treatment
-focuses the row that carries a hint and an error at once.
+and appears collapsed only, and its focus starts on row one rather than on the row
+the treatments focus.
+
+Two elements are injected, because a static paint cannot reach them: the focused
+row, and the validation errors. Since colour is stripped, the error line is not red
+here -- find it by its text. On the provider form the focused row is `Base URL`,
+which carries a help hint and its own error at once. On the global form focus is on
+`Model` (the longest hint there is) and the error sits on `Cleanup period`, an
+unfocused row, so that paint shows a hint and a detached error line together.
 
 The written recommendation is in `review-form-treatments.md`.
 
@@ -18,23 +25,29 @@ The written recommendation is in `review-form-treatments.md`.
 
 `Hint cols` is what a hint has left after the App padding, the enclosure and the
 indent are taken off. `Widest` is the longest line the paint actually produced.
+For treatment C, whose two panels measure their label columns separately, `Label
+col` is the wider of the columns on screen.
 
 | Treatment | Form | State | Cols | Label col | Hint indent | Hint cols | Widest | Fits |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Baseline — today | Provider form | advanced collapsed | 80 | 30 | 36 | 42 | 75 | yes |
 | A — tightened flat | Provider form | advanced collapsed | 80 | 14 | 4 | 74 | 75 | yes |
+| A2 — tightened flat, stable label column | Provider form | advanced collapsed | 80 | 19 | 4 | 74 | 75 | yes |
 | B — single panel | Provider form | advanced collapsed | 80 | 14 | 4 | 70 | 79 | yes |
 | C — grouped panels | Provider form | advanced collapsed | 80 | 14 | 4 | 70 | 79 | yes |
 | Baseline — today | Provider form | advanced collapsed | 60 | 30 | 36 | 22 | 59 | yes |
 | A — tightened flat | Provider form | advanced collapsed | 60 | 14 | 4 | 54 | 58 | yes |
+| A2 — tightened flat, stable label column | Provider form | advanced collapsed | 60 | 19 | 4 | 54 | 58 | yes |
 | B — single panel | Provider form | advanced collapsed | 60 | 14 | 4 | 50 | 59 | yes |
 | C — grouped panels | Provider form | advanced collapsed | 60 | 14 | 4 | 50 | 59 | yes |
 | A — tightened flat | Provider form | advanced expanded | 80 | 19 | 4 | 74 | 75 | yes |
+| A2 — tightened flat, stable label column | Provider form | advanced expanded | 80 | 19 | 4 | 74 | 75 | yes |
 | B — single panel | Provider form | advanced expanded | 80 | 19 | 4 | 70 | 79 | yes |
-| C — grouped panels | Provider form | advanced expanded | 80 | 14 | 4 | 70 | 79 | yes |
+| C — grouped panels | Provider form | advanced expanded | 80 | 19 | 4 | 70 | 79 | yes |
 | A — tightened flat | Provider form | advanced expanded | 60 | 19 | 4 | 54 | 58 | yes |
+| A2 — tightened flat, stable label column | Provider form | advanced expanded | 60 | 19 | 4 | 54 | 58 | yes |
 | B — single panel | Provider form | advanced expanded | 60 | 19 | 4 | 50 | 59 | yes |
-| C — grouped panels | Provider form | advanced expanded | 60 | 14 | 4 | 50 | 59 | yes |
+| C — grouped panels | Provider form | advanced expanded | 60 | 19 | 4 | 50 | 59 | yes |
 | Baseline — today | Global settings form | no advanced fields | 80 | 30 | 36 | 42 | 75 | yes |
 | A — tightened flat | Global settings form | no advanced fields | 80 | 29 | 4 | 74 | 75 | yes |
 | B — single panel | Global settings form | no advanced fields | 80 | 29 | 4 | 70 | 79 | yes |
@@ -89,6 +102,31 @@ indent are taken off. `Widest` is the longest line the paint actually produced.
      Only http:// and https:// are allowed.
    Auth token    * sk-p••••••••oken
    Model         * acme/opus-1m
+
+   Show advanced fields
+   Save
+   Cancel
+
+ ↑↓/tab move · ←→/space change · enter next · esc cancel · * = differs from
+ disk
+```
+
+#### A2 — tightened flat, stable label column
+
+```text
+
+ ccset  Writes Claude Code settings files. Activation stays yours.
+ Edit provider: acme
+
+ File: ~/.claude/settings.<name>.json — created on save.
+ Keys ccset does not manage are preserved exactly as they are on disk.
+
+   Provider name        acme
+ ❯ Base URL           * ftp://api.acme.example
+     Endpoint root, e.g. https://api.example.com — no trailing path.
+     Only http:// and https:// are allowed.
+   Auth token         * sk-p••••••••oken
+   Model              * acme/opus-1m
 
    Show advanced fields
    Save
@@ -212,6 +250,34 @@ indent are taken off. `Widest` is the longest line the paint actually produced.
  * = differs from disk
 ```
 
+#### A2 — tightened flat, stable label column
+
+```text
+
+ ccse  Writes Claude Code settings files. Activation stays
+     yours.
+ Edit provider: acme
+
+ File: ~/.claude/settings.<name>.json — created on save.
+ Keys ccset does not manage are preserved exactly as they
+ are on disk.
+
+   Provider name        acme
+ ❯ Base URL           * ftp://api.acme.example
+     Endpoint root, e.g. https://api.example.com — no
+     trailing path.
+     Only http:// and https:// are allowed.
+   Auth token         * sk-p••••••••oken
+   Model              * acme/opus-1m
+
+   Show advanced fields
+   Save
+   Cancel
+
+ ↑↓/tab move · ←→/space change · enter next · esc cancel ·
+ * = differs from disk
+```
+
 #### B — single panel
 
 ```text
@@ -278,6 +344,35 @@ indent are taken off. `Widest` is the longest line the paint actually produced.
 ### 80 columns
 
 #### A — tightened flat
+
+```text
+
+ ccset  Writes Claude Code settings files. Activation stays yours.
+ Edit provider: acme
+
+ File: ~/.claude/settings.<name>.json — created on save.
+ Keys ccset does not manage are preserved exactly as they are on disk.
+
+   Provider name        acme
+ ❯ Base URL           * ftp://api.acme.example
+     Endpoint root, e.g. https://api.example.com — no trailing path.
+     Only http:// and https:// are allowed.
+   Auth token         * sk-p••••••••oken
+   Model              * acme/opus-1m
+   Fallback models    * acme/sonnet-4, acme/haiku-3
+   Opus model remap   * acme/opus-1m
+   Sonnet model remap   (unset)
+   Haiku model remap    (unset)
+
+   Hide advanced fields
+   Save
+   Cancel
+
+ ↑↓/tab move · ←→/space change · enter next · esc cancel · * = differs from
+ disk
+```
+
+#### A2 — tightened flat, stable label column
 
 ```text
 
@@ -375,6 +470,38 @@ indent are taken off. `Widest` is the longest line the paint actually produced.
 ### 60 columns
 
 #### A — tightened flat
+
+```text
+
+ ccse  Writes Claude Code settings files. Activation stays
+     yours.
+ Edit provider: acme
+
+ File: ~/.claude/settings.<name>.json — created on save.
+ Keys ccset does not manage are preserved exactly as they
+ are on disk.
+
+   Provider name        acme
+ ❯ Base URL           * ftp://api.acme.example
+     Endpoint root, e.g. https://api.example.com — no
+     trailing path.
+     Only http:// and https:// are allowed.
+   Auth token         * sk-p••••••••oken
+   Model              * acme/opus-1m
+   Fallback models    * acme/sonnet-4, acme/haiku-3
+   Opus model remap   * acme/opus-1m
+   Sonnet model remap   (unset)
+   Haiku model remap    (unset)
+
+   Hide advanced fields
+   Save
+   Cancel
+
+ ↑↓/tab move · ←→/space change · enter next · esc cancel ·
+ * = differs from disk
+```
+
+#### A2 — tightened flat, stable label column
 
 ```text
 

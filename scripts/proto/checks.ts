@@ -3,13 +3,17 @@ import { PROVIDER_FIELDS } from '../../src/agents/claude-code/manifest.js'
 import { maskSecret } from '../../src/core/mask.js'
 import { t } from '../../src/i18n/index.js'
 import {
+  APP_PADDING,
   BASELINE_HINT_INDENT,
   BASELINE_LABEL_WIDTH,
   CHANGED_WIDTH,
   LABEL_GAP,
   MARKER_WIDTH,
   TIGHT_HINT_INDENT,
+  advancedFields,
+  basicFields,
   hintBudget,
+  isAdvanced,
   labelCellWidth,
   labelColumnWidth,
   screenColumns,
@@ -32,16 +36,22 @@ const FOCUS_MARKER = '❯'
 const PROVIDER_BASIC_FIELDS = 4
 const WIDE_COLUMNS = 80
 const NARROW_COLUMNS = 60
-/** 80 columns less today's 36-column hint indent -- the symptom issue #18 names. */
-const BASELINE_HINT_BUDGET_AT_80 = 44
+/**
+ * The hint budget today, at 80 columns: the Screen keeps 78 of them and the
+ * 36-column indent takes all but 42. This is the symptom issue #18 names, and it
+ * has to be measured against the Screen rather than the terminal -- the App's
+ * padding is gone before a hint is painted.
+ */
+const BASELINE_HINT_BUDGET_AT_80 = 42
 
 export function plain(paint: string): string {
   return paint.replace(ANSI, '')
 }
 
 function checkScreenColumns(): void {
-  assert.equal(screenColumns(WIDE_COLUMNS), 78, 'A Screen loses one column to padding per edge')
-  assert.equal(screenColumns(NARROW_COLUMNS), 58, 'A Screen loses one column to padding per edge')
+  const lost = APP_PADDING * 2
+  assert.equal(screenColumns(WIDE_COLUMNS), WIDE_COLUMNS - lost, 'A Screen loses a column per edge')
+  assert.equal(screenColumns(NARROW_COLUMNS), NARROW_COLUMNS - lost, 'At every width, the same')
 }
 
 function checkVisibleFields(): void {
@@ -50,7 +60,7 @@ function checkVisibleFields(): void {
   assert.equal(collapsed.length, PROVIDER_BASIC_FIELDS, 'Collapsed shows only the basic fields')
   assert.equal(expanded.length, PROVIDER_FIELDS.length, 'Expanded shows every field')
   assert.ok(
-    collapsed.every((field) => field.advanced !== true),
+    collapsed.every((field) => !isAdvanced(field)),
     'A collapsed form must not paint an advanced field',
   )
 }
@@ -82,23 +92,48 @@ function checkLabelCell(): void {
 }
 
 function checkHintBudget(): void {
+  const screen = screenColumns(WIDE_COLUMNS)
   assert.equal(
-    hintBudget(WIDE_COLUMNS, BASELINE_HINT_INDENT),
+    hintBudget(screen, BASELINE_HINT_INDENT),
     BASELINE_HINT_BUDGET_AT_80,
-    'Today a hint gets 44 of 80 columns; that is the number the prototype was run to settle',
+    'Today a hint gets 42 of a Screen s 78 columns; that is the number #18 has to move',
   )
   assert.ok(
-    hintBudget(WIDE_COLUMNS, TIGHT_HINT_INDENT) > hintBudget(WIDE_COLUMNS, BASELINE_HINT_INDENT),
+    hintBudget(screen, TIGHT_HINT_INDENT) > hintBudget(screen, BASELINE_HINT_INDENT),
     'A tightened hint must end up with more room than today s',
   )
+}
+
+/** The split has to be a partition; two callers computing it apart is how C's
+ *  advanced label column went unreported in the measurement table. */
+function checkAdvancedSplit(): void {
+  const basic = basicFields(PROVIDER_FIELDS)
+  const advanced = advancedFields(PROVIDER_FIELDS)
+  assert.equal(basic.length + advanced.length, PROVIDER_FIELDS.length, 'Every field lands once')
+  assert.deepEqual(basic, visibleFields(PROVIDER_FIELDS, false), 'Collapsed paints the basic split')
+}
+
+/**
+ * The variant the recommendation puts to #18: measured across every field the
+ * form declares, the value column does not move when Advanced expands. It is a
+ * candidate here rather than a note, so the claim has a paint behind it.
+ */
+function checkStableLabelColumn(): void {
+  const stable = labelCellWidth(PROVIDER_FIELDS)
+  const collapsed = labelCellWidth(visibleFields(PROVIDER_FIELDS, false))
+  const expanded = labelCellWidth(visibleFields(PROVIDER_FIELDS, true))
+  assert.equal(stable, expanded, 'Expanded, the visible measurement already is the stable one')
+  assert.ok(stable > collapsed, 'Stability costs columns while collapsed; that is the whole trade')
 }
 
 /** The layout arithmetic, checked before anything is rendered or written. */
 export function checkLayout(): void {
   checkScreenColumns()
   checkVisibleFields()
+  checkAdvancedSplit()
   checkLabelColumnWidth()
   checkLabelCell()
+  checkStableLabelColumn()
   checkHintBudget()
 }
 

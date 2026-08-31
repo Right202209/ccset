@@ -26,8 +26,12 @@ export const BASELINE_LABEL_WIDTH = 30
 export const BASELINE_HINT_GAP = 6
 export const BASELINE_HINT_INDENT = BASELINE_LABEL_WIDTH + BASELINE_HINT_GAP
 
-/** A tightened hint clears the focus gutter and stops. */
-export const TIGHT_HINT_INDENT = MARKER_WIDTH + 2
+/**
+ * A tightened hint clears the focus gutter and indents one step past it, so it
+ * reads as subordinate to the row above without clearing the label column.
+ */
+export const HINT_STEP = 2
+export const TIGHT_HINT_INDENT = MARKER_WIDTH + HINT_STEP
 
 /** A bordered panel costs one border column and one padding column per side. */
 export const PANEL_CHROME = 4
@@ -37,9 +41,26 @@ export function screenColumns(columns: number): number {
   return columns - APP_PADDING * 2
 }
 
+/**
+ * Whether a field hides behind the Advanced toggle. One predicate, because the
+ * treatments, the metrics and the control rows all have to agree on the split --
+ * and when two of them made the judgement separately, the two answers diverged.
+ */
+export function isAdvanced(field: FieldSpec): boolean {
+  return field.advanced === true
+}
+
+export function basicFields(fields: FieldSpec[]): FieldSpec[] {
+  return fields.filter((field) => !isAdvanced(field))
+}
+
+export function advancedFields(fields: FieldSpec[]): FieldSpec[] {
+  return fields.filter(isAdvanced)
+}
+
 /** The rows a form actually paints; advanced fields hide until expanded. */
 export function visibleFields(fields: FieldSpec[], showAdvanced: boolean): FieldSpec[] {
-  return fields.filter((field) => field.advanced !== true || showAdvanced)
+  return showAdvanced ? fields : basicFields(fields)
 }
 
 /**

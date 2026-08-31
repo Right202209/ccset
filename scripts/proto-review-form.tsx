@@ -11,7 +11,7 @@ import {
 import { hintBudget, screenColumns } from './proto/layout.js'
 import { paintAt } from './proto/paint.js'
 import { SUBJECTS, hasAdvanced, type Subject } from './proto/subjects.js'
-import { TREATMENTS, type Treatment } from './proto/treatments.js'
+import { TREATMENTS, appliesTo, type Treatment } from './proto/treatments.js'
 
 /**
  * Issue #9: three visual treatments of the review form, rendered at 80 and 60
@@ -29,10 +29,13 @@ const WIDTHS = [80, 60]
 const OUT_PATH = path.join('docs', 'prototypes', 'review-form-renders.md')
 const FENCE = '```text'
 
-interface Case {
+interface Variant {
   subject: Subject
-  treatment: Treatment
   showAdvanced: boolean
+}
+
+interface Case extends Variant {
+  treatment: Treatment
   columns: number
 }
 
@@ -42,11 +45,12 @@ interface Rendered {
   fits: boolean
 }
 
-function states(subject: Subject): boolean[] {
-  return hasAdvanced(subject) ? [false, true] : [false]
+function variants(subject: Subject): Variant[] {
+  const states = hasAdvanced(subject) ? [false, true] : [false]
+  return states.map((showAdvanced) => ({ subject, showAdvanced }))
 }
 
-function stateLabel(subject: Subject, showAdvanced: boolean): string {
+function stateLabel({ subject, showAdvanced }: Variant): string {
   if (!hasAdvanced(subject)) return 'no advanced fields'
   return showAdvanced ? 'advanced expanded' : 'advanced collapsed'
 }
@@ -58,22 +62,22 @@ function keyOf(item: Case): string {
 }
 
 function labelOf(item: Case): string {
-  const state = stateLabel(item.subject, item.showAdvanced)
-  return `${item.subject.label} · ${state} · ${item.columns} columns · ${item.treatment.label}`
+  return `${item.subject.label} · ${stateLabel(item)} · ${item.columns} columns · ${item.treatment.label}`
 }
 
-/** The baseline has no static expanded paint, so it appears collapsed only. */
-function casesFor(subject: Subject, showAdvanced: boolean, columns: number): Case[] {
-  const usable = TREATMENTS.filter((treatment) => treatment.candidate || !showAdvanced)
-  return usable.map((treatment) => ({ subject, treatment, showAdvanced, columns }))
+function casesFor(variant: Variant, columns: number): Case[] {
+  const usable = TREATMENTS.filter((treatment) =>
+    appliesTo(treatment, variant.subject, variant.showAdvanced),
+  )
+  return usable.map((treatment) => ({ ...variant, treatment, columns }))
 }
 
 function buildCases(): Case[] {
   const cases: Case[] = []
   for (const subject of SUBJECTS) {
-    for (const showAdvanced of states(subject)) {
+    for (const variant of variants(subject)) {
       for (const columns of WIDTHS) {
-        cases.push(...casesFor(subject, showAdvanced, columns))
+        cases.push(...casesFor(variant, columns))
       }
     }
   }
@@ -84,15 +88,14 @@ function buildCases(): Case[] {
 
 async function renderCase(item: Case): Promise<Rendered> {
   const label = labelOf(item)
-  const props = { subject: item.subject, showAdvanced: item.showAdvanced }
-  const coloured = await paintAt(item.columns, item.treatment.render(props))
+  const coloured = await paintAt(item.columns, item.treatment.render(item))
   checkSingleFocus(label, coloured)
   if (item.subject.secret !== undefined) {
     checkSecretMasked(label, coloured, item.subject.secret)
   }
   // A candidate that overflows is not a candidate. The baseline is measured
   // instead, because what it does at 60 columns is part of the evidence.
-  if (item.treatment.candidate) checkFits(label, coloured, item.columns)
+  if (!item.treatment.evidence) checkFits(label, coloured, item.columns)
   process.stdout.write(`\n\x1b[1m${label}\x1b[0m\n${coloured}\n`)
   const widest = widestLine(coloured)
   return { paint: plain(coloured), widest, fits: widest <= item.columns }
@@ -109,15 +112,12 @@ async function renderAll(cases: Case[]): Promise<Map<string, Rendered>> {
 /* -------------------------------------------------------------- write out */
 
 function measurementRow(item: Case, rendered: Rendered): string {
-  const layout = item.treatment.metrics({
-    subject: item.subject,
-    showAdvanced: item.showAdvanced,
-  })
+  const layout = item.treatment.metrics(item)
   const room = screenColumns(item.columns) - item.treatment.chrome
   const cells = [
     item.treatment.label,
     item.subject.label,
-    stateLabel(item.subject, item.showAdvanced),
+    stateLabel(item),
     String(item.columns),
     String(layout.labelCell),
     String(layout.hintIndent),
@@ -140,11 +140,11 @@ function measurementTable(cases: Case[], painted: Map<string, Rendered>): string
   return [...head, ...rows, '']
 }
 
-function paintBlocks(subject: Subject, showAdvanced: boolean, painted: Map<string, Rendered>): string[] {
+function paintBlocks(variant: Variant, painted: Map<string, Rendered>): string[] {
   const out: string[] = []
   for (const columns of WIDTHS) {
     out.push(`### ${columns} columns`, '')
-    for (const item of casesFor(subject, showAdvanced, columns)) {
+    for (const item of casesFor(variant, columns)) {
       const rendered = painted.get(keyOf(item))
       if (rendered === undefined) continue
       out.push(`#### ${item.treatment.label}`, '', FENCE, rendered.paint, '```', '')
@@ -166,8 +166,15 @@ function preamble(): string[] {
     '',
     'The baseline is `src/ui/ReviewForm.tsx` as it stands, mounted unmodified. Its',
     'Advanced state is internal to the component, so it has no static expanded paint',
-    'and appears collapsed only. Its focus starts on row one, where each treatment',
-    'focuses the row that carries a hint and an error at once.',
+    'and appears collapsed only, and its focus starts on row one rather than on the row',
+    'the treatments focus.',
+    '',
+    'Two elements are injected, because a static paint cannot reach them: the focused',
+    'row, and the validation errors. Since colour is stripped, the error line is not red',
+    'here -- find it by its text. On the provider form the focused row is `Base URL`,',
+    'which carries a help hint and its own error at once. On the global form focus is on',
+    '`Model` (the longest hint there is) and the error sits on `Cleanup period`, an',
+    'unfocused row, so that paint shows a hint and a detached error line together.',
     '',
     'The written recommendation is in `review-form-treatments.md`.',
     '',
@@ -175,6 +182,8 @@ function preamble(): string[] {
     '',
     '`Hint cols` is what a hint has left after the App padding, the enclosure and the',
     'indent are taken off. `Widest` is the longest line the paint actually produced.',
+    'For treatment C, whose two panels measure their label columns separately, `Label',
+    'col` is the wider of the columns on screen.',
     '',
   ]
 }
@@ -182,9 +191,9 @@ function preamble(): string[] {
 function document(cases: Case[], painted: Map<string, Rendered>): string {
   const lines = [...preamble(), ...measurementTable(cases, painted)]
   for (const subject of SUBJECTS) {
-    for (const showAdvanced of states(subject)) {
-      lines.push(`## ${subject.label} — ${stateLabel(subject, showAdvanced)}`, '')
-      lines.push(...paintBlocks(subject, showAdvanced, painted))
+    for (const variant of variants(subject)) {
+      lines.push(`## ${subject.label} — ${stateLabel(variant)}`, '')
+      lines.push(...paintBlocks(variant, painted))
     }
   }
   return `${lines.join('\n')}\n`

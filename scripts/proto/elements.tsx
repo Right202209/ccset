@@ -5,7 +5,7 @@ import type { FieldSpec, FieldValue } from '../../src/types.js'
 import { MASK_CHAR } from '../../src/core/constants.js'
 import { maskSecret } from '../../src/core/mask.js'
 import { t } from '../../src/i18n/index.js'
-import { APP_PADDING, CHANGED_WIDTH, MARKER_WIDTH } from './layout.js'
+import { APP_PADDING, CHANGED_WIDTH, MARKER_WIDTH, isAdvanced } from './layout.js'
 import type { Subject, SubjectState } from './subjects.js'
 
 /**
@@ -229,7 +229,7 @@ export function Controls({
   subject: Subject
   showAdvanced: boolean
 }): React.ReactElement {
-  const toggle = subject.fields.some((field) => field.advanced === true)
+  const toggle = subject.fields.some(isAdvanced)
   return (
     <Box flexDirection="column">
       {toggle && (
