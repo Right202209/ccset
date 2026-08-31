@@ -735,3 +735,13 @@ two titles. The same drive runs under Unicode and ASCII Terminal capabilities,
 asserting `›` and `>` respectively, and checks that the top-level agent menu does
 not paint a Frame path. The implementation derives titles from the existing stack;
 it introduces no second navigation history.
+
+### 9.20 Windowed Status sections (2026-08-31)
+
+`npm run verify:ui-render` now proves the Status-specific contract at 12-row and
+2-row Viewports: the sections region carries its own count line, long values are
+expanded into physical display rows before the shared window calculation, and
+the selectable action remains visible below that region and can be invoked. The
+View still has no write callback for section data; only the existing action item
+is selectable. Below seven rows the Status paint drops the application chrome so
+the count and action own the available rows; at one row the action takes priority.

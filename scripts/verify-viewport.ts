@@ -43,11 +43,12 @@ async function verifyLongList(home: string, viewport: Viewport): Promise<void> {
 }
 
 async function verifyLongStatus(home: string, viewport: Viewport): Promise<void> {
-  const items = Array.from({ length: 12 }, (_, index) => ({
-    id: `status-action-${index + 1}`,
-    label: `Status action ${index + 1}`,
-    run: async () => ({ kind: 'message' as const, title: 'Done', lines: ['done'], tone: 'info' as const }),
-  }))
+  const longValue = 'status-value-start '.repeat(4) + 'status-value-end'
+  const items = [{
+    id: 'status-action',
+    label: 'Status action',
+    run: async () => ({ kind: 'message' as const, title: 'Done', lines: ['status-action-ran'], tone: 'info' as const }),
+  }]
   const agent: Agent = {
     id: 'long-status',
     name: 'Long status',
@@ -60,7 +61,7 @@ async function verifyLongStatus(home: string, viewport: Viewport): Promise<void>
         title: 'Long status screen',
         sections: Array.from({ length: 8 }, (_, index) => ({
           title: `Section ${index + 1}`,
-          lines: [{ label: 'Value', value: `status-value-${index + 1}` }],
+          lines: [{ label: 'Value', value: index === 0 ? longValue : `status-value-${index + 1}` }],
         })),
         items,
       }),
@@ -70,11 +71,71 @@ async function verifyLongStatus(home: string, viewport: Viewport): Promise<void>
   try {
     await session.waitFor('Long status screen')
     await session.send('1')
-    const paint = await session.waitFor('Status action 1')
-    assertPainted(paint, 'Showing 1-2 of 12', 'The Status actions have no bounded window')
+    const paint = await session.waitFor('Status action')
+    assertPainted(paint, 'Showing 1-4 of 17', 'The Status sections have no count line')
+    assertPainted(paint, 'status-value-end', 'The long Status value was truncated instead of wrapped')
+    await session.send('1')
+    await session.waitFor('status-action-ran')
     assertPaintsFit(session.paints(), viewport)
   } finally {
     session.stop()
+  }
+}
+
+async function verifyShortStatus(home: string): Promise<void> {
+  const viewport: Viewport = { rows: 2, columns: 80 }
+  const agent: Agent = {
+    id: 'short-status',
+    name: 'Short status',
+    detect: async () => true,
+    getActions: () => [{
+      id: 'status',
+      labelKey: 'Short status screen',
+      run: async () => ({
+        kind: 'status' as const,
+        title: 'Short status screen',
+        sections: [{
+          title: 'Section',
+          lines: [
+            { label: 'Value', value: 'status value' },
+            { label: 'Mode', value: 'status mode' },
+          ],
+        }],
+        items: [{
+          id: 'status-action',
+          label: 'Status action',
+          run: async () => ({ kind: 'message' as const, title: 'Done', lines: ['short-status-action-ran'], tone: 'info' as const }),
+        }],
+      }),
+    }],
+  }
+  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], viewport })
+  try {
+    await session.waitFor('Short status screen')
+    await session.send('1')
+    let paint = await session.waitFor('Status action')
+    assertPainted(paint, 'Showing 0-0 of 3', 'The shortest Status has no sections count line')
+    assertPaintsFit([paint], viewport)
+    await session.send('1')
+    paint = await session.waitFor('short-status-action-ran')
+  } finally {
+    session.stop()
+  }
+
+  const oneRowViewport: Viewport = { rows: 1, columns: 80 }
+  const oneRowSession = new UiSession(home, UNICODE_TERMINAL, {
+    agents: [agent],
+    viewport: oneRowViewport,
+  })
+  try {
+    await oneRowSession.waitFor('Short status screen')
+    await oneRowSession.send('1')
+    const paint = await oneRowSession.waitFor('Status action')
+    assertPaintsFit([paint], oneRowViewport)
+    await oneRowSession.send('1')
+    await oneRowSession.waitFor('short-status-action-ran')
+  } finally {
+    oneRowSession.stop()
   }
 }
 
@@ -145,6 +206,7 @@ async function verifyLongForm(home: string): Promise<void> {
 export async function verifyViewportScenarios(home: string, viewport: Viewport): Promise<void> {
   await verifyLongList(home, viewport)
   await verifyLongStatus(home, viewport)
+  await verifyShortStatus(home)
   await verifyNarrowList(home)
   await verifyLongForm(home)
 }

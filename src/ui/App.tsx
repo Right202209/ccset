@@ -101,6 +101,7 @@ export function App({
     onDone: leave,
     onDirtyChange,
   }
+  const compactStatus = screens.current?.kind === 'status' && viewport.rows < 7
 
   function body(): React.ReactElement {
     if (screens.busy) return <Busy label={screens.busyLabel} />
@@ -136,14 +137,16 @@ export function App({
   return (
     <TerminalContext.Provider value={terminal}>
       <ViewportProvider viewport={viewport}>
-        <Box flexDirection="column" padding={1}>
-          <Header
-            segments={headerSegments(
-              screens.frames.map((frame) => frame.screen.title),
-              agent,
-              prompt,
-            )}
-          />
+        <Box flexDirection="column" padding={compactStatus ? 0 : 1}>
+          {!compactStatus && (
+            <Header
+              segments={headerSegments(
+                screens.frames.map((frame) => frame.screen.title),
+                agent,
+                prompt,
+              )}
+            />
+          )}
           {body()}
         </Box>
       </ViewportProvider>
