@@ -8,7 +8,9 @@ import {
   MAX_BACKUP_NAME_ATTEMPTS,
 } from './constants.js'
 import { isNotFound, wrapFsError } from './errors.js'
+import { t } from '../i18n/index.js'
 import { ensureDir, fileExists } from './json-file.js'
+import type { StatusSection } from '../types.js'
 
 /**
  * Backups live in a ccset-owned directory rather than one the agent prunes:
@@ -98,9 +100,42 @@ function isCcsetBackup(name: string): boolean {
   return name.includes(BACKUP_INFIX) || name.startsWith(BACKUP_TEMP_PREFIX)
 }
 
-export async function countBackups(dir: string): Promise<number> {
+/** Counts the directory entries a predicate keeps: the finished backups and
+ *  the partial copies are the same listing with different name rules. */
+async function countEntries(dir: string, keep: (name: string) => boolean): Promise<number> {
   const entries = await listBackupEntries(dir, '')
-  return entries.filter((entry) => entry.name.includes(BACKUP_INFIX)).length
+  return entries.filter((entry) => keep(entry.name)).length
+}
+
+export async function countBackups(dir: string): Promise<number> {
+  return countEntries(dir, (name) => name.includes(BACKUP_INFIX))
+}
+
+/** A partial copy holds the same credential a finished backup does, but no
+ *  write ever lands on its name, so it only ever appears after a crash. */
+export async function countPartialBackups(dir: string): Promise<number> {
+  return countEntries(dir, (name) => name.startsWith(BACKUP_TEMP_PREFIX))
+}
+
+/**
+ * The read-only backups section every agent's Status shows, so a partial copy
+ * is surfaced the same way everywhere it can exist. It holds the credential it
+ * was copying, which makes hiding it until Clear backups a reporting failure.
+ */
+export async function backupStatusSection(dir: string): Promise<StatusSection> {
+  const [count, partials] = await Promise.all([countBackups(dir), countPartialBackups(dir)])
+  const lines: StatusSection['lines'] = [
+    { label: t('status.path'), value: dir },
+    { label: t('status.count'), value: String(count) },
+  ]
+  if (partials > 0) {
+    lines.push({ label: t('status.partials'), value: String(partials), tone: 'warn' })
+  }
+  return {
+    title: t('status.backupsTitle'),
+    lines,
+    note: partials > 0 ? t('status.partialsNote', { count: partials }) : t('status.backupsNote'),
+  }
 }
 
 /**

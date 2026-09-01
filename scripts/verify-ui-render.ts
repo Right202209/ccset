@@ -249,7 +249,7 @@ async function verifyRenderedPaints(home: string, set: string, terminal: Termina
     await driveTokenEditor(session, terminal)
     await driveStatus(session, terminal)
     await driveConfirm(session)
-    session.assertNoFatal()
+    session.assertAlive()
     const paints = session.paints()
     assert.ok(
       paints.length >= MIN_PAINTS,

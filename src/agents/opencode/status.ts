@@ -1,5 +1,5 @@
 import type { Ctx, JsonObject, StatusLine, StatusSection } from '../../types.js'
-import { countBackups } from '../../core/backup.js'
+import { backupStatusSection } from '../../core/backup.js'
 import { JsonParseError } from '../../core/errors.js'
 import { fileExists, readJsonFile, readMode } from '../../core/json-file.js'
 import { maskSecret } from '../../core/mask.js'
@@ -98,18 +98,6 @@ function providerSections(list: ProviderList): StatusSection[] {
   return list.records.map(providerSection)
 }
 
-async function backupSection(ctx: Ctx): Promise<StatusSection> {
-  const dir = backupsDir(ctx.home)
-  return {
-    title: t('status.backupsTitle'),
-    lines: [
-      { label: t('status.path'), value: dir },
-      { label: t('status.count'), value: String(await countBackups(dir)) },
-    ],
-    note: t('status.backupsNote'),
-  }
-}
-
 /**
  * opencode also loads a JSONC variant that ccset will not write, so a config
  * sitting beside the managed one is reported rather than ignored: a save that
@@ -128,7 +116,7 @@ export async function buildStatus(ctx: Ctx): Promise<StatusData> {
   const [providers, global, backups, jsoncPresent] = await Promise.all([
     loadProviders(ctx),
     globalSection(ctx),
-    backupSection(ctx),
+    backupStatusSection(backupsDir(ctx.home)),
     fileExists(opencodeJsoncPath(ctx.home)),
   ])
   const sections = [global, ...providerSections(providers), backups]

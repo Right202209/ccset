@@ -3,15 +3,15 @@ import { createElement } from 'react'
 import { render } from 'ink-testing-library'
 import { App } from '../src/ui/App.js'
 import { AGENTS } from '../src/registry.js'
-import type { CcsetError } from '../src/core/errors.js'
 import type { Terminal } from '../src/ui/terminal.js'
 import type { Agent, Viewport } from '../src/types.js'
 
 /**
- * Harness for verify-ui-render. Not a gate itself -- it holds no assertion about
- * ccset's behaviour, only the machinery for driving a rendered application and
- * reading the Rendered paints back out. It lives apart from the gate so that
- * neither file has to be trimmed to stay inside the 300-line limit.
+ * Harness for the rendering gates. Not a gate itself -- it holds no assertion
+ * about ccset's behaviour, only the machinery for driving a rendered
+ * application and reading the Rendered paints back out. It lives apart from
+ * the gates so that neither file has to be trimmed to stay inside the 300-line
+ * limit.
  */
 
 const ANSI = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g
@@ -58,7 +58,6 @@ export function focusMarkers(paint: string, marker: string): number {
 export class UiSession {
   private readonly instance: ReturnType<typeof render>
   private readonly marker: string
-  private fatal: CcsetError | null = null
 
   constructor(
     home: string,
@@ -72,9 +71,6 @@ export class UiSession {
         agents: options.agents ?? AGENTS,
         terminal,
         viewport: options.viewport,
-        onFatal: (error: CcsetError) => {
-          this.fatal = error
-        },
       }),
     )
   }
@@ -147,8 +143,9 @@ export class UiSession {
     throw new Error(`Timed out waiting for ${JSON.stringify(text)}. Last paint:\n${this.paint()}`)
   }
 
-  assertNoFatal(): void {
-    assert.equal(this.fatal, null, `The app reported a fatal error: ${this.fatal?.messageKey}`)
+  /** The app is still painting: no render-tree failure ejected it. */
+  assertAlive(): void {
+    assert.ok(this.instance.lastFrame() !== undefined, 'The app stopped painting')
   }
 
   stop(): void {

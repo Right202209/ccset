@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is eleven
+There is no lint script and no unit-test framework. The test suite is twelve
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -30,6 +30,7 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:header-path` | The header's navigation path: segments accumulate on push, drop on back, and elide from the front when they outrun the terminal width |
 | `npm run verify:review-form` | The review form's row treatment: focus, changed markers, hints, Advanced toggle, `ctrl+s` |
 | `npm run verify:malformed-dirty` | T6, T9: malformed-target confirm flow and unsaved-edits prompt, driven through a real PTY |
+| `npm run verify:error-recovery` | A failed save stays in-app and keeps everything typed (read-only-directory drive, then a fixed retry), and a partial backup copy is surfaced by Status for all three agents and removed by Clear |
 | `npm run verify:status-terminal` | Status listing/refresh, narrow-terminal layout, `--version` and non-TTY exit `2` |
 | `npm run verify:release-artifact` | Packs a tarball, installs it into a temp project, checks contents/bin/shebang/mode |
 
@@ -81,7 +82,8 @@ touching `src/ui/`.
 
 **`src/core/`** is agent-agnostic and is where safety lives: `json-file.ts` (atomic
 temp+rename writes, `0600`, parse errors), `merge.ts` (apply managed writes, preserve
-everything else), `backup.ts` (per-file rotation, taking the directory as an argument),
+everything else), `backup.ts` (per-file rotation and the read-only backups Status
+section, both taking the directory as an argument),
 `copy.ts` (atomic byte copy, used by backups and by moving a credential ccset does not
 model), `mask.ts`, `values.ts` (form↔JSON coercions), `save.ts`
 (`runSave`/`successMessage`), `validate.ts` (validator *factories* — which names are
@@ -185,7 +187,7 @@ resolves an agent's keys must import this module, or every `codex.*` key degrade
 visible literal. Adding an agent is one import plus one array element;
 `docs/adding-an-agent.md` is the guide, written from doing it.
 
-**`src/ui/`** is a navigation stack, not a router. `useScreens.ts` holds `Frame[]`; two
+**`src/ui/`** is a navigation stack, not a router. `useScreens.ts` holds `Frame[]`; three
 rules there are load-bearing and easy to break:
 - A frame keeps its producing task (`reload`) **only** when the screen it produced was
   a `list` or `status`, because re-running those is a read. Backing out of a save's
@@ -194,6 +196,14 @@ rules there are load-bearing and easy to break:
   parks the submitted values onto the form's frame first. Together these mean declining
   "back up and start fresh" returns a form still holding the token the user typed.
   Refusing a destructive write must not cost the user their input.
+- A task that throws returns an error Screen, never a fatal unmount. From
+  `open`/`replace` it **stacks**: `esc` goes back to the frame that caused it,
+  values intact, and the failure can be fixed and retried in the same session.
+  A failed re-read on back takes the reloaded frame's place instead — what
+  failed is the read that frame was showing, and stacking would make every esc
+  re-trigger the failure. The exit-code taxonomy (`PRD 4.4`) belongs to core
+  and the process boundary; inside the interface every task error is
+  recoverable.
 
 Frame titles are user-visible: the header paints them as the navigation path, eliding
 from the front when the path outruns the terminal width. A screen's `title` is a
