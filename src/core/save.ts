@@ -1,5 +1,5 @@
 import type { ActionResult, WriteReport } from '../types.js'
-import { JsonParseError } from './errors.js'
+import { ConfigParseError } from './errors.js'
 import { t } from '../i18n/index.js'
 
 /** A write that can be retried against an empty base after a parse failure. */
@@ -12,6 +12,7 @@ export function successMessage(titleKey: string, report: WriteReport): ActionRes
     report.backupPath === null
       ? t('write.noBackup')
       : t('write.backup', { path: report.backupPath }),
+    ...(report.notes ?? []),
     '',
     t(report.activateKey ?? 'write.activate'),
     report.command,
@@ -20,21 +21,22 @@ export function successMessage(titleKey: string, report: WriteReport): ActionRes
 }
 
 /**
- * A target that is already malformed JSON cannot be merged into, and
- * overwriting it silently would discard keys the user cannot get back
- * (PRD 4.4, exit code 4). The choice is put to the user instead.
+ * A target that is already malformed cannot be merged into, and overwriting it
+ * silently would discard keys the user cannot get back (PRD 4.4, exit code 4).
+ * The choice is put to the user instead. The wording comes from the error, so
+ * a TOML target is described as TOML rather than as JSON.
  */
 function freshConfirm(
   titleKey: string,
   save: SaveFn,
-  err: JsonParseError,
+  err: ConfigParseError,
   busyLabel: string,
 ): ActionResult {
   return {
     kind: 'confirm',
-    title: t('confirm.freshTitle'),
+    title: t(err.titleKey),
     lines: [
-      t('error.invalidJson', {
+      t(err.messageKey, {
         path: err.params['path'] ?? '',
         position: err.params['position'] ?? '',
       }),
@@ -55,7 +57,7 @@ export async function runSave(
   try {
     return successMessage(titleKey, await save(false))
   } catch (err) {
-    if (!(err instanceof JsonParseError)) throw err
+    if (!(err instanceof ConfigParseError)) throw err
     return freshConfirm(titleKey, save, err, busyLabel)
   }
 }

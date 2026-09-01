@@ -1,9 +1,11 @@
 # Adding an agent
 
-This guide is written from adding the second one. opencode took nine files under
-`src/agents/opencode/`, one line in `src/registry.ts`, and one verification
-fixture — and it is the reason several things in `src/core/` look the way they
-do now.
+This guide is written from adding the second one, and updated from the third.
+opencode took nine files under `src/agents/opencode/`, one line in
+`src/registry.ts`, and one verification fixture — and it is the reason several
+things in `src/core/` look the way they do now. Codex took ten files and the
+same one registry line, but it also needed a new codec, which is a different
+kind of change and is covered at the end.
 
 Read [`CONTEXT.md`](../CONTEXT.md) for the vocabulary (Screen, Frame, Agent,
 Provider) before starting. Read [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the
@@ -47,6 +49,10 @@ that grow; if either passes 300, logic has usually leaked into the manifest.
 | `status.ts` | The read-only view. Reads everything, writes nothing |
 | `actions.ts` | Assembles the menu actions |
 | `messages.ts` | Your strings, namespaced by agent id |
+
+Codex adds two more, because its credential lives outside its config document:
+`auth.ts` (the sidecars) and `activate.ts` (the switch). If your agent keeps its
+key in the settings file, you will not need either.
 
 ## The parts that are easy to get wrong
 
@@ -148,5 +154,41 @@ run against four deliberate bugs — a wholesale models write, a skipped delete,
 blank written as `""`, and a replaced `options` subtree — and each turned it
 red. A data-safety gate that has never failed has not been tested.
 
+Then walk your screens and check every string resolved. `t()` returns the key on
+a miss, so a typo in `messages.ts` paints `yourAgent.field.apiKey` at the user
+rather than throwing. `verify-codex-auth.ts` has the walk: it runs each action,
+descends through list items — `run()` only, never `confirm()` or `submit()`,
+which are the writes — and asserts both that painted strings are not unresolved
+keys and that every `labelKey`, `helpKey`, `detailKey` and choice label exists.
+Import `src/registry.js` in the fixture: `registerMessages` is a load-time side
+effect of that module, and without it your whole catalog reads as missing.
+
 Record what you ran in `Important Documentation.md`. A passing local build is
 not evidence for a platform gate.
+
+## If your agent's config is not JSON
+
+This is a core change, and it is not covered by the two-files rule — say so in
+the PR rather than claiming criterion 5 for it.
+
+`ConfigFile` carries a `codec`, and `src/core/config-file.ts` dispatches on it.
+Adding one means:
+
+- a reader that produces a `JsonObject`, so agents and Status never learn the
+  format;
+- a strict checker, separate from the reader, that decides whether ccset may
+  rewrite the file at all. A file that fails it becomes the same "back it up and
+  start fresh" confirm a malformed JSON target does;
+- a writer that applies `ManagedWrite[]`.
+
+The writer is where the guarantee lives. If the format carries anything a parse
+throws away — comments, blank lines, key order, alignment — then rebuilding the
+document from a parse deletes it, and "unmanaged keys survive" becomes false the
+first time someone saves. `src/core/toml/` does not rebuild: it records where
+each value *is* and splices spans, so every byte it did not write is copied
+through. Prove that with a corpus that must survive an empty write list
+byte-identically before you write anything else.
+
+`ConfigParseError` is the base class the save flow catches. Subclass it with
+your own `messageKey` and `titleKey` so the user is told which format the file
+failed to be, rather than being told a TOML file is bad JSON.

@@ -81,6 +81,7 @@ export const en: Record<string, string> = {
   'status.disabled': 'off',
   'status.unreadable': 'unreadable',
   'status.parseError': 'Not valid JSON ({detail}).',
+  'status.parseErrorToml': 'Not valid TOML ({detail}).',
   'status.readError': 'Could not be read.',
   'status.fixHint': 'Apply by hand: {fix}',
   'status.unmanagedNote': '{count} key(s) ccset does not manage are preserved on every save.',
@@ -110,6 +111,7 @@ export const en: Record<string, string> = {
   'confirm.testToken': 'Token sent:      {token}',
   'confirm.testWarning': 'This transmits a live credential to a third-party host. Nothing is sent until you confirm.',
   'confirm.freshTitle': 'File is not valid JSON',
+  'confirm.freshTitleToml': 'File is not valid TOML',
   'confirm.freshExplain': 'ccset will not overwrite it silently. Continuing backs the file up, then writes a fresh one containing only the settings on this form — every other key in the broken file is lost.',
   'confirm.fresh': 'Back it up and start fresh',
 
@@ -158,6 +160,8 @@ export const en: Record<string, string> = {
   /* ----------------------------------------------------------------- error */
   'error.permission': 'Permission denied: {path} (needs {mode}).',
   'error.invalidJson': 'Not valid JSON: {path} ({position}).',
+  'error.invalidToml': 'Not valid TOML: {path} ({position}).',
+  'error.unwritableValue': 'A {type} value cannot be written to this file format.',
   'error.io': 'Could not access {path} ({code}).',
   'error.unexpected': 'Unexpected failure ({detail}).',
   'error.unsupportedCodec': 'Unsupported serialization format ({codec}).',

@@ -21,7 +21,9 @@ the dependent part.
 | U4 | Does Claude Code prune `~/.claude/backups/` by filename pattern or across the whole directory? | Place a foreign file there, use Claude Code until rotation occurs, check survival. | Confirms §6.5's subdirectory choice. Low risk — the subdirectory is safe either way. |
 | U5 | Is the `droite` npm scope owned/creatable by the publisher? | `npm whoami`, then `npm org ls droite` while authenticated. | Publishing at Milestone 1. |
 | U6 | When both `~/.config/opencode/opencode.json` and `opencode.jsonc` exist, which does opencode load — and does it merge them or pick one? | Write a distinguishing key into each, launch opencode, inspect the effective value. | Whether ccset's write to `opencode.json` is the config opencode reads. ccset currently reports the `.jsonc` file and warns; if the answer is "`.jsonc` wins", the warning must become a refusal to write. |
-| U7 | Can a TOML config be round-tripped without losing comments, key order, and formatting, using a format-preserving parser? | Take a real `~/.codex/config.toml`, parse and re-emit it unchanged, byte-compare. | A Codex CLI agent, and the `Codec` seam being real rather than notional. Until this is answered, "unmanaged keys survive" cannot be promised for a non-JSON agent. |
+| U7 | ~~Can a TOML config be round-tripped without losing comments, key order, and formatting, using a format-preserving parser?~~ **Answered 2026-09-01, see §9.26.** Yes, by editing the document in place rather than re-serialising it (ADR 0003). A corpus of 13 documents — comments, CRLF, no trailing newline, `#` inside strings, quoted and dotted keys, multi-line arrays and strings, inline tables, arrays of tables, literal Windows paths, date-times, radix integers — is byte-identical after an empty write list, and stays so after a managed edit elsewhere in the file. | Take a real `~/.codex/config.toml`, parse and re-emit it unchanged, byte-compare. | Was: a Codex CLI agent, and the `Codec` seam being real rather than notional. Both are now built. |
+| U8 | Does a custom `model_providers.<id>` entry with `requires_openai_auth = true` actually authenticate against a third-party endpoint using the credential in `auth.json`? | Point a Codex provider at a real Responses-API-compatible endpoint, switch to it with ccset, run one prompt. | Whether ccset's Codex provider blocks work end to end. The mechanism is read from Codex's own source (`resolve_provider_auth` in `codex-rs/model-provider/src/auth.rs`, v0.152.0) and matches its tests, but no live request has been made. |
+| U9 | When `cli_auth_credentials_store = "keyring"`, does Codex ignore `auth.json` entirely? | Set the key, log in, inspect whether `auth.json` is written or read. | Whether ccset's Status warning is a warning or must become a refusal to offer profile switching. |
 
 ---
 
@@ -53,6 +55,26 @@ nested keys — is covered by the O-series:
 | O5 | Set a managed choice to Unmanaged. | The key is deleted from the file. |
 | O6 | 13 consecutive writes. | Exactly 10 backups under `~/.config/opencode/backups/ccset/`, all `0600`; Status shows the masked key and never the whole one. |
 | O7 | An `opencode.jsonc` beside the managed file. | Status names it and warns; the file's bytes and mtime are unchanged after a save. |
+
+The third agent adds two shapes neither of the others has: a document that is
+not JSON, and a credential that lives outside it. Those are the C-series:
+
+| # | Test | Pass condition |
+| --- | --- | --- |
+| C1 | Read a hand-written `config.toml` and apply an empty write list, over a corpus of 13 documents. | Byte-identical output (U7). Every value reads back with the right type, including radix integers, arrays of tables, and multi-line strings. |
+| C2 | Save a provider against a `config.toml` carrying comments, aligned assignments, an array of tables, and `http_headers` inside the edited table. | Comments, alignment, blank lines and key order survive; the edit touches its own value span only; the result is still valid TOML. |
+| C3 | Save any ccset-managed provider. | `wire_api = "responses"` and `requires_openai_auth = true` are written as a bare string and a real TOML boolean, and are re-asserted on every save. |
+| C4 | Blank a field that is on disk; set an int field. | The key's whole line is removed — not blanked — and the int is written unquoted. |
+| C5 | Set a managed global choice to Unmanaged; set one that needs a table that does not exist. | The key is deleted; the missing table is created without disturbing the document around it. |
+| C6 | Save a provider with an API key. | The key appears in `~/.codex/auth.<id>.json` at `0600` with `auth_mode: "apikey"`, and **nowhere** in `config.toml`. |
+| C7 | Switch to a provider while `auth.json` holds a ChatGPT login. | The old file is copied byte-for-byte to the named profile, backed up, then replaced; `model_provider` is routed; the live file is recognised as matching its profile afterwards. `auth.json` itself is never offered as a switchable profile. |
+| C8 | Remove a saved credential. | The sidecar is gone, a second removal reports nothing to do, and the provider block in `config.toml` is untouched. |
+| C9 | 13 consecutive writes. | Exactly 10 backups under `~/.codex/backups/ccset/`, all `0600`; Status shows the masked key, never the whole one, and never an adopted OAuth token. |
+
+`verify:codex` also walks every screen the agent can produce and asserts that
+every i18n key resolves — including the ones reached indirectly through
+`labelKey`, `helpKey`, `detailKey` and a choice's label, which a grep for `t()`
+cannot see.
 
 ---
 
@@ -987,3 +1009,125 @@ that opencode accepts the result. U6 (which of `opencode.json` and
 than written. There is deliberately no Test connection for opencode — a custom
 provider's wire protocol comes from whichever SDK package the user names, so
 there is no endpoint ccset could probe honestly.
+
+### 9.26 Third agent: Codex CLI, and the TOML codec (2026-09-01)
+
+The agent PRD §4.3 named and §9.25 deferred. It needed U7 answered first, so
+most of this change is the codec rather than the agent.
+
+**The codec.** `Codec` was `'json'` and is now `'json' | 'toml'`. TOML carries
+comments, blank lines and an author's key order, so a parse-and-re-emit round
+trip would have deleted all three on the first save and broken "unmanaged keys
+survive" for this agent. ccset scans the document for spans instead: setting a
+key replaces its value span, adding one inserts a line into the table it belongs
+to, deleting one removes a line, and every other byte is copied through. See
+ADR 0003 for why this is written here rather than taken from npm.
+
+Two seam changes were needed and are core, not agent, work:
+
+- `readConfigFile`/`writeConfigFile` in `core/config-file.ts` carry the original
+  text alongside the parsed object, because a format-preserving write edits the
+  document rather than rebuilding it from a parse.
+- `JsonParseError` became one case of `ConfigParseError`, which carries the
+  wording for its own format. The malformed-target confirm now says "not valid
+  TOML" for a TOML target instead of borrowing the JSON line. `EXIT_INVALID_JSON`
+  was renamed `EXIT_INVALID_CONFIG`; the value is still `4` per PRD §4.4.
+
+Criterion 5 still holds for the *agent*, and the accounting is worth showing
+rather than asserting. `git status --porcelain src/` lists nine paths outside
+`src/agents/codex/`, and exactly one of them is an agent change:
+
+| Path | Why |
+| --- | --- |
+| `src/registry.ts` | The agent change. One import, one array element |
+| `src/core/toml/`, `src/core/config-file.ts` | The new codec and the seam that dispatches on it |
+| `src/core/copy.ts` | Atomic byte copy, extracted from what `backup.ts` already did inline |
+| `src/core/errors.ts` | `ConfigParseError` as the base of `JsonParseError`; `EXIT_INVALID_JSON` → `EXIT_INVALID_CONFIG` |
+| `src/core/json-file.ts` | `writeTextAtomic` split out, because a preserving codec writes text rather than data |
+| `src/core/save.ts` | Catches the base class, and renders `WriteReport.notes` |
+| `src/types.ts` | `Codec` gains `'toml'`; `WriteReport` gains `notes`, because a save that writes two files has to name both |
+| `src/i18n/en.ts` | Names a *format*, not an agent: `error.invalidToml`, `confirm.freshTitleToml`, `status.parseErrorToml`, `error.unwritableValue`. The rule that sends an agent's strings to its own `messages.ts` is unaffected — every `codex.*` key is in the module |
+
+None of these would have been needed by a fourth JSON agent. The codec is a
+different kind of change and is not claimed as an agent one.
+
+**The credential design, which is the part worth knowing.** Codex does not keep
+a third-party API key in `config.toml` at all. Reading `resolve_provider_auth`
+in `codex-rs/model-provider/src/auth.rs` at tag `rust-v0.152.0`, a provider's
+credential resolves in this order: `env_key` (an environment *variable name*),
+then `experimental_bearer_token`, then — only when `requires_openai_auth` is
+true — the ambient credential from `auth.json`. The default is `false`, and
+there is a test named `custom_provider_does_not_inherit_ambient_auth_headers`
+asserting exactly that. So a ccset-managed provider block carries
+`requires_openai_auth = true`, and the key goes into a ccset-owned
+`~/.codex/auth.<id>.json` sidecar. Switching provider copies that sidecar over
+`auth.json` and points `model_provider` at the block.
+
+ccset never read-modify-writes `auth.json`. Codex owns it and rewrites it on
+login and token refresh, which is the same hazard that makes `~/.claude.json`
+create-only. Activation is a whole-file replace, after a backup, on an explicit
+request; adoption of an existing `auth.json` is a byte copy, because it may hold
+an OAuth token block ccset does not model and must not reshape.
+
+**Facts read from the Codex source, not from memory** (all at `rust-v0.152.0`,
+released 2026-09-01; the schema Codex generates from `ConfigToml` is committed
+at `codex-rs/core/config.schema.json` and has 96 top-level keys):
+
+| Fact | Consequence for ccset |
+| --- | --- |
+| Config is `$CODEX_HOME/config.toml`, default `~/.codex` | The TOML case, and the reason for the codec |
+| `wire_api = "chat"` is a hard error; `responses` is the only value | A ccset-written provider only works against an endpoint speaking the OpenAI Responses API. Stated on the provider form, not discovered later |
+| Built-in provider ids cannot be overridden | `openai`, `amazon-bedrock`, `amazon-bedrock-runtime`, `ollama`, `lmstudio`, `ollama-chat` are reserved by the id validator |
+| `auth.json` is `{auth_mode, OPENAI_API_KEY, tokens, ...}`, written `0600` | The sidecars are plain JSON and reuse ccset's existing atomic-write, backup and masking machinery |
+| `cli_auth_credentials_store = "keyring"` bypasses `auth.json` | Status reports it and says switching would change nothing. See U9 |
+| Codex resolves its directory from `CODEX_HOME`, default `~/.codex` | Reported, **not followed**. ccset writes under the home the run was given; chasing an inherited variable would take a scratch run's writes out of its scratch home. Status names the mismatch, and the gate asserts both halves — that it is reported, and that nothing was written to the override path |
+| `model_reasoning_effort` is a free string, not an enum | A text field with suggestions, never a closed list |
+
+`verify:codex` covers C1-C9 and passes. **It was then mutation-tested**, because
+a data-safety gate that has never failed has not been tested:
+
+| Deliberate bug | Gate result |
+| --- | --- |
+| Deletion skipped (`undefined` treated as no-op) | CAUGHT (C4) |
+| Value replaced by rewriting the whole line | CAUGHT (C2 — alignment and trailing comment) |
+| Blank field written as `""` | CAUGHT (C4) |
+| `requires_openai_auth` written as `false` | CAUGHT (C3) |
+| API key also written into `config.toml` | CAUGHT (C6) |
+| `auth.json` listed as a switchable profile | CAUGHT (C7) |
+| Adoption reshapes the file instead of copying it | CAUGHT (C7 — the OAuth block was lost) |
+| An i18n key renamed in `messages.ts` | CAUGHT (screen walk) |
+| A screen referencing a key that does not exist | CAUGHT (screen walk) |
+
+Two defects came out of the gates rather than out of review:
+
+- `a = 1 2` was not detected as malformed, because the scanner read `1 2` as one
+  bare value. A bare value may now carry interior whitespace only when it is a
+  space-separated date-time, which TOML allows.
+- The editor compared path segments by joining them, and a quoted TOML key may
+  contain a space (`'lit key' = 2`), so `['lit key']` and `['lit', 'key']`
+  compared equal — editing either would have rewritten the other's line. The
+  separator is now a named `PATH_SEPARATOR` of `\u0000`, with a gate that edits
+  both paths in one document and checks the other is untouched. Reverting the
+  constant to a space turns it red. (`src/core/merge.ts` joins on `\0` for the
+  same reason, written as a literal byte; that predates this change and is why
+  git reports it as a binary file.)
+
+**Verified through the shipped bundle, not only `src/`.** A PTY run of
+`dist/cli.js --agent codex` against a scratch home walked Providers → the
+provider screen → Use, submitted the adopt form, and produced:
+`model_provider` routed from `"openai"` to `"router"`; the leading comment,
+the aligned `model` assignment and the unmanaged `http_headers` sibling all
+intact; the previous ChatGPT `auth.json` byte-identical at `auth.chatgpt.json`;
+a backup under `backups/ccset/`; and no credential anywhere on screen.
+
+**All eleven gates pass** on Linux x64, Node `26.7.0`, npm `12.0.2`, together
+with typecheck, build and `npm pack --dry-run`. Every file is inside the
+300-line limit.
+
+**Not verified, and not claimed:** no Codex run was made against a real
+third-party endpoint, so U8 is open — this is evidence that ccset writes the
+files correctly, not that Codex authenticates with the result. U9 (whether a
+keyring store bypasses `auth.json` completely) is open and is why Status warns
+rather than refusing. There is deliberately no Test connection for Codex: the
+probe ccset ships is Anthropic-shaped (`/v1/messages`), and a Responses-API
+endpoint is a different request it has no honest way to make yet.
