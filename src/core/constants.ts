@@ -27,6 +27,12 @@ export const GLOBAL_SETTINGS_FILE = 'settings.json'
 export const SETTINGS_PREFIX = 'settings.'
 export const SETTINGS_SUFFIX = '.json'
 export const BACKUP_INFIX = '.backup.'
+/**
+ * Marks an in-flight backup copy, renamed onto its real name once every byte is
+ * there. Deliberately not `<basename>.backup.*`, so a partial copy can never be
+ * listed, pruned, or restored as if it were a finished backup.
+ */
+export const BACKUP_TEMP_PREFIX = '.ccset-partial.'
 export const BACKUPS_DIR_SEGMENTS = ['backups', 'ccset']
 
 /** Names that would collide with a file Claude Code uses conventionally. */

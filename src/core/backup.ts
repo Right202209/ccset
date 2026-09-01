@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import {
   BACKUP_INFIX,
+  BACKUP_TEMP_PREFIX,
   FILE_MODE,
   MAX_BACKUPS,
   MAX_BACKUP_NAME_ATTEMPTS,
@@ -14,6 +15,13 @@ import { backupsDir } from './paths.js'
  * Backups live in a ccset-owned subdirectory rather than the shared
  * ~/.claude/backups: Claude Code prunes that directory by an unknown rule, and
  * a backup scheme that silently loses backups is worse than none.
+ *
+ * The copy lands on a temp name and is renamed into place, for the same reason
+ * writeJsonFileAtomic does it: fs.copyFile is not atomic, and a crash partway
+ * through would otherwise leave a truncated file under a real backup name,
+ * indistinguishable from a complete one. The backup is the only copy of the
+ * original when a save goes wrong, so a silently truncated one is the failure
+ * this whole directory exists to avoid.
  */
 export async function backupFile(home: string, filePath: string): Promise<string | null> {
   if (!(await fileExists(filePath))) return null
@@ -21,10 +29,13 @@ export async function backupFile(home: string, filePath: string): Promise<string
   await ensureDir(dir)
   const basename = path.basename(filePath)
   const destination = await uniqueBackupPath(dir, basename)
+  const pending = path.join(dir, `${BACKUP_TEMP_PREFIX}${basename}.${process.pid}`)
   try {
-    await fs.copyFile(filePath, destination)
-    await fs.chmod(destination, FILE_MODE).catch(() => undefined)
+    await fs.copyFile(filePath, pending)
+    await fs.chmod(pending, FILE_MODE).catch(() => undefined)
+    await fs.rename(pending, destination)
   } catch (err) {
+    await fs.unlink(pending).catch(() => undefined)
     throw wrapFsError(err, destination, 'rw')
   }
   await pruneBackups(dir, basename)
@@ -82,6 +93,12 @@ function backupOrder(name: string, prefix: string): number {
   return Number.isNaN(stamp) ? 0 : stamp
 }
 
+/** A finished backup, or the partial copy left by a crash mid-backup. Both
+ *  hold the credential that was in the file, so both are ccset's to clean up. */
+function isCcsetBackup(name: string): boolean {
+  return name.includes(BACKUP_INFIX) || name.startsWith(BACKUP_TEMP_PREFIX)
+}
+
 export async function countBackups(home: string): Promise<number> {
   const entries = await listBackupEntries(backupsDir(home), '')
   return entries.filter((entry) => entry.name.includes(BACKUP_INFIX)).length
@@ -89,15 +106,16 @@ export async function countBackups(home: string): Promise<number> {
 
 /**
  * Rotating a token leaves the old one readable in a backup until this runs.
- * Only ccset-created backup files are removed; anything else in the directory
- * is left alone.
+ * Only ccset-created backup files are removed -- including a partial copy from
+ * an interrupted backup, which holds the same token -- and anything else in the
+ * directory is left alone.
  */
 export async function clearBackups(home: string): Promise<number> {
   const dir = backupsDir(home)
   const entries = await listBackupEntries(dir, '')
   let removed = 0
   for (const entry of entries) {
-    if (!entry.name.includes(BACKUP_INFIX)) continue
+    if (!isCcsetBackup(entry.name)) continue
     await fs.unlink(path.join(dir, entry.name)).catch(() => undefined)
     removed += 1
   }
