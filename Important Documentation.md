@@ -1131,3 +1131,26 @@ keyring store bypasses `auth.json` completely) is open and is why Status warns
 rather than refusing. There is deliberately no Test connection for Codex: the
 probe ccset ships is Anthropic-shaped (`/v1/messages`), and a Responses-API
 endpoint is a different request it has no honest way to make yet.
+
+### 9.27 Windows CI leg and the built-CLI runtime smoke (2026-09-01)
+
+The CI matrix now runs every leg on `windows-latest` next to `ubuntu-latest`
+(Node 18/20/22 each), and every leg gained a runtime smoke of the built
+`dist/cli.js` under `shell: bash`, which both runner images provide: `--version`
+prints the package version and exits 0, and non-TTY stdin exits `2` with the
+plain refusal on stderr and zero ANSI escape bytes — the non-TTY half of the
+bounded check §9.8 recorded manually for Linux, now executed continuously per
+operating system per Node version. The smoke was exercised locally (Linux x64,
+Node `20.19.5`, fresh build) and then mutation-tested: a non-TTY exit of `0`, an
+ANSI-escaped refusal, and a broken `--version` each fail the step. CLAUDE.md's
+CI paragraph was updated to match.
+
+Not evidenced, and not claimed: no Actions run of this branch exists yet — the
+Windows leg first executes on the pull request's own run, and a green leg there
+is the earliest point at which any Windows evidence begins to exist. The smoke
+drives the non-interactive surface only; an interactive Windows Terminal or
+PowerShell run is still outstanding, the §9.8 Windows external gate stays
+pending, and the `0600` guarantee remains POSIX-only by design. The verify
+fixtures are not wired into CI by this branch: the PTY gate has no Windows story
+(Python's stdlib `pty` does not exist on win32), and the fixtures-in-CI change
+belongs to PR #42.
