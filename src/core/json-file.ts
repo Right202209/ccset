@@ -92,20 +92,28 @@ async function removeQuietly(filePath: string): Promise<void> {
 /**
  * Temp file in the same directory, chmod, then rename. rename() is atomic on
  * POSIX, so a crash mid-write leaves the target either wholly old or wholly new.
+ *
+ * Takes text rather than data because a format-preserving codec produces an
+ * edited copy of the original document, not a re-serialisation of a parse
+ * (ADR 0003); the atomicity and the 0600 are the same either way.
  */
-export async function writeJsonFileAtomic(file: ConfigFile, data: JsonObject): Promise<void> {
-  const dir = path.dirname(file.path)
+export async function writeTextAtomic(filePath: string, contents: string): Promise<void> {
+  const dir = path.dirname(filePath)
   await ensureDir(dir)
-  const tempPath = path.join(dir, `.${path.basename(file.path)}.${process.pid}.tmp`)
+  const tempPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.tmp`)
   try {
-    await fs.writeFile(tempPath, serialize(file.codec, data), { mode: FILE_MODE })
+    await fs.writeFile(tempPath, contents, { mode: FILE_MODE })
     await chmodBestEffort(tempPath)
-    await fs.rename(tempPath, file.path)
-    await chmodBestEffort(file.path)
+    await fs.rename(tempPath, filePath)
+    await chmodBestEffort(filePath)
   } catch (err) {
     await removeQuietly(tempPath)
-    throw wrapFsError(err, file.path, 'rw')
+    throw wrapFsError(err, filePath, 'rw')
   }
+}
+
+export async function writeJsonFileAtomic(file: ConfigFile, data: JsonObject): Promise<void> {
+  await writeTextAtomic(file.path, serialize(file.codec, data))
 }
 
 /** Octal mode string for display, or a placeholder when it cannot be read. */

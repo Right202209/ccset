@@ -13,8 +13,12 @@ export type JsonValue =
 
 export type JsonObject = { [key: string]: JsonValue }
 
-/** Serialization is a seam, not an assumption (PRD 4.3). */
-export type Codec = 'json'
+/**
+ * Serialization is a seam, not an assumption (PRD 4.3). `toml` is edited in
+ * place rather than re-serialised, because a TOML document carries comments and
+ * key order that a parse-and-re-emit round trip would discard (ADR 0003).
+ */
+export type Codec = 'json' | 'toml'
 
 export interface ConfigFile {
   path: string
@@ -177,4 +181,10 @@ export interface WriteReport {
    * "Activate it with:". Defaults to `write.activate`.
    */
   activateKey?: string
+  /**
+   * Extra lines, already translated. A save that touches more than one file --
+   * a settings document and the credential beside it -- has to name both, and
+   * `path` can only carry one.
+   */
+  notes?: string[]
 }

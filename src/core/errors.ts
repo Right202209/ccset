@@ -4,7 +4,8 @@ export const EXIT_OK = 0
 export const EXIT_RUNTIME = 1
 export const EXIT_NOT_TTY = 2
 export const EXIT_PERMISSION = 3
-export const EXIT_INVALID_JSON = 4
+/** PRD 4.4: the target exists but could not be parsed, whatever its format. */
+export const EXIT_INVALID_CONFIG = 4
 
 export class CcsetError extends Error {
   readonly exitCode: number
@@ -28,10 +29,55 @@ export class PermissionError extends CcsetError {
   }
 }
 
-export class JsonParseError extends CcsetError {
+/** What a codec reports when the file on disk is not in its format. */
+export interface ParseFailure {
+  /** i18n key for the one-line description. */
+  messageKey: string
+  /** i18n key for the heading of the "start fresh" confirm. */
+  titleKey: string
+  path: string
+  position: string
+}
+
+/**
+ * A target that exists but does not parse. The codec supplies the wording so
+ * the UI can say "not valid TOML" without learning what a codec is; the save
+ * flow only needs to recognise the class to offer the same confirm either way.
+ */
+export class ConfigParseError extends CcsetError {
+  readonly titleKey: string
+
+  constructor(failure: ParseFailure) {
+    super(failure.messageKey, EXIT_INVALID_CONFIG, {
+      path: failure.path,
+      position: failure.position,
+    })
+    this.name = 'ConfigParseError'
+    this.titleKey = failure.titleKey
+  }
+}
+
+export class JsonParseError extends ConfigParseError {
   constructor(path: string, position: string) {
-    super('error.invalidJson', EXIT_INVALID_JSON, { path, position })
+    super({
+      messageKey: 'error.invalidJson',
+      titleKey: 'confirm.freshTitle',
+      path,
+      position,
+    })
     this.name = 'JsonParseError'
+  }
+}
+
+export class TomlParseError extends ConfigParseError {
+  constructor(path: string, position: string) {
+    super({
+      messageKey: 'error.invalidToml',
+      titleKey: 'confirm.freshTitleToml',
+      path,
+      position,
+    })
+    this.name = 'TomlParseError'
   }
 }
 
