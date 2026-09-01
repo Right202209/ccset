@@ -809,3 +809,29 @@ assertion. This is environment drift, not a regression in the artifact: the
 tarball itself still contains exactly `LICENSE`, `README.md`, `README.zh-CN.md`,
 `dist/cli.js` and `package.json`, verified by hand from the same `npm pack --json`
 output. Filed as issue #29. **The other eight gates all pass** on this branch.
+
+### 9.22 Release-artifact gate restored under npm 12 (2026-09-01)
+
+Issue #29. `npm run verify:release-artifact` passes again on npm `12.0.2`. Two
+independent npm 12 behaviour changes had broken it, both in the harness rather
+than in the artifact:
+
+1. `npm pack --json` reported an array through npm 11 and reports an object keyed
+   by package name in npm 12, so `packed.length` was `undefined` and the gate died
+   at its first assertion. The parse now accepts either shape; the Node 18/20/22
+   matrix CI runs still emits the array form, so both have to keep working.
+2. `npm install <tarball>` failed with `EALLOWSCRIPTS`. npm exports every config
+   value as an `npm_config_*` variable into the child of an `npm run`, so the
+   developer's `~/.npmrc` — which here sets `allow-scripts` — leaked into the
+   nested install, and npm 12 rejects that option for a project-scoped install.
+   The gate now drops `npm_config_allow_scripts` from the environment it hands to
+   the nested npm, so the install behaves like a user's rather than the
+   maintainer's.
+
+No assertion was loosened: the tarball is still required to contain exactly
+`LICENSE`, `README.md`, `README.zh-CN.md`, `dist/cli.js` and `package.json`, the
+bin mapping, engines and `publishConfig` are still checked on the installed copy,
+`ink-testing-library` must still be absent, and the installed executable must
+still report the right version and exit `2` on piped stdin.
+
+**All nine gates now pass** on Linux x64, Node `26.7.0`, npm `12.0.2`.
