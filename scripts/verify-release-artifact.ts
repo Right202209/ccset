@@ -18,19 +18,41 @@ const expectedFiles = [
   'package.json',
 ]
 
+/**
+ * npm exports every config value as an npm_config_* variable into the child of
+ * an `npm run`, so the developer's ~/.npmrc leaks into the nested install here.
+ * npm 12 rejects allow-scripts for a project-scoped install, which fails this
+ * gate for a reason that has nothing to do with the artifact.
+ */
+function installerEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env }
+  delete env['npm_config_allow_scripts']
+  return env
+}
+
 function run(command: string, args: string[], cwd = process.cwd()): string {
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8' })
+  const result = spawnSync(command, args, { cwd, encoding: 'utf8', env: installerEnv() })
   assert.equal(result.status, 0, `${command} ${args.join(' ')} failed:\n${result.stderr}`)
   return result.stdout
+}
+
+/**
+ * npm through 11 reported `pack --json` as an array; npm 12 reports an object
+ * keyed by package name. CI runs the Node 18/20/22 matrix, whose bundled npm
+ * still emits the array, so both shapes have to keep working.
+ */
+function parsePack(raw: string): PackResult[] {
+  const parsed: unknown = JSON.parse(raw)
+  if (Array.isArray(parsed)) return parsed as PackResult[]
+  assert.ok(parsed !== null && typeof parsed === 'object', 'npm pack --json returned neither')
+  return Object.values(parsed as Record<string, PackResult>)
 }
 
 async function main(): Promise<void> {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-artifact-'))
   try {
     run('npm', ['run', 'build'])
-    const packed = JSON.parse(
-      run('npm', ['pack', '--json', '--pack-destination', temp]),
-    ) as PackResult[]
+    const packed = parsePack(run('npm', ['pack', '--json', '--pack-destination', temp]))
     assert.equal(packed.length, 1)
     const artifact = packed[0]
     assert.ok(artifact)
