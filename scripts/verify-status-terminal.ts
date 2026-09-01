@@ -5,7 +5,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { buildStatus } from '../src/agents/claude-code/status.js'
 import { maskSecret } from '../src/core/mask.js'
-import { activationCommand, claudeDir, providerSettingsPath } from '../src/core/paths.js'
+import { activationCommand, claudeDir, providerSettingsPath } from '../src/agents/claude-code/paths.js'
 
 const token = 'STATUS-TEST-TOKEN-1234567890'
 const longBaseUrl = `https://provider.example/${'long-path-segment/'.repeat(8)}v1`
@@ -58,7 +58,7 @@ async function verifyStatus(home: string): Promise<void> {
   assert.equal(status.providers[0]?.command, activationCommand(completePath))
   assert.equal(path.isAbsolute(completePath), true)
   assert.equal(status.providers[1]?.parsed, true)
-  assert.equal(status.providers[1]?.problemKey, 'status.noBaseUrl')
+  assert.equal(status.providers[1]?.problemKey, 'claudeCode.status.noBaseUrl')
   assert.equal(status.providers[2]?.parsed, false)
   assert.equal(status.providers[2]?.problemKey, 'status.parseError')
 

@@ -1,11 +1,11 @@
+import { CONNECTION_TIMEOUT_MS } from '../../core/constants.js'
 import {
   ANTHROPIC_VERSION,
   CONNECTION_PATH,
-  CONNECTION_TIMEOUT_MS,
   PROBE_FALLBACK_MODEL,
   PROBE_MAX_TOKENS,
   PROBE_PROMPT,
-} from '../../core/constants.js'
+} from './constants.js'
 import { errorCode } from '../../core/errors.js'
 import { joinUrl, validateBaseUrl } from '../../core/validate.js'
 

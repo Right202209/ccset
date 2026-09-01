@@ -143,12 +143,24 @@ export type ActionResult =
 export interface Action {
   id: string
   labelKey: string
+  /**
+   * i18n key for the one-line detail under the menu label. Agents that share a
+   * label ("Global settings") still describe different files, so the detail
+   * cannot be derived from labelKey. Defaults to `${labelKey}Detail`.
+   */
+  detailKey?: string
   run: (ctx: Ctx) => Promise<ActionResult>
 }
 
 export interface Agent {
   id: string
   name: string
+  /**
+   * Strings only this agent's screens use, keyed by locale and namespaced by
+   * agent id. Shipping them with the module is what keeps adding an agent to
+   * two files (PRD 2.2 criterion 5) instead of three.
+   */
+  messages?: Record<string, Record<string, string>>
   detect: (ctx: Ctx) => Promise<boolean>
   getActions: () => Action[]
 }
@@ -159,4 +171,10 @@ export interface WriteReport {
   mode: string
   backupPath: string | null
   command: string
+  /**
+   * i18n key for the line introducing `command`. An agent that loads its config
+   * from a fixed path has nothing to activate and must not borrow
+   * "Activate it with:". Defaults to `write.activate`.
+   */
+  activateKey?: string
 }

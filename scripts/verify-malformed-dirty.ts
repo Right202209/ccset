@@ -3,7 +3,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { backupsDir, globalSettingsPath } from '../src/core/paths.js'
+import { backupsDir, globalSettingsPath } from '../src/agents/claude-code/paths.js'
 
 const ANSI = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g
 const DOWN = '\x1b[B'

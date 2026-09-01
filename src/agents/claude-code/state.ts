@@ -1,6 +1,6 @@
 import type { Ctx } from '../../types.js'
 import { fileExists, jsonFile, readJsonFile, readMode, writeJsonFileAtomic } from '../../core/json-file.js'
-import { claudeStatePath } from '../../core/paths.js'
+import { claudeStatePath } from './paths.js'
 
 /**
  * ~/.claude.json is Claude Code's live state store, rewritten continuously

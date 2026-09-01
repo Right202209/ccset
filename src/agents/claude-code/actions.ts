@@ -9,12 +9,12 @@ import type {
 import { clearBackups } from '../../core/backup.js'
 import { readJsonFile } from '../../core/json-file.js'
 import { maskSecret } from '../../core/mask.js'
-import { globalSettingsPath, providerSettingsPath } from '../../core/paths.js'
+import { backupsDir, globalSettingsPath, providerSettingsPath } from './paths.js'
 import { t } from '../../i18n/index.js'
 import { seedGlobal, seedGlobalFromDisk, saveGlobal } from './global.js'
 import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
 import { loadProviders, saveProvider, seedProvider, type ProviderRecord } from './providers.js'
-import { runSave } from './save.js'
+import { runSave } from '../../core/save.js'
 import { buildStatus } from './status.js'
 import { createStateIfMissing } from './state.js'
 import { probeEndpoint, probeHost } from './test-connection.js'
@@ -59,7 +59,7 @@ function providerForm(ctx: Ctx, record: ProviderRecord | null): ActionResult {
     fields: providerFields(isNew),
     values,
     baseline: { ...values },
-    notes: [t('note.providerPath'), t('note.preserved')],
+    notes: [t('claudeCode.note.providerPath'), t('note.preserved')],
     busyLabel: (next) =>
       t('app.busyWriting', {
         path: providerSettingsPath(ctx.home, String(next['name'] ?? '').trim()),
@@ -77,7 +77,7 @@ function providerForm(ctx: Ctx, record: ProviderRecord | null): ActionResult {
 
 function providerDetail(record: ProviderRecord): string {
   if (!record.parsed) return t('status.unreadable')
-  if (record.baseUrl.length === 0) return t('status.noBaseUrl')
+  if (record.baseUrl.length === 0) return t('claudeCode.status.noBaseUrl')
   return record.baseUrl
 }
 
@@ -109,12 +109,12 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
     {
       id: '__add__',
       label: t('action.providerAdd'),
-      detail: t('action.providerAddDetail'),
+      detail: t('claudeCode.action.providerAddDetail'),
       run: async () => providerForm(ctx, null),
     },
     ...records.map((record) => providerItem(ctx, record)),
   ]
-  return { kind: 'list', title: t('action.providers'), empty: t('status.noProviders'), items }
+  return { kind: 'list', title: t('action.providers'), empty: t('claudeCode.status.noProviders'), items }
 }
 
 /* --------------------------------------------------------------- status */
@@ -122,15 +122,15 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
 function createStateItem(ctx: Ctx): ListItem {
   return {
     id: 'create-state',
-    label: t('action.createState'),
-    detail: t('action.createStateDetail'),
+    label: t('claudeCode.action.createState'),
+    detail: t('claudeCode.action.createStateDetail'),
     run: async () => {
       const result = await createStateIfMissing(ctx)
       return {
         kind: 'message',
-        title: t('action.createState'),
+        title: t('claudeCode.action.createState'),
         lines: [
-          result.created ? t('write.stateCreated') : t('write.stateExists'),
+          result.created ? t('claudeCode.write.stateCreated') : t('claudeCode.write.stateExists'),
           t('write.path', { path: result.path }),
           t('write.mode', { mode: result.mode }),
         ],
@@ -141,7 +141,7 @@ function createStateItem(ctx: Ctx): ListItem {
 }
 
 async function clearBackupsResult(ctx: Ctx): Promise<ActionResult> {
-  const removed = await clearBackups(ctx.home)
+  const removed = await clearBackups(backupsDir(ctx.home))
   return {
     kind: 'message',
     title: t('action.clearBackups'),
@@ -238,8 +238,18 @@ async function openTest(ctx: Ctx): Promise<ActionResult> {
 
 export function claudeCodeActions(): Action[] {
   return [
-    { id: 'global', labelKey: 'action.global', run: openGlobal },
-    { id: 'providers', labelKey: 'action.providers', run: openProviders },
+    {
+      id: 'global',
+      labelKey: 'action.global',
+      detailKey: 'claudeCode.action.globalDetail',
+      run: openGlobal,
+    },
+    {
+      id: 'providers',
+      labelKey: 'action.providers',
+      detailKey: 'claudeCode.action.providersDetail',
+      run: openProviders,
+    },
     { id: 'status', labelKey: 'action.status', run: openStatus },
     { id: 'test', labelKey: 'action.test', run: openTest },
   ]

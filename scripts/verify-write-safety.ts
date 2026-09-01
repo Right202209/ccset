@@ -11,7 +11,7 @@ import {
   inspectState,
 } from '../src/agents/claude-code/state.js'
 import { CcsetError, EXIT_PERMISSION } from '../src/core/errors.js'
-import { backupsDir, claudeDir, claudeStatePath, globalSettingsPath } from '../src/core/paths.js'
+import { backupsDir, claudeDir, claudeStatePath, globalSettingsPath } from '../src/agents/claude-code/paths.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 import { KILL_CHILD_FLAG, runKillChild, runKillSweep } from './kill-harness.js'
 

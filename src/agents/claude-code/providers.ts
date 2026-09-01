@@ -8,16 +8,21 @@ import {
   writeJsonFileAtomic,
 } from '../../core/json-file.js'
 import { applyManagedWrites, countUnmanagedKeys, getPath, type ManagedWrite } from '../../core/merge.js'
-import { activationCommand, listProviderFiles, providerSettingsPath } from '../../core/paths.js'
-import { validateProviderName } from '../../core/validate.js'
+import {
+  activationCommand,
+  backupsDir,
+  listProviderFiles,
+  providerSettingsPath,
+} from './paths.js'
 import {
   MANAGED_PROVIDER_PATHS,
   PROVIDER_BASE_URL_PATH,
   PROVIDER_FIELDS,
   PROVIDER_MODEL_PATH,
   PROVIDER_TOKEN_PATH,
+  validateProviderName,
 } from './manifest.js'
-import { csvOrUndefined, jsonToText, textOrUndefined } from './values.js'
+import { csvOrUndefined, jsonToText, textOrUndefined } from '../../core/values.js'
 
 /** One discovered provider file, parsed or not. */
 export interface ProviderRecord {
@@ -69,7 +74,7 @@ export async function saveProvider(
   if (problem !== null) throw new ValidationError(problem, { name })
   const target = providerSettingsPath(ctx.home, name)
   const base = startFresh ? {} : (await readJsonFile(target)).data
-  const backupPath = await backupFile(ctx.home, target)
+  const backupPath = await backupFile(backupsDir(ctx.home), target)
   await writeJsonFileAtomic(jsonFile(target), applyManagedWrites(base, emitProvider(values)))
   return {
     path: target,
@@ -101,7 +106,7 @@ function describeRecord(name: string, filePath: string, data: JsonObject): Provi
   record.model = jsonToText(getPath(data, PROVIDER_MODEL_PATH))
   record.token = jsonToText(getPath(data, PROVIDER_TOKEN_PATH))
   record.unmanagedKeys = countUnmanagedKeys(data, MANAGED_PROVIDER_PATHS)
-  if (record.baseUrl.length === 0) record.problemKey = 'status.noBaseUrl'
+  if (record.baseUrl.length === 0) record.problemKey = 'claudeCode.status.noBaseUrl'
   return record
 }
 

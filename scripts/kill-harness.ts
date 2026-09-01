@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { saveGlobal } from '../src/agents/claude-code/global.js'
 import { BACKUP_TEMP_PREFIX } from '../src/core/constants.js'
-import { backupsDir, claudeDir, globalSettingsPath } from '../src/core/paths.js'
+import { backupsDir, claudeDir, globalSettingsPath } from '../src/agents/claude-code/paths.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 
 /**

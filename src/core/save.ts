@@ -1,6 +1,6 @@
-import type { ActionResult, WriteReport } from '../../types.js'
-import { JsonParseError } from '../../core/errors.js'
-import { t } from '../../i18n/index.js'
+import type { ActionResult, WriteReport } from '../types.js'
+import { JsonParseError } from './errors.js'
+import { t } from '../i18n/index.js'
 
 /** A write that can be retried against an empty base after a parse failure. */
 export type SaveFn = (startFresh: boolean) => Promise<WriteReport>
@@ -13,7 +13,7 @@ export function successMessage(titleKey: string, report: WriteReport): ActionRes
       ? t('write.noBackup')
       : t('write.backup', { path: report.backupPath }),
     '',
-    t('write.activate'),
+    t(report.activateKey ?? 'write.activate'),
     report.command,
   ]
   return { kind: 'message', title: t(titleKey), lines, tone: 'success' }

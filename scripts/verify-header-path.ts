@@ -48,7 +48,7 @@ const agent: Agent = {
 }
 
 async function openLeaf(session: UiSession): Promise<string> {
-  await session.waitFor(t('action.globalDetail'))
+  await session.waitFor(t('action.global'))
   await session.send('1')
   await session.waitFor(ROOT_TITLE)
   await session.send('1')
@@ -65,7 +65,7 @@ async function verify(
 ): Promise<void> {
   const session = new UiSession(HOME, terminal, { agents: [agent], viewport })
   try {
-    const top = await session.waitFor(t('action.globalDetail'))
+    const top = await session.waitFor(t('action.global'))
     const topHeader = top.split('\n').find((line) => line.includes('Agent: Header path')) ?? ''
     assert.equal(
       topHeader.includes(terminal.glyphs.pathSeparator),

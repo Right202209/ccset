@@ -6,7 +6,7 @@
 export const en: Record<string, string> = {
   /* ------------------------------------------------------------- app shell */
   'app.title': 'ccset',
-  'app.tagline': 'Writes Claude Code settings files. Activation stays yours.',
+  'app.tagline': 'Writes coding-agent settings files. Activation stays yours.',
   'app.agent': 'Agent: {name}',
   'app.busy': 'Working…',
   'app.busyConnecting': 'Connecting to {host}…',
@@ -17,54 +17,29 @@ export const en: Record<string, string> = {
   'menu.help': '↑↓ move · 1-9 jump · enter select · esc back',
   'key.moveUp': 'move up', 'key.moveDown': 'move down', 'key.jump': 'jump', 'key.select': 'select', 'key.back': 'back',
   'key.change': 'change', 'key.next': 'next', 'key.save': 'save', 'key.cancel': 'cancel', 'key.continue': 'continue', 'key.choose': 'choose', 'key.confirm': 'confirm',
-  'menu.notDetected': 'No ~/.claude found yet — ccset will create what it needs.',
+  'menu.notDetected': 'No config for this agent yet — ccset will create what it needs.',
   'menu.agentTitle': 'Select an agent',
 
   /* --------------------------------------------------------------- actions */
   'action.global': 'Global settings',
-  'action.globalDetail': '~/.claude/settings.json',
   'action.providers': 'Providers',
-  'action.providersDetail': 'Add or edit settings.<name>.json',
   'action.status': 'Status',
   'action.statusDetail': 'Read-only view of what is on disk',
   'action.test': 'Test connection',
   'action.testDetail': 'Opt-in network check',
   'action.providerAdd': 'Add a provider',
-  'action.providerAddDetail': 'Create a new settings.<name>.json',
   'action.providerEdit': 'Edit provider: {name}',
-  'action.createState': 'Create ~/.claude.json',
-  'action.createStateDetail': 'Only when absent — ccset never rewrites this file',
   'action.clearBackups': 'Clear ccset backups',
   'action.clearBackupsDetail': 'Backups can still hold a rotated token',
 
   /* ---------------------------------------------------------------- fields */
-  'field.proxyEnabled': 'Proxy',
-  'field.proxyUrl': 'Proxy URL',
-  'field.disableNonessentialTraffic': 'Disable nonessential traffic',
-  'field.attributionHeader': 'Attribution header',
-  'field.disableInstallationChecks': 'Disable installation checks',
-  'field.enableToolSearch': 'Enable tool search',
-  'field.cleanupPeriodDays': 'Cleanup period (days)',
   'field.globalModel': 'Model',
   'field.providerName': 'Provider name',
   'field.baseUrl': 'Base URL',
   'field.token': 'Auth token',
   'field.providerModel': 'Model',
-  'field.fallbackModel': 'Fallback models',
-  'field.defaultOpusModel': 'Opus model remap',
-  'field.defaultSonnetModel': 'Sonnet model remap',
-  'field.defaultHaikuModel': 'Haiku model remap',
 
   /* ------------------------------------------------------------------ help */
-  'help.proxyEnabled': 'Off deletes HTTP_PROXY and HTTPS_PROXY from the file.',
-  'help.proxyUrl': 'Written to both HTTP_PROXY and HTTPS_PROXY.',
-  'help.cleanupPeriodDays': 'Blank removes the key. Claude Code then uses its own default.',
-  'help.globalModel': 'Free text. Blank removes the key.',
-  'help.providerName': 'Becomes settings.<name>.json. Letters, digits, - and _ only.',
-  'help.baseUrl': 'Endpoint root, e.g. https://api.example.com — no trailing path.',
-  'help.token': 'Sent as an Authorization: Bearer header. Masked everywhere ccset prints it.',
-  'help.providerModel': 'Free text. Blank omits the key so the global model applies.',
-  'help.fallbackModel': 'Comma-separated. Written as a JSON array.',
 
   /* --------------------------------------------------------------- choices */
   'choice.on': 'On',
@@ -88,7 +63,6 @@ export const en: Record<string, string> = {
   'list.count': 'Showing {start}-{end} of {total}',
 
   /* ---------------------------------------------------------------- status */
-  'status.stateTitle': 'Claude Code state (~/.claude.json)',
   'status.globalTitle': 'Global settings',
   'status.providersTitle': 'Providers',
   'status.providerTitle': 'Provider: {name}',
@@ -106,12 +80,8 @@ export const en: Record<string, string> = {
   'status.unset': '(unset)',
   'status.disabled': 'off',
   'status.unreadable': 'unreadable',
-  'status.noProviders': 'No provider files found in ~/.claude.',
-  'status.noBaseUrl': 'No ANTHROPIC_BASE_URL in this file.',
   'status.parseError': 'Not valid JSON ({detail}).',
   'status.readError': 'Could not be read.',
-  'status.stateAbsentNote': 'ccset can create it with hasCompletedOnboarding set.',
-  'status.readOnlyNote': 'ccset never writes this file — Claude Code owns it.',
   'status.fixHint': 'Apply by hand: {fix}',
   'status.unmanagedNote': '{count} key(s) ccset does not manage are preserved on every save.',
   'status.backupsNote': 'A backup can still contain a token you have since rotated.',
@@ -119,7 +89,6 @@ export const en: Record<string, string> = {
 
   /* ----------------------------------------------------------------- notes */
   'note.globalPath': 'File: {path}',
-  'note.providerPath': 'File: ~/.claude/settings.<name>.json — created on save.',
   'note.preserved': 'Keys ccset does not manage are preserved exactly as they are on disk.',
   'note.fixByHand': 'Fix the file by hand, or delete it and add the provider again.',
 
@@ -131,8 +100,6 @@ export const en: Record<string, string> = {
   'write.backup': 'Backup: {path}',
   'write.noBackup': 'Backup: none (the file did not exist)',
   'write.activate': 'Activate it with:',
-  'write.stateCreated': 'Created with hasCompletedOnboarding set.',
-  'write.stateExists': 'Already present — left untouched.',
   'write.backupsCleared': 'Removed {count} backup file(s).',
 
   /* --------------------------------------------------------------- confirm */
@@ -179,7 +146,7 @@ export const en: Record<string, string> = {
   'validate.nameEmpty': 'A provider name is required.',
   'validate.namePathSeparator': 'A name cannot contain a path separator.',
   'validate.nameCharset': 'Use letters, digits, - and _ only.',
-  'validate.nameReserved': 'Reserved — it would collide with a file Claude Code uses.',
+  'validate.nameReserved': 'Reserved — it would collide with a name this agent uses.',
   'validate.urlEmpty': 'A base URL is required.',
   'validate.urlMalformed': 'Not a valid URL.',
   'validate.urlProtocol': 'Only http:// and https:// are allowed.',
@@ -200,8 +167,8 @@ export const en: Record<string, string> = {
   'message.continue': 'enter to continue · esc back',
 
   /* ------------------------------------------------------------------- cli */
-  'cli.description': 'Generate and edit Claude Code settings files.',
-  'cli.agentOption': 'agent to configure (only one is registered in v1)',
+  'cli.description': 'Generate and edit coding-agent settings files.',
+  'cli.agentOption': 'agent to configure',
   'cli.notTty':
     'ccset is interactive and needs a terminal. Run it directly rather than through a pipe or a CI job.',
 }

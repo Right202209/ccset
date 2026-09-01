@@ -8,24 +8,8 @@ export const DIR_MODE = 0o700
 /** Backups kept per configuration file, pruned oldest-first. */
 export const MAX_BACKUPS = 10
 
-/* -------------------------------------------------- Claude Code defaults */
-
-export const DEFAULT_CLEANUP_DAYS = 720
-export const DEFAULT_PROXY_URL = 'http://127.0.0.1:7890'
-export const DEFAULT_GLOBAL_MODEL = 'opus[1m]'
-
-/** Tri-state values for the "1"/"0"/unmanaged env switches. */
-export const SWITCH_ON = '1'
-export const SWITCH_OFF = '0'
-export const SWITCH_UNMANAGED = ''
-
 /* ------------------------------------------------------------- filenames */
 
-export const CLAUDE_DIR_NAME = '.claude'
-export const CLAUDE_STATE_FILE = '.claude.json'
-export const GLOBAL_SETTINGS_FILE = 'settings.json'
-export const SETTINGS_PREFIX = 'settings.'
-export const SETTINGS_SUFFIX = '.json'
 export const BACKUP_INFIX = '.backup.'
 /**
  * Marks an in-flight backup copy, renamed onto its real name once every byte is
@@ -33,10 +17,12 @@ export const BACKUP_INFIX = '.backup.'
  * listed, pruned, or restored as if it were a finished backup.
  */
 export const BACKUP_TEMP_PREFIX = '.ccset-partial.'
+/** Every agent puts its backups under a directory of its own ending here. */
 export const BACKUPS_DIR_SEGMENTS = ['backups', 'ccset']
 
-/** Names that would collide with a file Claude Code uses conventionally. */
-export const RESERVED_PROVIDER_NAMES = ['local', 'json']
+/** A name that becomes a filename is constrained to what is safe on both
+ *  POSIX and Windows; which names are additionally *reserved* is the agent's
+ *  business, so that list is supplied per agent. */
 export const PROVIDER_NAME_PATTERN = /^[A-Za-z0-9_-]+$/
 
 /* ------------------------------------------------------------- masking */
@@ -50,12 +36,6 @@ export const MASK_CHAR = '•'
 /* ---------------------------------------------------------- connection */
 
 export const CONNECTION_TIMEOUT_MS = 10_000
-export const CONNECTION_PATH = '/v1/messages'
-export const ANTHROPIC_VERSION = '2023-06-01'
-/** Smallest legal request; the response body is never read. */
-export const PROBE_MAX_TOKENS = 1
-export const PROBE_PROMPT = 'ping'
-export const PROBE_FALLBACK_MODEL = 'claude-3-5-haiku-latest'
 
 /* ---------------------------------------------------------------- misc */
 

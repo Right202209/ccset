@@ -9,12 +9,12 @@ import {
 } from './constants.js'
 import { isNotFound, wrapFsError } from './errors.js'
 import { ensureDir, fileExists } from './json-file.js'
-import { backupsDir } from './paths.js'
 
 /**
- * Backups live in a ccset-owned subdirectory rather than the shared
- * ~/.claude/backups: Claude Code prunes that directory by an unknown rule, and
- * a backup scheme that silently loses backups is worse than none.
+ * Backups live in a ccset-owned directory rather than one the agent prunes:
+ * Claude Code prunes ~/.claude/backups by an unknown rule, and a backup scheme
+ * that silently loses backups is worse than none. The directory is passed in
+ * because it belongs to the agent, not to the core.
  *
  * The copy lands on a temp name and is renamed into place, for the same reason
  * writeJsonFileAtomic does it: fs.copyFile is not atomic, and a crash partway
@@ -23,9 +23,8 @@ import { backupsDir } from './paths.js'
  * original when a save goes wrong, so a silently truncated one is the failure
  * this whole directory exists to avoid.
  */
-export async function backupFile(home: string, filePath: string): Promise<string | null> {
+export async function backupFile(dir: string, filePath: string): Promise<string | null> {
   if (!(await fileExists(filePath))) return null
-  const dir = backupsDir(home)
   await ensureDir(dir)
   const basename = path.basename(filePath)
   const destination = await uniqueBackupPath(dir, basename)
@@ -99,8 +98,8 @@ function isCcsetBackup(name: string): boolean {
   return name.includes(BACKUP_INFIX) || name.startsWith(BACKUP_TEMP_PREFIX)
 }
 
-export async function countBackups(home: string): Promise<number> {
-  const entries = await listBackupEntries(backupsDir(home), '')
+export async function countBackups(dir: string): Promise<number> {
+  const entries = await listBackupEntries(dir, '')
   return entries.filter((entry) => entry.name.includes(BACKUP_INFIX)).length
 }
 
@@ -110,8 +109,7 @@ export async function countBackups(home: string): Promise<number> {
  * an interrupted backup, which holds the same token -- and anything else in the
  * directory is left alone.
  */
-export async function clearBackups(home: string): Promise<number> {
-  const dir = backupsDir(home)
+export async function clearBackups(dir: string): Promise<number> {
   const entries = await listBackupEntries(dir, '')
   let removed = 0
   for (const entry of entries) {

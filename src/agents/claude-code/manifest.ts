@@ -1,19 +1,23 @@
 import type { FieldSpec, FieldChoice, FormValues } from '../../types.js'
 import {
+  validateBaseUrl,
+  validateOptionalPositiveInt,
+  validateOptionalUrl,
+  validateRequiredText,
+  makeFileNameValidator,
+} from '../../core/validate.js'
+import {
   DEFAULT_CLEANUP_DAYS,
   DEFAULT_GLOBAL_MODEL,
   DEFAULT_PROXY_URL,
   SWITCH_OFF,
   SWITCH_ON,
   SWITCH_UNMANAGED,
-} from '../../core/constants.js'
-import {
-  validateBaseUrl,
-  validateOptionalPositiveInt,
-  validateOptionalUrl,
-  validateProviderName,
-  validateRequiredText,
-} from '../../core/validate.js'
+} from './constants.js'
+import { RESERVED_PROVIDER_NAMES } from './paths.js'
+
+/** A provider name becomes settings.<name>.json, so it is validated as a file. */
+export const validateProviderName = makeFileNameValidator(RESERVED_PROVIDER_NAMES)
 
 /**
  * Data only. Every managed key of Claude Code's settings files is declared
@@ -44,49 +48,49 @@ export const ENV_HTTP_PROXY = ['env', 'HTTP_PROXY']
 export const GLOBAL_FIELDS: FieldSpec[] = [
   {
     id: 'proxyEnabled',
-    labelKey: 'field.proxyEnabled',
-    helpKey: 'help.proxyEnabled',
+    labelKey: 'claudeCode.field.proxyEnabled',
+    helpKey: 'claudeCode.help.proxyEnabled',
     type: 'boolean',
   },
   {
     id: 'proxyUrl',
-    labelKey: 'field.proxyUrl',
-    helpKey: 'help.proxyUrl',
+    labelKey: 'claudeCode.field.proxyUrl',
+    helpKey: 'claudeCode.help.proxyUrl',
     type: 'text',
     validate: validateOptionalUrl,
   },
   {
     id: 'disableNonessentialTraffic',
-    labelKey: 'field.disableNonessentialTraffic',
+    labelKey: 'claudeCode.field.disableNonessentialTraffic',
     type: 'choice',
     choices: SWITCH_CHOICES,
     path: ['env', 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC'],
   },
   {
     id: 'attributionHeader',
-    labelKey: 'field.attributionHeader',
+    labelKey: 'claudeCode.field.attributionHeader',
     type: 'choice',
     choices: SWITCH_CHOICES,
     path: ['env', 'CLAUDE_CODE_ATTRIBUTION_HEADER'],
   },
   {
     id: 'disableInstallationChecks',
-    labelKey: 'field.disableInstallationChecks',
+    labelKey: 'claudeCode.field.disableInstallationChecks',
     type: 'choice',
     choices: SWITCH_CHOICES,
     path: ['env', 'DISABLE_INSTALLATION_CHECKS'],
   },
   {
     id: 'enableToolSearch',
-    labelKey: 'field.enableToolSearch',
+    labelKey: 'claudeCode.field.enableToolSearch',
     type: 'choice',
     choices: SWITCH_CHOICES,
     path: ['env', 'ENABLE_TOOL_SEARCH'],
   },
   {
     id: 'cleanupPeriodDays',
-    labelKey: 'field.cleanupPeriodDays',
-    helpKey: 'help.cleanupPeriodDays',
+    labelKey: 'claudeCode.field.cleanupPeriodDays',
+    helpKey: 'claudeCode.help.cleanupPeriodDays',
     type: 'text',
     path: ['cleanupPeriodDays'],
     validate: validateOptionalPositiveInt,
@@ -94,7 +98,7 @@ export const GLOBAL_FIELDS: FieldSpec[] = [
   {
     id: 'model',
     labelKey: 'field.globalModel',
-    helpKey: 'help.globalModel',
+    helpKey: 'claudeCode.help.globalModel',
     type: 'text',
     path: ['model'],
     suggestions: GLOBAL_MODEL_SUGGESTIONS,
@@ -136,7 +140,7 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
   {
     id: 'name',
     labelKey: 'field.providerName',
-    helpKey: 'help.providerName',
+    helpKey: 'claudeCode.help.providerName',
     type: 'text',
     required: true,
     validate: validateProviderName,
@@ -144,7 +148,7 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
   {
     id: 'baseUrl',
     labelKey: 'field.baseUrl',
-    helpKey: 'help.baseUrl',
+    helpKey: 'claudeCode.help.baseUrl',
     type: 'text',
     required: true,
     path: PROVIDER_BASE_URL_PATH,
@@ -153,7 +157,7 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
   {
     id: 'token',
     labelKey: 'field.token',
-    helpKey: 'help.token',
+    helpKey: 'claudeCode.help.token',
     type: 'secret',
     required: true,
     path: PROVIDER_TOKEN_PATH,
@@ -162,35 +166,35 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
   {
     id: 'model',
     labelKey: 'field.providerModel',
-    helpKey: 'help.providerModel',
+    helpKey: 'claudeCode.help.providerModel',
     type: 'text',
     path: PROVIDER_MODEL_PATH,
   },
   {
     id: 'fallbackModel',
-    labelKey: 'field.fallbackModel',
-    helpKey: 'help.fallbackModel',
+    labelKey: 'claudeCode.field.fallbackModel',
+    helpKey: 'claudeCode.help.fallbackModel',
     type: 'csv',
     advanced: true,
     path: ['fallbackModel'],
   },
   {
     id: 'defaultOpusModel',
-    labelKey: 'field.defaultOpusModel',
+    labelKey: 'claudeCode.field.defaultOpusModel',
     type: 'text',
     advanced: true,
     path: ['env', 'ANTHROPIC_DEFAULT_OPUS_MODEL'],
   },
   {
     id: 'defaultSonnetModel',
-    labelKey: 'field.defaultSonnetModel',
+    labelKey: 'claudeCode.field.defaultSonnetModel',
     type: 'text',
     advanced: true,
     path: ['env', 'ANTHROPIC_DEFAULT_SONNET_MODEL'],
   },
   {
     id: 'defaultHaikuModel',
-    labelKey: 'field.defaultHaikuModel',
+    labelKey: 'claudeCode.field.defaultHaikuModel',
     type: 'text',
     advanced: true,
     path: ['env', 'ANTHROPIC_DEFAULT_HAIKU_MODEL'],

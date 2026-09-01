@@ -1,5 +1,5 @@
-import type { FieldValue, FormValues, JsonValue } from '../../types.js'
-import { isPlainObject } from '../../core/json-file.js'
+import type { FieldValue, FormValues, JsonValue } from '../types.js'
+import { isPlainObject } from './json-file.js'
 
 /** Coercions between form values (strings and booleans) and JSON values. */
 
