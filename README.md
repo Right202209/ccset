@@ -2,16 +2,20 @@
 
 [中文说明](README.zh-CN.md) | English
 
-A terminal UI that writes Claude Code settings files correctly.
+A terminal UI that writes coding-agent settings files correctly.
 
-Pointing Claude Code at a third-party Anthropic-compatible endpoint means
-hand-editing JSON whose field names are undocumented in aggregate, where a typo
-produces a config that looks right and silently fails. ccset generates and edits
-those files, and shows you what is already on disk.
+Pointing a coding agent at a third-party API endpoint means hand-editing JSON
+whose field names are undocumented in aggregate, where a typo produces a config
+that looks right and silently fails. ccset generates and edits those files, and
+shows you what is already on disk.
 
-**ccset generates configuration; it does not activate it.** Activation is you
-running `claude --settings <path>`. ccset's job is to make that command correct
-and copy-ready, and it prints the exact line after every successful write.
+Two agents are supported: **Claude Code** and **opencode**. ccset asks which one
+you are configuring, or takes `--agent <id>`.
+
+**ccset generates configuration; it does not activate it.** For Claude Code,
+activation is you running `claude --settings <path>`, and ccset prints that
+exact line after every successful write. opencode reads its config on start, so
+there is nothing to activate — ccset says so rather than inventing a command.
 
 ```
 npx @droite/ccset
@@ -28,12 +32,37 @@ before reporting a security issue.
 
 ## What it does
 
+### Claude Code
+
 | Menu entry | What it touches |
 | --- | --- |
 | Global settings | `~/.claude/settings.json` |
 | Providers | `~/.claude/settings.<name>.json` — add, edit, list |
 | Status | Reads everything above plus `~/.claude.json`. Writes nothing. |
 | Test connection | One opt-in request to a provider you pick |
+
+### opencode
+
+| Menu entry | What it touches |
+| --- | --- |
+| Global settings | `~/.config/opencode/opencode.json` — model, sharing, auto-update |
+| Providers | A `provider.<id>` block in that same file — add, edit, list |
+| Status | Reads the above. Writes nothing. |
+
+opencode keeps every provider inside one document rather than one file each, so
+editing a provider rewrites only that block. Its `models` map is merged entry by
+entry: a model already on disk keeps its own settings, a new id is added, and one
+you remove from the list is deleted.
+
+**opencode's `.jsonc` config is not managed.** opencode also loads
+`opencode.jsonc`, which may contain comments that cannot survive a JSON rewrite.
+ccset never writes that file. If it exists, Status names it and warns that a save
+may not be the config opencode actually reads — sort out which file you want
+before relying on the write.
+
+There is no Test connection for opencode: a custom provider's wire protocol comes
+from whichever SDK package you name, so there is no single endpoint ccset could
+probe honestly.
 
 Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
 back. Long lists state the visible range and total row count. A form asks before
@@ -51,7 +80,9 @@ navigation path in the header; narrow terminals keep the final two steps visible
   still holds the key is a proxy that is still on.
 - **Blank means absent.** An empty field omits the key entirely — no `null`,
   no `""`.
-- **The file is re-read immediately before writing**, so changes Claude Code
+- **Nothing is written wholesale.** ccset writes leaves, never their parents, so
+  a sibling key you set by hand inside a managed object survives.
+- **The file is re-read immediately before writing**, so changes the agent
   persisted while ccset was open are not clobbered by a stale parse.
 - **Writes are atomic**: temp file in the same directory, `chmod`, then
   `rename()`. A crash mid-write leaves the target wholly old or wholly new.
@@ -72,10 +103,12 @@ navigation path in the header; narrow terminals keep the final two steps visible
 - A token leaves your machine only through **Test connection**, which names the
   destination host and asks before sending. The response body is discarded
   unread, because it can echo the token back.
-- **Backups keep old tokens.** Every write first copies the target to
-  `~/.claude/backups/ccset/` (mode `0600`, ten kept per file, oldest pruned).
-  After you rotate a token the previous one still sits in those copies until you
-  run **Clear ccset backups** from the Status screen.
+- **Backups keep old tokens.** Every write first copies the target to a
+  `backups/ccset/` directory beside that agent's config —
+  `~/.claude/backups/ccset/` for Claude Code, `~/.config/opencode/backups/ccset/`
+  for opencode (mode `0600`, ten kept per file, oldest pruned). After you rotate
+  a token the previous one still sits in those copies until you run **Clear ccset
+  backups** from that agent's Status screen.
 
 ## Windows
 
@@ -96,6 +129,8 @@ ccset [--agent <id>]
   -v, --version
   -h, --help
 ```
+
+`--agent` takes `claude-code` or `opencode` and skips the selection screen.
 
 ccset is interactive only. Run through a pipe or in CI it prints a message and
 exits `2` rather than emitting control sequences into a log.
@@ -120,15 +155,22 @@ Colour is not ccset's switch: it renders through Ink, which already honours
 
 ## Adding an agent
 
-Two files. Write a module under `src/agents/<id>/` implementing the `Agent`
-interface from `src/types.ts` — `detect()` plus `getActions()`, where each action
-returns a screen the UI already knows how to render — and add it to the array in
-`src/registry.ts`. The registry is hand-written and static: the published
-artifact is a bundle, and a bundler cannot resolve a dynamically scanned path.
+Two files, and that is enforced rather than aspirational. Write a module under
+`src/agents/<id>/` implementing the `Agent` interface from `src/types.ts` —
+`detect()`, `getActions()`, and the strings your screens use — then add it to the
+array in `src/registry.ts`. Adding opencode changed nothing else under `src/`.
+
+The registry is hand-written and static: the published artifact is a bundle, and
+a bundler cannot resolve a dynamically scanned path.
 
 File I/O, merge semantics, backups, masking and path resolution live in
 `src/core/` and are agent-agnostic. `ConfigFile` carries a codec so an agent that
-uses a format other than JSON does not require reworking the interface.
+uses a format other than JSON does not require reworking the interface — though
+no non-JSON agent is implemented, and one would need a format-preserving parser
+to keep the unmanaged-keys guarantee.
+
+[**docs/adding-an-agent.md**](docs/adding-an-agent.md) is the full guide, written
+from adding the second one.
 
 ## Development
 

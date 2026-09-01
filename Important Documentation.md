@@ -20,6 +20,8 @@ the dependent part.
 | U3 | Is `fallbackModel` in settings JSON a `string[]` or a comma-joined string? | Write each form, launch, observe whether it is honoured or rejected. | §4.2.3 Advanced field type. |
 | U4 | Does Claude Code prune `~/.claude/backups/` by filename pattern or across the whole directory? | Place a foreign file there, use Claude Code until rotation occurs, check survival. | Confirms §6.5's subdirectory choice. Low risk — the subdirectory is safe either way. |
 | U5 | Is the `droite` npm scope owned/creatable by the publisher? | `npm whoami`, then `npm org ls droite` while authenticated. | Publishing at Milestone 1. |
+| U6 | When both `~/.config/opencode/opencode.json` and `opencode.jsonc` exist, which does opencode load — and does it merge them or pick one? | Write a distinguishing key into each, launch opencode, inspect the effective value. | Whether ccset's write to `opencode.json` is the config opencode reads. ccset currently reports the `.jsonc` file and warns; if the answer is "`.jsonc` wins", the warning must become a refusal to write. |
+| U7 | Can a TOML config be round-tripped without losing comments, key order, and formatting, using a format-preserving parser? | Take a real `~/.codex/config.toml`, parse and re-emit it unchanged, byte-compare. | A Codex CLI agent, and the `Codec` seam being real rather than notional. Until this is answered, "unmanaged keys survive" cannot be promised for a non-JSON agent. |
 
 ---
 
@@ -38,6 +40,19 @@ The failure mode that matters is destroying a config the user already had.
 | D7 | Provider file with unmanaged extra keys, then edit via ccset. | Extra keys survive. |
 | D8 | Run save twice with no edits. | Second run is byte-identical to the first; backup count grows by at most one per write. |
 | D9 | 11+ consecutive writes. | `~/.claude/backups/ccset/` holds exactly 10, oldest pruned. |
+
+The same failure mode in the second agent's shape — one document, providers as
+nested keys — is covered by the O-series:
+
+| # | Test | Pass condition |
+| --- | --- | --- |
+| O1 | Save a provider block against an `opencode.json` holding `theme`, `keybinds`, `mcp`, a second provider, and `options.headers` inside the edited provider. | Every unmanaged key survives, including a sibling of a managed key four levels deep. |
+| O2 | Blank a field; set an int field. | The key is omitted entirely — no `null`, no `""` — and the int is written as a number. |
+| O3 | Set `autoupdate` off; set `disabled_providers`. | `false` is a JSON boolean, not `"false"`; the CSV is a JSON array. |
+| O4 | Edit the `models` list: keep one id, add one, drop one. | The kept id retains its unmanaged options, the new id appears as `{}`, the dropped id is gone. |
+| O5 | Set a managed choice to Unmanaged. | The key is deleted from the file. |
+| O6 | 13 consecutive writes. | Exactly 10 backups under `~/.config/opencode/backups/ccset/`, all `0600`; Status shows the masked key and never the whole one. |
+| O7 | An `opencode.jsonc` beside the managed file. | Status names it and warns; the file's bytes and mtime are unchanged after a save. |
 
 ---
 
@@ -290,6 +305,11 @@ Read-only checks, no build and no execution:
 | T14 | Open a three-Frame path at wide and narrow terminal widths under the Unicode and ASCII capabilities. | The header names every Frame when it fits; once wider than the Viewport, it shows an ellipsis followed by the final two titles. Unicode uses `›`, ASCII uses `>`, and the top-level menu has no Frame path. Automated by `npm run verify:header-path`. |
 
 ### 9.4 Not built, by design
+
+> **Superseded in part by §9.25 (2026-09-01).** The second agent and the
+> agent-selection screen are now built; `--agent` has two legal values. This
+> entry is left as written because §9 is append-only. `apiKeyHelper`,
+> non-interactive mode, and a second i18n catalog remain unbuilt.
 
 Milestone 1 stops here. Not present, and not stubbed: `apiKeyHelper` support
 (gated on U1), a second agent module (M2), non-interactive mode (M3), and any
@@ -875,3 +895,95 @@ Scope is unchanged from §9.21: this protects against process death, not power
 loss. Neither the backup nor the target is `fsync`ed before its `rename()`.
 
 All nine gates pass on Linux x64, Node `26.7.0`, npm `12.0.2`.
+
+### 9.24 Agent seam: criterion 5 made enforceable (2026-09-01)
+
+PRD §2.2 criterion 5 — "adding an Agent touches exactly two files" — was false
+before this change, in five places found by reading `src/core/` against what a
+non-Claude agent needs rather than by inspection of the interface.
+
+| Leak | Resolution |
+| --- | --- |
+| `core/paths.ts` was entirely Claude Code shaped | Moved to `agents/claude-code/paths.ts`. Core keeps `resolveHome`, `backupsDirFor`, and `listNamedFiles`, which takes the naming rule as a callback |
+| `backupFile` derived `~/.claude/backups/ccset` | Takes the directory. Claude Code passes the same path as before, so §6.5 and the D9 evidence stand |
+| `validateProviderName` baked in `['local','json']` | `makeFileNameValidator(reserved)` and `makeKeyNameValidator(reserved)` |
+| `core/constants.ts` held Claude Code defaults and filenames | Moved to `agents/claude-code/constants.ts` |
+| `i18n/en.ts` named Claude Code inside generic shell keys | See below |
+
+`src/i18n/en.ts` was the file that made the criterion unreachable: an agent that
+ships screens has to name them, so adding one would always have touched a third
+file however the keys were namespaced. `Agent` now carries `messages`, merged by
+the registry, and registration **throws on a duplicate key** rather than
+silently rewriting text the shell already uses. `en.ts` was audited afterwards:
+`grep -n "Claude Code\|~/.claude\|ANTHROPIC\|hasCompletedOnboarding" src/i18n/en.ts`
+returns nothing.
+
+Two additive fields carry a difference the UI must not guess: `Action.detailKey`
+(both agents label a screen "Global settings" while describing different files)
+and `WriteReport.activateKey` (an agent whose config loads from a fixed path has
+nothing to activate).
+
+A mechanical key-coverage check was run over `src/` after the move — every
+literal `t()` key, `labelKey`, `helpKey`, `detailKey`, `activateKey`,
+`messageKey` and `problemKey` resolves against the merged catalog. 210 keys
+defined, 160 referenced literally; 0 missing. The gap is expected and is the
+indirect referencing already noted in `CLAUDE.md`.
+
+**Result: all nine gates passed**, typecheck, build and `git diff --check`
+included. Two gates needed edits, both mechanical: six scripts imported Claude
+paths from `core/paths.js`, and `verify-status-terminal` asserted the old
+`status.noBaseUrl` key. One was a real fixture defect this surfaced —
+`verify-header-path` waited on `action.globalDetail`, a detail line its own fake
+agent never declared and which only resolved because the key happened to exist
+globally. It now waits on the menu label.
+
+### 9.25 Second agent: opencode (2026-09-01)
+
+Milestone 2's "only honest test of criterion 5". Candidates were checked against
+what is installed on this machine, not from memory:
+
+| Candidate | Version | Verdict |
+| --- | --- | --- |
+| Gemini CLI | 0.29.2 | Its settings schema has no base-URL or custom-endpoint concept. Read `dist/src/config/settingsSchema.js` directly; no match for `baseUrl`, `endpoint`, or an OpenAI-compatible block. Does not serve ccset's user. Rejected |
+| Codex CLI | 0.147.0 | `~/.codex/config.toml`. The TOML case PRD §4.3 names, and still the right eventual second codec. Deferred: see U7 |
+| **opencode** | 1.18.18 | `~/.config/opencode/opencode.json`. Schema fetched from `https://opencode.ai/config.json` (HTTP 200, 38 773 bytes) and read: `provider.<id>.options.baseURL` and `.apiKey`. Chosen |
+
+**Criterion 5 verified, not asserted.** `git diff --stat master -- src/` after
+adding the agent shows exactly one file outside `src/agents/opencode/`:
+
+```
+ src/registry.ts | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+```
+
+The structural difference is the point: Claude Code is one file per provider,
+opencode is one document with providers as nested keys. Provider discovery is
+object keys rather than a glob, a parse failure belongs to the file rather than
+to a provider, and unmanaged siblings have to survive four levels deep.
+
+`verify:opencode` covers O1-O7 above and passes. **It was then mutation-tested**,
+because a data-safety gate that has never failed has not been tested:
+
+| Deliberate bug | Gate result |
+| --- | --- |
+| `models` map written wholesale | CAUGHT (O4) |
+| Removed model no longer deleted | CAUGHT (O4) |
+| Blank field written as `""` | CAUGHT (O2) |
+| `options` subtree replaced wholesale | CAUGHT (O1) |
+
+Registering a second agent brought two dead paths to life, and both had fixtures
+that assumed one agent. The agent-selection Screen exists only once two agents
+are registered (PRD §4.1) and had **never been rendered**; `verify:ui-render`
+now drives it and asserts both agents appear under singular focus. `--agent`
+had one legal value and now has two; `verify:malformed-dirty` passes it.
+
+**All ten gates pass** on Linux x64, Node `26.7.0`, npm `12.0.2`, together with
+typecheck, build and `git diff --check`. Every file is inside the 300-line limit.
+
+**Not verified, and not claimed:** no opencode run was made against a real
+third-party endpoint. This is evidence that ccset writes the file correctly, not
+that opencode accepts the result. U6 (which of `opencode.json` and
+`opencode.jsonc` wins) is open and is why the `.jsonc` file is reported rather
+than written. There is deliberately no Test connection for opencode — a custom
+provider's wire protocol comes from whichever SDK package the user names, so
+there is no endpoint ccset could probe honestly.
