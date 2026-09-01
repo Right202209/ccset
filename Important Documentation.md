@@ -1152,3 +1152,30 @@ Not evidenced, and not claimed: the workflow has never executed on GitHub —
 it has no Actions runs on any branch yet. No macOS run of any kind was
 performed here, so the §9.8 macOS gate and the §5 manual smoke-test checkbox
 stay pending, and no install-from-artifact step exists on either platform.
+
+### 9.28 CI run 1: ink's CI mode muted the PTY gate (2026-09-01)
+
+The first Actions run of PR #42 failed every matrix job at
+`verify:malformed-dirty`: the PTY session timed out waiting for the main
+screen with zero bytes from the child. Reproduced locally by setting `CI=true`
+alone. Root cause: ink 5 asks the `is-in-ci` package, and when it answers yes
+the reconciled frames are never written to stdout (`ink/build/ink.js` stores
+`lastOutput` and returns), so an interactive screen driven under `CI=true`
+renders nothing past the cursor-hide escape. The fixture inherited `CI=true`
+from the Actions environment, so the gate failed on Ubuntu too — it was never
+macOS-specific.
+
+Fix: the PTY session now strips `CI`, `CONTINUOUS_INTEGRATION`, and every
+`CI_` variable from the child environment (`GITHUB_ACTIONS` survives, so
+supports-color keeps color on), and the platform gate now admits darwin next
+to linux so the gate runs on the macOS leg of the matrix. Only this fixture
+drives the built CLI through a PTY; the other ten are unaffected.
+
+Actually run here (Linux x64, Node 20.19.5): the gate passed with
+`CI=true GITHUB_ACTIONS=true CI_PROJECT=x` — the exact conditions that failed —
+and `npm test` passed all eleven fixtures on a plain environment, typecheck
+clean.
+
+Not evidenced, and not claimed: the macOS leg has still never run anywhere; it
+first executes in this PR's Actions run, and the darwin platform gate rests on
+the portability of Python's stdlib `pty` bridge, not on recorded evidence yet.
