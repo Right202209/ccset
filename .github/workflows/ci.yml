@@ -10,11 +10,12 @@ permissions:
 
 jobs:
   verify:
-    name: Node.js ${{ matrix.node-version }}
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} / Node.js ${{ matrix.node-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         node-version: [18.x, 20.x, 22.x]
 
     steps:
