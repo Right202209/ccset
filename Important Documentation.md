@@ -1154,3 +1154,20 @@ pending, and the `0600` guarantee remains POSIX-only by design. The verify
 fixtures are not wired into CI by this branch: the PTY gate has no Windows story
 (Python's stdlib `pty` does not exist on win32), and the fixtures-in-CI change
 belongs to PR #42.
+
+### 9.28 CI run 1: the Windows leg executed and passed (2026-09-01)
+
+The first Actions run of PR #44 (run `33552753749`, head `a3a23a6`) completed
+green: all six matrix legs succeeded, including the three `windows-latest` legs
+at Node 18, 20 and 22 — the first recorded Windows execution of ccset's
+toolchain and built CLI. Each leg ran the full sequence: install, typecheck,
+build, the runtime smoke of `dist/cli.js` (`--version` prints the package
+version; non-TTY stdin exits `2` with the plain refusal and zero ANSI escape
+bytes), and `npm pack --dry-run`.
+
+That upgrades part of §9.27's "not evidenced" list: the workflow has now
+executed on GitHub, and the smoke's assertions hold on a GitHub-hosted Windows
+image, not only on Linux. Still not evidenced: it is one run, on the PR's own
+branch, not on master; an interactive Windows Terminal or PowerShell run is
+outstanding; the §9.8 Windows external gate stays pending; the `0600` guarantee
+remains POSIX-only by design.
