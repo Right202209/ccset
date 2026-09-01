@@ -1131,3 +1131,24 @@ keyring store bypasses `auth.json` completely) is open and is why Status warns
 rather than refusing. There is deliberately no Test connection for Codex: the
 probe ccset ships is Anthropic-shaped (`/v1/messages`), and a Responses-API
 endpoint is a different request it has no honest way to make yet.
+
+### 9.27 CI gains macOS, and the verify fixtures run in it (2026-09-01)
+
+The CI workflow now describes a 2×3 matrix — `ubuntu-latest` and `macos-latest`
+for Node 18.x, 20.x, and 22.x — with steps typecheck, build, `npm test`, and
+`npm pack --dry-run`. The eleven verify fixtures, previously local-only, are
+aggregated under one `npm test` script in `package.json` and run as a CI step
+in every matrix job. CLAUDE.md's CI paragraph was rewritten to match; it
+previously said the workflow ran on Ubuntu only and that the verify scripts
+were not wired into CI.
+
+Actually run in this environment (Linux x64, Node 20.19.5, npm 10.8.2):
+`npm test` — all eleven fixtures, exit 0 — plus `npm run typecheck`,
+`git diff --check`, and a YAML parse of the workflow confirming the matrix and
+step order. Node 18.x stays in the matrix deliberately to match
+`engines: >=18`, although 18 is EOL upstream.
+
+Not evidenced, and not claimed: the workflow has never executed on GitHub —
+it has no Actions runs on any branch yet. No macOS run of any kind was
+performed here, so the §9.8 macOS gate and the §5 manual smoke-test checkbox
+stay pending, and no install-from-artifact step exists on either platform.
