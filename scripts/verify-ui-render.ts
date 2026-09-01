@@ -15,6 +15,7 @@ import {
   resolveTerminal,
   type Terminal,
 } from '../src/ui/terminal.js'
+import { AGENTS } from '../src/registry.js'
 import { t } from '../src/i18n/index.js'
 import type { Viewport } from '../src/types.js'
 import { DOWN, ENTER, ESC, UiSession } from './ui-session.js'
@@ -98,6 +99,22 @@ async function assertBusyLabelsAreSpecificAndSecretFree(home: string): Promise<v
 
 function assertPainted(paint: string, text: string, missing: string): void {
   assert.ok(paint.includes(text), `${missing}:\n${paint}`)
+}
+
+/**
+ * The agent-selection Screen, which only exists once a second agent is
+ * registered (PRD 4.1) and so was unreachable until opencode landed. Row 1 is
+ * Claude Code, which the rest of this drive goes on to configure.
+ */
+async function driveAgentSelect(session: UiSession): Promise<void> {
+  const paint = await session.waitFor(t('menu.agentTitle'))
+  session.assertSingleFocus(paint, 'agent select')
+  for (const agent of AGENTS) {
+    assertPainted(paint, agent.name, `The agent list omits ${agent.id}`)
+  }
+  assertPainted(paint, `${session.focusedRow('1.')} ${AGENTS[0]?.name ?? ''}`,
+    'The agent list does not focus row 1')
+  await session.send('1')
 }
 
 async function driveMenu(session: UiSession): Promise<void> {
@@ -225,6 +242,7 @@ function assertGlyphSetsAreSelectable(): void {
 async function verifyRenderedPaints(home: string, set: string, terminal: Terminal): Promise<void> {
   const session = new UiSession(home, terminal, { viewport: VIEWPORT })
   try {
+    await driveAgentSelect(session)
     await driveMenu(session)
     await driveProviderList(session)
     await driveProviderForm(session, terminal)

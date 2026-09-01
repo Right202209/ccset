@@ -1,6 +1,7 @@
 import type { Agent } from './types.js'
 import { registerMessages } from './i18n/index.js'
 import { claudeCode } from './agents/claude-code/index.js'
+import { opencode } from './agents/opencode/index.js'
 
 /**
  * Hand-written and static. No filesystem scanning, no dynamic import(): the
@@ -9,7 +10,7 @@ import { claudeCode } from './agents/claude-code/index.js'
  *
  * Adding an agent is this line plus one module under src/agents/.
  */
-export const AGENTS: Agent[] = [claudeCode]
+export const AGENTS: Agent[] = [claudeCode, opencode]
 
 for (const agent of AGENTS) registerMessages(agent.messages)
 

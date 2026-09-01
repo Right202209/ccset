@@ -20,6 +20,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "verify:global-settings": "tsup scripts/verify-global-settings.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-global-settings.js; status=$?; rm -rf .verify; exit $status",
+    "verify:opencode": "tsup scripts/verify-opencode.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-opencode.js; status=$?; rm -rf .verify; exit $status",
     "verify:provider-safety": "tsup scripts/verify-provider-safety.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-provider-safety.js; status=$?; rm -rf .verify; exit $status",
     "verify:write-safety": "tsup scripts/verify-write-safety.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-write-safety.js; status=$?; rm -rf .verify; exit $status",
     "verify:ui-render": "tsup scripts/verify-ui-render.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-ui-render.js; status=$?; rm -rf .verify; exit $status",

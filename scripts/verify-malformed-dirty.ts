@@ -42,7 +42,17 @@ class CliSession {
   private output = ''
 
   constructor(home: string) {
-    this.child = spawn('python3', ['-c', PTY_BRIDGE, 'node', 'dist/cli.js'], {
+    // --agent names the agent under test rather than letting the run stop on
+    // the selection Screen, which exists now that a second agent is registered.
+    // It is also the only coverage the flag has against more than one legal id.
+    this.child = spawn('python3', [
+      '-c',
+      PTY_BRIDGE,
+      'node',
+      'dist/cli.js',
+      '--agent',
+      'claude-code',
+    ], {
       cwd: process.cwd(),
       env: { ...process.env, HOME: home, LANG: 'C', LC_ALL: 'C', TERM: 'xterm-256color' },
       stdio: ['pipe', 'pipe', 'pipe'],
