@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is ten
+There is no lint script and no unit-test framework. The test suite is eleven
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -23,6 +23,7 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | --- | --- |
 | `npm run verify:global-settings` | D1-D3, D8: unmanaged-key survival, proxy-off deletion, idempotent re-save, backup content and modes |
 | `npm run verify:opencode` | O1-O7 for the second agent: unmanaged siblings four levels deep, blank-omits, delete-on-unmanaged, the per-key `models` merge, masking, backup rotation, and that the `.jsonc` config is reported but never written |
+| `npm run verify:codex` | C1-C9 for the third agent, plus the TOML codec and a screen walk. Round-trip fidelity over a 13-document corpus, formatting survival across an edit, the credential sidecars, the switch-and-adopt flow, and that every i18n key the module's screens reach resolves |
 | `npm run verify:provider-safety` | D7, D9: nested unmanaged provider keys, 10-backup pruning per file, masking, token absence from error paths |
 | `npm run verify:write-safety` | D4-D6, E3: `~/.claude.json` left untouched, created-when-absent, SIGKILL mid-save, read-only target exits `3` |
 | `npm run verify:ui-render` | The interface itself: renders the component tree via `ink-testing-library`, drives the whole scenario once per glyph set, and asserts masked tokens, singular focus, and printable ASCII on every ASCII Rendered paint. Also covers the agent-selection screen and runs the viewport scenarios |
@@ -36,16 +37,21 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 first, so they exercise `dist/cli.js`, not `src/`. The rest import `src/` directly.
 
 Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends keys, reads
-Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, and `kill-harness.ts`
-are modules the gates import — `verify-viewport.ts` has no npm script of its own and runs
-inside `verify:ui-render`, and `kill-harness.ts` runs inside `verify:write-safety`. They
-are split out to keep each file inside the 300-line limit.
+Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
+`verify-toml-codec.ts` and `verify-codex-auth.ts` are modules the gates import —
+`verify-viewport.ts` runs inside `verify:ui-render`, `kill-harness.ts` inside
+`verify:write-safety`, and the last two inside `verify:codex`. They are split out to
+keep each file inside the 300-line limit.
 
 `verify:write-safety` is the one gate that forks itself: its bundle re-enters through
 `--kill-child` so the child running under SIGKILL is the shipped `saveGlobal`, not a
 reimplementation of it. It calibrates against one uninterrupted save and then asserts
 that kills landed on **both** sides of the `rename()`, so a machine too slow or too fast
 for the sweep fails loudly instead of passing vacuously.
+
+`verify:codex` reaches the strings through the registry rather than importing the
+agent's `messages.ts` alone: `registerMessages` is a load-time side effect of
+`src/registry.ts`, so a fixture that skips that import sees every agent key unresolved.
 
 `CCSET_HOME` overrides the home directory (`core/paths.ts:resolveHome`), and
 `CCSET_ASCII=1` selects the seven-bit terminal capability (`ui/terminal.ts:resolveTerminal`).
@@ -76,11 +82,29 @@ touching `src/ui/`.
 **`src/core/`** is agent-agnostic and is where safety lives: `json-file.ts` (atomic
 temp+rename writes, `0600`, parse errors), `merge.ts` (apply managed writes, preserve
 everything else), `backup.ts` (per-file rotation, taking the directory as an argument),
-`mask.ts`, `values.ts` (form↔JSON coercions), `save.ts` (`runSave`/`successMessage`),
-`validate.ts` (validator *factories* — which names are reserved is the agent's business),
-`errors.ts` (the `CcsetError` taxonomy carrying an i18n key and an exit code), and
-`paths.ts`, which after the second agent holds only `resolveHome`, `backupsDirFor`, and
-`listNamedFiles` — the last taking the agent's naming rule as a callback.
+`copy.ts` (atomic byte copy, used by backups and by moving a credential ccset does not
+model), `mask.ts`, `values.ts` (form↔JSON coercions), `save.ts`
+(`runSave`/`successMessage`), `validate.ts` (validator *factories* — which names are
+reserved is the agent's business), `errors.ts` (the `CcsetError` taxonomy carrying an
+i18n key and an exit code), and `paths.ts`, which after the second agent holds only
+`resolveHome`, `backupsDirFor`, and `listNamedFiles` — the last taking the agent's
+naming rule as a callback.
+
+**The codec seam is real, not notional.** `src/core/config-file.ts` dispatches on
+`ConfigFile.codec`: `readConfigFile` returns a `LoadedConfig` carrying `raw` as well as
+`data`, and `writeConfigFile` takes that base plus `ManagedWrite[]`. `json` rebuilds the
+document from the parsed object; `toml` edits the original text, because a TOML document
+carries comments, blank lines and key order that a re-emit would delete (ADR 0003).
+`src/core/toml/` is that codec — `scan.ts` records where keys, values and table headers
+*are*, `parse.ts` reads a document into a `JsonObject`, `check.ts` is the strict pass
+that decides whether ccset may rewrite the file at all, `edit.ts` applies writes by
+splicing spans, and `format.ts`/`strings.ts` render the values ccset writes. The scanner
+is deliberately tolerant and the checker deliberately strict: an edit must never refuse
+to run, but a file that fails the check reaches the user as a confirm.
+
+`JsonParseError` is now one case of `ConfigParseError`, which carries its own
+`messageKey` and `titleKey` so a TOML target is described as TOML. `runSave` catches the
+base class. The exit code is still `4`; the constant is `EXIT_INVALID_CONFIG`.
 
 Criterion 5 ("adding an agent touches exactly two files") is **enforceable, and was
 enforced**: adding opencode changed nothing under `src/` except `src/registry.ts`. The
@@ -133,9 +157,32 @@ There is deliberately no Test connection for opencode: a custom provider's wire 
 comes from whichever SDK package the user names, so there is no endpoint ccset could
 probe honestly.
 
+**`src/agents/codex/`** is the third agent, and the first non-JSON one. Three things
+about it are load-bearing and are not guessable from the file layout:
+- **The API key is not in `config.toml`.** Codex resolves a provider credential as
+  `env_key` (an env var *name*) → `experimental_bearer_token` → the ambient `auth.json`,
+  and only consults the last when the block carries `requires_openai_auth = true`. ccset
+  takes that third path: `auth.ts` keeps one credential per provider in an
+  `auth.<id>.json` sidecar, and `providers.ts` writes `requires_openai_auth` from a
+  constant on **every** save rather than trusting what is on disk. Drop it and the
+  provider block is written successfully and then fails to authenticate.
+- **`auth.json` is replaced, never edited.** Codex rewrites it on login and token
+  refresh — the same hazard that makes `~/.claude.json` create-only. `activate.ts` does a
+  whole-file copy after a backup, and adopting an existing one is a byte copy, because it
+  may hold an OAuth token block ccset does not model.
+- **A switch is two writes, and `config.toml` goes first.** `saveModelProvider` then the
+  credential copy: if the TOML write fails nothing has moved, whereas the reverse order
+  could leave Codex routed at the old endpoint with the new key.
+
+`wire_api` has one legal value (`responses`) as of Codex v0.152.0, so it is a constant
+rather than a form field, and the provider form says so — the endpoint has to speak the
+OpenAI Responses API. There is no Test connection: ccset's probe is Anthropic-shaped.
+
 **`src/registry.ts`** is hand-written and static. No `import()` of a scanned path
 anywhere — the published artifact is a bundle and a bundler cannot resolve one. It also
-registers each agent's `messages`. Adding an agent is one import plus one array element;
+registers each agent's `messages`, which is a **load-time side effect**: anything that
+resolves an agent's keys must import this module, or every `codex.*` key degrades to a
+visible literal. Adding an agent is one import plus one array element;
 `docs/adding-an-agent.md` is the guide, written from doing it.
 
 **`src/ui/`** is a navigation stack, not a router. `useScreens.ts` holds `Frame[]`; two
@@ -190,7 +237,9 @@ These are product guarantees documented in `README.md` and verified in
 `Important Documentation.md`. Breaking one is a release blocker, not a bug.
 
 - **Unmanaged keys survive.** Only manifest paths are written; everything else at every
-  nesting level passes through. `env` merges per key, never wholesale.
+  nesting level passes through. `env` merges per key, never wholesale. For a format that
+  carries them, comments, blank lines, alignment and key order survive too — which is why
+  TOML is edited in place rather than re-serialised.
 - **Off means absent.** Turning the proxy off deletes `HTTP_PROXY`/`HTTPS_PROXY`; a blank
   field omits its key entirely — no `null`, no `""`.
 - **Re-read immediately before writing.** Claude Code rewrites `settings.json` while
@@ -198,7 +247,11 @@ These are product guarantees documented in `README.md` and verified in
 - **`~/.claude.json` is created only when missing, never rewritten.** It is Claude Code's
   live state store and a read-modify-write there races an active writer.
 - **A malformed target is never silently overwritten.** The user is asked; the backup is
-  taken on both paths so the unreadable original survives.
+  taken on both paths so the unreadable original survives. The question names the format
+  the file was supposed to be in.
+- **A live credential store is replaced, never merged into.** `~/.codex/auth.json` is
+  Codex's, on the same reasoning as `~/.claude.json`: ccset copies a whole file over it on
+  an explicit request, after a backup, and never reads-modifies-writes it.
 - **Writes are atomic and `0600` on POSIX.** `chmod` failure is swallowed because win32
   cannot honour it — the guarantee is documented as POSIX-only, never claimed generally.
 - **Tokens are masked everywhere** — entry, Status, review, and error messages. OS error
@@ -233,19 +286,20 @@ Module resolution is `Bundler`, but source imports still carry the `.js` extensi
 
 ## Current state
 
-Milestone 2, partly done. Two agents (`claude-code`, `opencode`), one catalog (`en`),
-interactive-only. `--agent <id>` now has two legal values, and the agent-selection screen
-is reachable for the first time.
+Milestone 2, mostly done. Three agents (`claude-code`, `opencode`, `codex`), one catalog
+(`en`), interactive-only. `--agent <id>` has three legal values.
 
-Done in M2: the second agent, the seam work that made criterion 5 literally true, and
-`docs/adding-an-agent.md`.
+Done in M2: the second agent, the seam work that made criterion 5 literally true,
+`docs/adding-an-agent.md`, and the third agent together with the TOML codec that U7
+blocked. U7 is answered (ADR 0003, `Important Documentation.md` §9.26).
 
 Not built, and deliberately not stubbed:
 - **`apiKeyHelper` support** — still blocked on U1, which needs a real third-party
   credential. Nothing here should pretend otherwise.
-- **A non-JSON agent.** `Codec` is still `'json'`. Codex CLI is the TOML case PRD 4.3
-  names; doing it needs a format-preserving parser, because `JSON.stringify`-style
-  round-tripping would break "unmanaged keys survive". See U7.
+- **A live check of the Codex provider path.** U8: the credential mechanism was read out
+  of Codex's own source and matches its tests, but no request has been made through a
+  ccset-written provider. U9 (whether a keyring credential store bypasses `auth.json`
+  entirely) is why Status warns rather than refusing.
 - **Non-interactive mode** (M3), and any additional i18n catalog.
 
 ADR 0002's flow-scrolling output with windowed long regions is implemented — see

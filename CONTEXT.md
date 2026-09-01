@@ -17,8 +17,23 @@ _Avoid_: Enterprise administrator, every Claude Code user
 A third-party API service selected by the core user, reached through an Agent's
 configuration. Depending on the Agent, a Provider is either a file of its own
 (Claude Code's `settings.<name>.json`) or a block inside the Agent's single
-config document (opencode's `provider.<id>`).
+config document (opencode's `provider.<id>`, Codex's `[model_providers.<id>]`).
 _Avoid_: Agent, model
+
+**Auth profile**:
+A credential ccset has saved for one Provider, in a file ccset owns, separate
+from the Agent's live credential. Codex is the case that needs the term: its key
+is not in the config document, so an Auth profile is stored at
+`~/.codex/auth.<id>.json` and copied over `auth.json` when the Provider is
+switched to. An Auth profile is never the file the Agent reads.
+_Avoid_: Credential, login, account
+
+**Codec**:
+How a config document is read and written for one serialization format. A Codec
+that edits the original text rather than re-serialising a parse is
+format-preserving; ccset's TOML Codec is, because comments and key order are
+part of what "unmanaged keys survive" has to cover.
+_Avoid_: Parser, serializer, file format
 
 **Agent**:
 A coding tool whose configuration ccset can read or write, currently Claude Code

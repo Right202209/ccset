@@ -9,13 +9,14 @@ whose field names are undocumented in aggregate, where a typo produces a config
 that looks right and silently fails. ccset generates and edits those files, and
 shows you what is already on disk.
 
-Two agents are supported: **Claude Code** and **opencode**. ccset asks which one
-you are configuring, or takes `--agent <id>`.
+Three agents are supported: **Claude Code**, **opencode** and **Codex CLI**.
+ccset asks which one you are configuring, or takes `--agent <id>`.
 
 **ccset generates configuration; it does not activate it.** For Claude Code,
 activation is you running `claude --settings <path>`, and ccset prints that
-exact line after every successful write. opencode reads its config on start, so
-there is nothing to activate — ccset says so rather than inventing a command.
+exact line after every successful write. opencode and Codex read their config on
+start, so there is nothing to activate — ccset says so rather than inventing a
+command.
 
 ```
 npx @droite/ccset
@@ -64,6 +65,47 @@ There is no Test connection for opencode: a custom provider's wire protocol come
 from whichever SDK package you name, so there is no single endpoint ccset could
 probe honestly.
 
+### Codex CLI
+
+| Menu entry | What it touches |
+| --- | --- |
+| Global settings | `~/.codex/config.toml` — model, provider, reasoning effort, approval policy, sandbox mode |
+| Providers | A `[model_providers.<id>]` table in that file, plus a saved credential per provider — add, edit, switch |
+| Status | Reads the above and `~/.codex/auth.json`. Writes nothing. |
+
+Codex is the one agent whose config is not JSON. `config.toml` is **edited in
+place**, not rewritten: setting a key replaces its value, adding one inserts a
+line, removing one deletes a line, and your comments, blank lines, alignment and
+key order are copied through byte for byte.
+
+**Your API key does not go in `config.toml`, because Codex does not read it
+there.** ccset saves it to `~/.codex/auth.<id>.json` (mode `0600`) and writes
+`requires_openai_auth = true` on the provider block, which is what makes Codex
+use that credential. **Use this provider** then copies the saved credential over
+`~/.codex/auth.json` and points `model_provider` at the block — one step for both
+halves of a switch, since moving only the key would leave Codex calling the old
+endpoint with the new credential.
+
+If `auth.json` already holds something ccset did not save — a ChatGPT login, or a
+key you set by hand — you are offered a name to keep it under before it is
+replaced, so you can switch back to it later. A backup is taken either way.
+
+A provider block is written with `wire_api = "responses"`, the only value Codex
+still accepts, so the endpoint has to speak the OpenAI Responses API.
+
+**If Codex is set to `cli_auth_credentials_store = "keyring"` it never reads
+`auth.json`**, and ccset cannot write a keyring entry. Status says so rather than
+offering a switch that would change nothing.
+
+**`CODEX_HOME` is reported, not followed.** If you have it set, Codex reads its
+config from there while ccset writes under the home this run was given. Status
+names the mismatch so a save that lands in the wrong directory does not look
+successful. ccset does not chase the variable: it would take an isolated run's
+writes back out of the directory it was pointed at.
+
+There is no Test connection for Codex: the probe ccset ships is Anthropic-shaped,
+and a Responses-API endpoint is a different request it has no honest way to make.
+
 Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
 back. Long lists state the visible range and total row count. A form asks before
 discarding unsaved edits and never asks otherwise. Nested screens show their full
@@ -91,8 +133,17 @@ navigation path in the header; narrow terminals keep the final two steps visible
   continuously, and a read-modify-write there races an active writer. If
   `hasCompletedOnboarding` is missing, ccset prints the one-line fix instead of
   applying it.
-- **A file that is not valid JSON is never silently overwritten.** ccset says so,
-  and offers to back it up and start fresh. That choice is yours to make.
+- **Comments and formatting survive too, where the format has them.** Codex's
+  `config.toml` is edited in place rather than re-serialised, so comments, blank
+  lines, alignment and key order are preserved exactly.
+- **A file ccset cannot parse is never silently overwritten.** It says so — naming
+  JSON or TOML, whichever the file is — and offers to back it up and start fresh.
+  That choice is yours to make.
+- **`~/.codex/auth.json` is replaced, never edited.** It is Codex's live
+  credential, rewritten on login and token refresh, so ccset copies a whole file
+  over it on your explicit request and never reads-modifies-writes it. Adopting
+  an existing one is a byte copy, so an OAuth token block ccset does not model
+  survives intact.
 
 ## Secrets
 
@@ -106,9 +157,11 @@ navigation path in the header; narrow terminals keep the final two steps visible
 - **Backups keep old tokens.** Every write first copies the target to a
   `backups/ccset/` directory beside that agent's config —
   `~/.claude/backups/ccset/` for Claude Code, `~/.config/opencode/backups/ccset/`
-  for opencode (mode `0600`, ten kept per file, oldest pruned). After you rotate
-  a token the previous one still sits in those copies until you run **Clear ccset
-  backups** from that agent's Status screen.
+  for opencode, `~/.codex/backups/ccset/` for Codex (mode `0600`, ten kept per
+  file, oldest pruned). After you rotate a token the previous one still sits in
+  those copies until you run **Clear ccset backups** from that agent's Status
+  screen. Removing a Codex provider's saved credential deletes the sidecar but
+  not its backups, for the same reason.
 
 ## Windows
 
@@ -130,7 +183,8 @@ ccset [--agent <id>]
   -h, --help
 ```
 
-`--agent` takes `claude-code` or `opencode` and skips the selection screen.
+`--agent` takes `claude-code`, `opencode` or `codex` and skips the selection
+screen.
 
 ccset is interactive only. Run through a pipe or in CI it prints a message and
 exits `2` rather than emitting control sequences into a log.
@@ -141,7 +195,7 @@ exits `2` rather than emitting control sequences into a log.
 | 1 | Runtime error |
 | 2 | Not a TTY |
 | 3 | Permission denied on a target path (the path and required mode are named) |
-| 4 | An existing file is not valid JSON |
+| 4 | An existing file could not be parsed (JSON or TOML) |
 
 ### Environment
 
@@ -164,10 +218,10 @@ The registry is hand-written and static: the published artifact is a bundle, and
 a bundler cannot resolve a dynamically scanned path.
 
 File I/O, merge semantics, backups, masking and path resolution live in
-`src/core/` and are agent-agnostic. `ConfigFile` carries a codec so an agent that
-uses a format other than JSON does not require reworking the interface — though
-no non-JSON agent is implemented, and one would need a format-preserving parser
-to keep the unmanaged-keys guarantee.
+`src/core/` and are agent-agnostic. `ConfigFile` carries a codec, and that seam is
+real rather than notional: `json` rebuilds the document from the parsed object,
+`toml` edits the original text so comments and key order survive. Adding a third
+format means adding a codec, not reworking the interface.
 
 [**docs/adding-an-agent.md**](docs/adding-an-agent.md) is the full guide, written
 from adding the second one.
