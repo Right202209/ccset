@@ -3,6 +3,7 @@ import { fork } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { saveGlobal } from '../src/agents/claude-code/global.js'
+import { BACKUP_TEMP_PREFIX } from '../src/core/constants.js'
 import { backupsDir, claudeDir, globalSettingsPath } from '../src/core/paths.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 
@@ -89,6 +90,8 @@ export interface KillTally {
   temps: number
   backups: number
   unparseableBackups: number
+  /** Partial copies left under the temp prefix, which is where they belong. */
+  partials: number
   saveMs: number
 }
 
@@ -125,6 +128,12 @@ async function drainTemps(home: string, target: string, tally: KillTally): Promi
   }
 }
 
+/**
+ * Nothing sitting at a real backup name may be truncated: that file is the only
+ * copy of the original when a save goes wrong. A partial copy is allowed to
+ * survive a crash, but only under the temp prefix, where it can never be listed
+ * or restored as a backup.
+ */
 async function drainBackups(home: string, tally: KillTally): Promise<void> {
   const dir = backupsDir(home)
   const names = await fs.readdir(dir).catch(() => [] as string[])
@@ -133,14 +142,18 @@ async function drainBackups(home: string, tally: KillTally): Promise<void> {
     if (process.platform !== 'win32') {
       assert.equal((await fs.stat(backup)).mode & 0o777, 0o600, 'backup is not 0600')
     }
-    const raw = await fs.readFile(backup, 'utf8')
-    try {
-      JSON.parse(raw)
-    } catch {
-      tally.unparseableBackups += 1
-    }
+    if (name.startsWith(BACKUP_TEMP_PREFIX)) tally.partials += 1
+    else await countIfUnparseable(backup, tally)
     await fs.unlink(backup)
-    tally.backups += 1
+  }
+}
+
+async function countIfUnparseable(backup: string, tally: KillTally): Promise<void> {
+  tally.backups += 1
+  try {
+    JSON.parse(await fs.readFile(backup, 'utf8'))
+  } catch {
+    tally.unparseableBackups += 1
   }
 }
 
@@ -177,6 +190,7 @@ export async function runKillSweep(home: string): Promise<KillTally> {
     temps: 0,
     backups: 0,
     unparseableBackups: 0,
+    partials: 0,
     saveMs: baseline.elapsedMs,
   }
   await drainBackups(home, tally)
@@ -187,5 +201,6 @@ export async function runKillSweep(home: string): Promise<KillTally> {
   }
   assert.ok(tally.old > 0, 'no kill landed before the rename; the window missed the write')
   assert.ok(tally.new > 0, 'no kill landed after the rename; the window missed the write')
+  assert.equal(tally.unparseableBackups, 0, 'a truncated file was left at a backup name')
   return tally
 }

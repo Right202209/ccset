@@ -835,3 +835,43 @@ bin mapping, engines and `publishConfig` are still checked on the installed copy
 still report the right version and exit `2` on piped stdin.
 
 **All nine gates now pass** on Linux x64, Node `26.7.0`, npm `12.0.2`.
+
+### 9.23 Backups made atomic (2026-09-01)
+
+Issue #28, the finding recorded in §9.21. `backupFile` copied straight to the
+final destination with `fs.copyFile`, which is not atomic, so a crash partway
+through left a truncated file under a real backup name — indistinguishable from a
+complete one, and outliving ten good backups, since `pruneBackups` evicts
+oldest-first. One of nine backups in the D6 sweep was affected, reproduced on
+three consecutive runs.
+
+The copy now lands on a temp name and is renamed into place, the same shape
+`writeJsonFileAtomic` already used for the target. The temp prefix is
+`.ccset-partial.` and deliberately does **not** match `<basename>.backup.*`, so a
+partial copy can never be listed, pruned, counted in Status, or restored as if it
+were a finished backup. `clearBackups` was widened to remove those partial copies
+too: they hold the same credential as the backup they were becoming, and the
+action documented in the README as the way to remove old tokens would otherwise
+leave one behind.
+
+`verify:write-safety` now **asserts** `unparseableBackups === 0` rather than
+counting it, which is safe to assert because the guarantee no longer depends on
+kill timing. Across five runs of the sweep after the fix:
+
+| Run | Backups | Unparseable | Partial copies |
+| --- | --- | --- | --- |
+| 1 | 9 | 0 | 0 |
+| 2 | 8 | 0 | 1 |
+| 3 | 9 | 0 | 0 |
+| 4 | 9 | 0 | 0 |
+| 5 | 8 | 0 | 0 |
+
+Run 2 is the mechanism working: the kill that would previously have truncated a
+backup instead left a partial copy under the temp prefix, and the backup count
+drops by one because the rename never happened. Before the fix the same sweep
+produced a truncated backup on every run.
+
+Scope is unchanged from §9.21: this protects against process death, not power
+loss. Neither the backup nor the target is `fsync`ed before its `rename()`.
+
+All nine gates pass on Linux x64, Node `26.7.0`, npm `12.0.2`.

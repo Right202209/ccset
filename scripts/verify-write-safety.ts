@@ -224,7 +224,8 @@ async function main(): Promise<void> {
     tally =
       `D6: save ${result.saveMs}ms, ${result.old} killed before rename, ` +
       `${result.new} after, ${result.temps} temp leftovers, ` +
-      `${result.backups} backups (${result.unparseableBackups} unparseable).\n`
+      `${result.backups} backups (${result.unparseableBackups} unparseable), ` +
+      `${result.partials} partial copies.\n`
   })
   process.stdout.write(tally)
   process.stdout.write('Write-safety verification passed.\n')
