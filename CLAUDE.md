@@ -63,8 +63,10 @@ you never write into a real `~/.claude`. The gates that mount `App` directly byp
 `viewport` prop, which pins `useTerminalViewport` instead of reading `stdout`.
 Interactive checks need a PTY — piped stdin exits `2` by design.
 
-CI (`.github/workflows/ci.yml`) runs typecheck, build, and `npm pack --dry-run` on
-Ubuntu for Node 18/20/22 only. The verify scripts are not wired into CI; run them locally.
+CI (`.github/workflows/ci.yml`) runs typecheck, build, the verification fixtures
+(`npm test`), and `npm pack --dry-run` on Ubuntu and macOS for Node 18/20/22.
+Run the fixtures locally the same way — `npm test`, or one gate with
+`npm run verify:<name>`.
 
 `gh` is not on `PATH`; it is unpacked at `~/gh/gh_2.76.2_linux_amd64/bin/gh`. Issues are
 the tracker — see `docs/agents/issue-tracker.md`.

@@ -37,5 +37,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Run verification fixtures
+        run: npm test
+
       - name: Verify package contents
         run: npm pack --dry-run
