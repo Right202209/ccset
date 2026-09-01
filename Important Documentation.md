@@ -745,3 +745,67 @@ the selectable action remains visible below that region and can be invoked. The
 View still has no write callback for section data; only the existing action item
 is selectable. Below seven rows the Status paint drops the application chrome so
 the count and action own the available rows; at one row the action takes priority.
+
+### 9.21 Write safety: the writes ccset must not make (2026-09-01)
+
+`npm run verify:write-safety` closes the last unevidenced rows of §2 — D4, D5 and
+D6 — and §5's E3. Every check ran against the real modules in an isolated
+`mkdtemp` home on Linux x64, Node `26.7.0`.
+
+- **D4.** A `~/.claude.json` of 103 KB, shaped like the live store (37 top-level
+  keys, with 400 entries under `projects`), was fingerprinted by inode,
+  `mtimeMs`, `ctimeMs`, size and bytes. `inspectState`,
+  `createStateIfMissing`, two `saveGlobal` calls, a `saveProvider` call and
+  `buildStatus` then ran against that home. Every field of the fingerprint was
+  unchanged afterwards: ccset performed zero writes. Repeated with a *malformed*
+  state file, `inspectState` reported `parsed: false` without repairing it and
+  `createStateIfMissing` returned `created: false` rather than overwriting it.
+- **D5.** From absent, the file is created with bytes exactly
+  `{\n  "hasCompletedOnboarding": true\n}\n` — one key, no others — at mode
+  `0600`. A second call returns `created: false` and leaves the inode and bytes
+  untouched.
+- **D6.** Twelve forked children each ran a real `saveGlobal` over a 6 MB target
+  whose unmanaged blob the save has to preserve, and each was SIGKILLed at a
+  staggered delay swept across one uninterrupted save (measured at 145-151 ms).
+  Seven kills landed before the `rename()` and five after — the sweep straddles
+  the commit point, so the run is not vacuously passing. **In all twelve the
+  target parsed whole**, carried the complete unmanaged blob, and held either the
+  old or the new `model`; none was truncated. Leftover temp files — none to one per
+  sweep, depending which phase the signal lands in — were never at the target path
+  and were always mode `0600`, so a crashed write leaves no world-readable token
+  behind.
+- **E3.** With `~/.claude` at mode `0500`, a save fails with exit code `3` and an
+  `error.permission` naming a path and the required mode, on both routes: with no
+  target the failure names `settings.json` at the temp write, and with a target
+  present it names `backups/ccset` at backup-directory creation. Neither route
+  left a partial write — the directory was empty in the first case and the target
+  byte-identical in the second. The check is skipped, with the reason printed, on
+  win32 and when `uid` is `0`, where the permission bits prove nothing.
+
+Two limits of the method, stated rather than papered over:
+
+1. SIGKILL kills the process, not the page cache, so D6 proves atomicity against
+   **process death only**. `writeJsonFileAtomic` does not `fsync` before
+   `rename()`, so nothing here speaks to power loss or a machine crash.
+2. The kill delays are wall-clock, so which phase a signal lands in varies with
+   machine load. The fixture calibrates against one uninterrupted save and
+   asserts that both outcomes occurred, which fails loudly rather than silently
+   passing if the window ever misses the write.
+
+**Finding: backups are not atomic.** Of nine backups written during the D6 sweep,
+one was left **unparseable** — `backup.ts:backupFile` runs `fs.copyFile` straight
+to the final destination, so a crash mid-copy leaves a truncated file that is
+indistinguishable by name from a good backup. The *target* is safe, which is what
+D6 claims, but the backup is the user's only copy of the original when a save goes
+wrong, and PRD §6.5 justifies ccset's own backup directory on the grounds that "a
+scheme that silently loses backups is worse than none, because it would be relied
+upon". Reproduced identically on two consecutive runs. Filed as issue #28; the
+count is reported by the gate on every run and becomes an assertion once fixed.
+
+**Finding: `verify:release-artifact` is broken by npm 12.** `npm pack --json`
+returned an array up to npm 11 and returns an object keyed by package name in npm
+`12.0.2`, so the gate's `packed.length` is `undefined` and it fails at its first
+assertion. This is environment drift, not a regression in the artifact: the
+tarball itself still contains exactly `LICENSE`, `README.md`, `README.zh-CN.md`,
+`dist/cli.js` and `package.json`, verified by hand from the same `npm pack --json`
+output. Filed as issue #29. **The other eight gates all pass** on this branch.
