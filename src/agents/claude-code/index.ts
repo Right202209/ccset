@@ -1,7 +1,8 @@
 import type { Agent, Ctx } from '../../types.js'
 import { fileExists } from '../../core/json-file.js'
-import { claudeDir, claudeStatePath } from '../../core/paths.js'
+import { claudeDir, claudeStatePath } from './paths.js'
 import { claudeCodeActions } from './actions.js'
+import { claudeCodeMessages } from './messages.js'
 
 /**
  * Detection is filesystem-only. Shelling out to `claude --version` would be a
@@ -19,6 +20,7 @@ async function detect(ctx: Ctx): Promise<boolean> {
 export const claudeCode: Agent = {
   id: 'claude-code',
   name: 'Claude Code',
+  messages: claudeCodeMessages,
   detect,
   getActions: claudeCodeActions,
 }

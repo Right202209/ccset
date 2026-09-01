@@ -7,7 +7,7 @@ import { buildStatus } from '../src/agents/claude-code/status.js'
 import { probeEndpoint } from '../src/agents/claude-code/test-connection.js'
 import { BACKUP_INFIX, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
-import { backupsDir, providerSettingsPath } from '../src/core/paths.js'
+import { backupsDir, providerSettingsPath } from '../src/agents/claude-code/paths.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 
 const token = 'TOKEN-TEST-ALPHA-1234567890'

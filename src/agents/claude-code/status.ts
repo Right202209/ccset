@@ -4,7 +4,7 @@ import { JsonParseError } from '../../core/errors.js'
 import { readJsonFile, readMode } from '../../core/json-file.js'
 import { maskSecret } from '../../core/mask.js'
 import { countUnmanagedKeys } from '../../core/merge.js'
-import { backupsDir, globalSettingsPath } from '../../core/paths.js'
+import { backupsDir, globalSettingsPath } from './paths.js'
 import { t } from '../../i18n/index.js'
 import { MANAGED_GLOBAL_PATHS } from './manifest.js'
 import { seedGlobalFromDisk } from './global.js'
@@ -21,13 +21,13 @@ function stateSection(state: StateReport): StatusSection {
   const lines: StatusLine[] = [{ label: t('status.path'), value: state.path }]
   if (!state.exists) {
     lines.push({ label: t('status.present'), value: t('status.absent'), tone: 'warn' })
-    return { title: t('status.stateTitle'), lines, note: t('status.stateAbsentNote') }
+    return { title: t('claudeCode.status.stateTitle'), lines, note: t('claudeCode.status.stateAbsentNote') }
   }
   lines.push({ label: t('status.present'), value: t('status.yes') })
   lines.push({ label: t('status.mode'), value: state.mode })
   if (!state.parsed) {
     lines.push({ label: t('status.onboarding'), value: t('status.unreadable'), tone: 'error' })
-    return { title: t('status.stateTitle'), lines }
+    return { title: t('claudeCode.status.stateTitle'), lines }
   }
   const onboarded = state.onboarded === true
   lines.push({
@@ -35,8 +35,8 @@ function stateSection(state: StateReport): StatusSection {
     value: onboarded ? t('status.yes') : t('status.no'),
     tone: onboarded ? 'info' : 'warn',
   })
-  const note = onboarded ? t('status.readOnlyNote') : t('status.fixHint', { fix: onboardingFixHint() })
-  return { title: t('status.stateTitle'), lines, note }
+  const note = onboarded ? t('claudeCode.status.readOnlyNote') : t('status.fixHint', { fix: onboardingFixHint() })
+  return { title: t('claudeCode.status.stateTitle'), lines, note }
 }
 
 function globalLines(data: JsonObject): StatusLine[] {
@@ -44,27 +44,27 @@ function globalLines(data: JsonObject): StatusLine[] {
   const proxy = String(values['proxyUrl'] ?? '')
   return [
     {
-      label: t('field.proxyEnabled'),
+      label: t('claudeCode.field.proxyEnabled'),
       value: values['proxyEnabled'] === true ? proxy : t('status.disabled'),
     },
     { label: t('field.globalModel'), value: blankAsUnset(String(values['model'] ?? '')) },
     {
-      label: t('field.cleanupPeriodDays'),
+      label: t('claudeCode.field.cleanupPeriodDays'),
       value: blankAsUnset(String(values['cleanupPeriodDays'] ?? '')),
     },
     {
-      label: t('field.disableNonessentialTraffic'),
+      label: t('claudeCode.field.disableNonessentialTraffic'),
       value: switchLabel(String(values['disableNonessentialTraffic'] ?? '')),
     },
     {
-      label: t('field.attributionHeader'),
+      label: t('claudeCode.field.attributionHeader'),
       value: switchLabel(String(values['attributionHeader'] ?? '')),
     },
     {
-      label: t('field.disableInstallationChecks'),
+      label: t('claudeCode.field.disableInstallationChecks'),
       value: switchLabel(String(values['disableInstallationChecks'] ?? '')),
     },
-    { label: t('field.enableToolSearch'), value: switchLabel(String(values['enableToolSearch'] ?? '')) },
+    { label: t('claudeCode.field.enableToolSearch'), value: switchLabel(String(values['enableToolSearch'] ?? '')) },
   ]
 }
 
@@ -124,7 +124,7 @@ function providerSection(record: ProviderRecord): StatusSection {
 }
 
 async function backupSection(ctx: Ctx): Promise<StatusSection> {
-  const count = await countBackups(ctx.home)
+  const count = await countBackups(backupsDir(ctx.home))
   return {
     title: t('status.backupsTitle'),
     lines: [
@@ -145,7 +145,7 @@ export async function buildStatus(ctx: Ctx): Promise<StatusData> {
   ])
   const sections = [stateSection(state), global, ...providers.map(providerSection), backups]
   if (providers.length === 0) {
-    sections.splice(2, 0, { title: t('status.providersTitle'), lines: [], note: t('status.noProviders') })
+    sections.splice(2, 0, { title: t('status.providersTitle'), lines: [], note: t('claudeCode.status.noProviders') })
   }
   return { sections, state, providers }
 }

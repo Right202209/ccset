@@ -17,7 +17,7 @@ interface MainMenuProps {
 }
 
 function actionOption(action: Action): SelectOption {
-  const detailKey = `${action.labelKey}Detail`
+  const detailKey = action.detailKey ?? `${action.labelKey}Detail`
   return {
     id: action.id,
     label: t(action.labelKey),

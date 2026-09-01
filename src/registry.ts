@@ -1,4 +1,5 @@
 import type { Agent } from './types.js'
+import { registerMessages } from './i18n/index.js'
 import { claudeCode } from './agents/claude-code/index.js'
 
 /**
@@ -9,6 +10,8 @@ import { claudeCode } from './agents/claude-code/index.js'
  * Adding an agent is this line plus one module under src/agents/.
  */
 export const AGENTS: Agent[] = [claudeCode]
+
+for (const agent of AGENTS) registerMessages(agent.messages)
 
 export function findAgent(id: string): Agent | undefined {
   return AGENTS.find((agent) => agent.id === id)

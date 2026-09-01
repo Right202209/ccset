@@ -6,12 +6,7 @@ import packageJson from '../package.json'
 import { claudeCodeActions } from '../src/agents/claude-code/actions.js'
 import { FILE_MODE } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
-import {
-  claudeDir,
-  claudeStatePath,
-  globalSettingsPath,
-  providerSettingsPath,
-} from '../src/core/paths.js'
+import { claudeDir, claudeStatePath, globalSettingsPath, providerSettingsPath } from '../src/agents/claude-code/paths.js'
 import {
   ASCII_GLYPHS,
   ASCII_TERMINAL,
@@ -139,11 +134,11 @@ async function driveTokenEditor(session: UiSession, terminal: Terminal): Promise
 
 async function driveStatus(session: UiSession, terminal: Terminal): Promise<void> {
   await session.send(ESC)
-  await session.waitFor(t('action.providerAddDetail'))
+  await session.waitFor(t('claudeCode.action.providerAddDetail'))
   await session.send(ESC)
   await session.waitFor(t('action.testDetail'))
   await session.send(MENU_STATUS)
-  const paint = await session.waitFor(t('status.stateTitle'))
+  const paint = await session.waitFor(t('claudeCode.status.stateTitle'))
   session.assertSingleFocus(paint, 'Status')
 }
 
@@ -155,7 +150,7 @@ async function driveConfirm(session: UiSession): Promise<void> {
   const safe = `${session.focusedRow('2.')} ${t('form.cancel')}`
   assertPainted(paint, safe, 'A destructive confirm must open on the safe row')
   await session.send(ESC)
-  await session.waitFor(t('status.stateTitle'))
+  await session.waitFor(t('claudeCode.status.stateTitle'))
 }
 
 /* ------------------------------------------------------------- invariants */

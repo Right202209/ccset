@@ -2,14 +2,20 @@ import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
 import { backupFile } from '../../core/backup.js'
 import { jsonFile, readJsonFile, readMode, writeJsonFileAtomic } from '../../core/json-file.js'
 import { applyManagedWrites, getPath, getStringAt, type ManagedWrite } from '../../core/merge.js'
-import { activationCommand, globalSettingsPath } from '../../core/paths.js'
+import { activationCommand, backupsDir, globalSettingsPath } from './paths.js'
 import {
   ENV_HTTPS_PROXY,
   ENV_HTTP_PROXY,
   GLOBAL_DEFAULTS,
   GLOBAL_FIELDS,
 } from './manifest.js'
-import { asBool, intOrUndefined, jsonToText, textOrUndefined, withDefaults } from './values.js'
+import {
+  asBool,
+  intOrUndefined,
+  jsonToText,
+  textOrUndefined,
+  withDefaults,
+} from '../../core/values.js'
 
 /** Values exactly as they exist on disk; blank where the key is absent. */
 export function seedGlobalFromDisk(data: JsonObject): FormValues {
@@ -78,7 +84,7 @@ export async function saveGlobal(
   const target = globalSettingsPath(ctx.home)
   const file = jsonFile(target)
   const base = startFresh ? {} : (await readJsonFile(target)).data
-  const backupPath = await backupFile(ctx.home, target)
+  const backupPath = await backupFile(backupsDir(ctx.home), target)
   await writeJsonFileAtomic(file, applyManagedWrites(base, emitGlobal(values)))
   return {
     path: target,
