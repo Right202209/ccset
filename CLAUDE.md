@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is nine
+There is no lint script and no unit-test framework. The test suite is ten
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -22,9 +22,10 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | Command | Covers |
 | --- | --- |
 | `npm run verify:global-settings` | D1-D3, D8: unmanaged-key survival, proxy-off deletion, idempotent re-save, backup content and modes |
+| `npm run verify:opencode` | O1-O7 for the second agent: unmanaged siblings four levels deep, blank-omits, delete-on-unmanaged, the per-key `models` merge, masking, backup rotation, and that the `.jsonc` config is reported but never written |
 | `npm run verify:provider-safety` | D7, D9: nested unmanaged provider keys, 10-backup pruning per file, masking, token absence from error paths |
 | `npm run verify:write-safety` | D4-D6, E3: `~/.claude.json` left untouched, created-when-absent, SIGKILL mid-save, read-only target exits `3` |
-| `npm run verify:ui-render` | The interface itself: renders the component tree via `ink-testing-library`, drives the whole scenario once per glyph set, and asserts masked tokens, singular focus, and printable ASCII on every ASCII Rendered paint. Also runs the viewport scenarios |
+| `npm run verify:ui-render` | The interface itself: renders the component tree via `ink-testing-library`, drives the whole scenario once per glyph set, and asserts masked tokens, singular focus, and printable ASCII on every ASCII Rendered paint. Also covers the agent-selection screen and runs the viewport scenarios |
 | `npm run verify:header-path` | The header's navigation path: segments accumulate on push, drop on back, and elide from the front when they outrun the terminal width |
 | `npm run verify:review-form` | The review form's row treatment: focus, changed markers, hints, Advanced toggle, `ctrl+s` |
 | `npm run verify:malformed-dirty` | T6, T9: malformed-target confirm flow and unsaved-edits prompt, driven through a real PTY |
@@ -74,10 +75,21 @@ touching `src/ui/`.
 
 **`src/core/`** is agent-agnostic and is where safety lives: `json-file.ts` (atomic
 temp+rename writes, `0600`, parse errors), `merge.ts` (apply managed writes, preserve
-everything else), `backup.ts` (per-file rotation), `mask.ts`, `paths.ts`, `validate.ts`,
-`errors.ts` (the `CcsetError` taxonomy carrying an i18n key and an exit code).
+everything else), `backup.ts` (per-file rotation, taking the directory as an argument),
+`mask.ts`, `values.ts` (form↔JSON coercions), `save.ts` (`runSave`/`successMessage`),
+`validate.ts` (validator *factories* — which names are reserved is the agent's business),
+`errors.ts` (the `CcsetError` taxonomy carrying an i18n key and an exit code), and
+`paths.ts`, which after the second agent holds only `resolveHome`, `backupsDirFor`, and
+`listNamedFiles` — the last taking the agent's naming rule as a callback.
 
-**`src/agents/claude-code/`** is the only agent. Its shape is worth knowing:
+Criterion 5 ("adding an agent touches exactly two files") is **enforceable, and was
+enforced**: adding opencode changed nothing under `src/` except `src/registry.ts`. The
+file that used to break it was `src/i18n/en.ts`, since an agent that ships screens must
+name them. An `Agent` now carries `messages`, which the registry merges into the catalog
+and which **throws on a duplicate key** rather than silently rewriting shell text.
+
+**`src/agents/claude-code/`** is the first agent, and the reference one. Its shape
+is worth knowing:
 - `manifest.ts` is **data only** — every managed key of Claude Code's settings files,
   declared once. Both the review form and the writer are driven from it. If Claude Code
   changes its settings shape, this file is the blast radius. Logic leaking in here is
@@ -94,9 +106,37 @@ everything else), `backup.ts` (per-file rotation), `mask.ts`, `paths.ts`, `valid
   crash.
 - `actions.ts` assembles the four menu actions; `status.ts` builds the read-only view;
   `test-connection.ts` is the only outbound network path.
+- `paths.ts`, `constants.ts` and `messages.ts` hold everything Claude-Code-specific
+  that used to sit in `src/core/` and `src/i18n/`.
+
+**`src/agents/opencode/`** is the second agent, and exists to keep the seam honest.
+Same file shape, one structural difference that matters: opencode keeps **every provider
+inside one document** (`~/.config/opencode/opencode.json`) as keys under `provider`,
+where Claude Code uses one file per provider. So provider discovery is object keys rather
+than a glob, `ProviderList` carries the parse failure (a malformed file has no providers,
+rather than one bad provider), and `applyManagedWrites` has to preserve unmanaged
+siblings four levels deep at `provider.<id>.options.*`.
+
+Three things there are load-bearing:
+- **`provider.<id>.models` merges per key.** A model id already on disk is left alone, a
+  new one is added as `{}`, one dropped from the list is deleted. Writing the map
+  wholesale would discard per-model settings. This needs current disk state, which is why
+  `emitProvider` takes the base object — the only emit in the codebase that does.
+- **`autoupdate` is written as a real JSON boolean.** The form's domain is strings and
+  `"false"` would read as truthy.
+- **`opencode.jsonc` is never written.** opencode loads it too and its schema allows
+  comments, which cannot survive a `JSON.parse` round-trip. Status reports the file and
+  warns the save may not be the config opencode reads. Which file wins is **unverified**
+  — see U6 in `Important Documentation.md`.
+
+There is deliberately no Test connection for opencode: a custom provider's wire protocol
+comes from whichever SDK package the user names, so there is no endpoint ccset could
+probe honestly.
 
 **`src/registry.ts`** is hand-written and static. No `import()` of a scanned path
-anywhere — the published artifact is a bundle and a bundler cannot resolve one.
+anywhere — the published artifact is a bundle and a bundler cannot resolve one. It also
+registers each agent's `messages`. Adding an agent is one import plus one array element;
+`docs/adding-an-agent.md` is the guide, written from doing it.
 
 **`src/ui/`** is a navigation stack, not a router. `useScreens.ts` holds `Frame[]`; two
 rules there are load-bearing and easy to break:
@@ -133,12 +173,16 @@ Three more UI modules each own one thing, and owning it in one place is the poin
 `useReviewForm.ts` holds the form's whole state machine — rows, the Advanced toggle,
 validation, the row window, and `ctrl+s` — leaving `ReviewForm.tsx` as paint only.
 
-**`src/i18n/`** — every user-facing string resolves through `t()` against
-`src/i18n/en.ts`. `t()` returns the key itself on a miss rather than throwing. Keys are
-also referenced indirectly (`FieldSpec.labelKey`/`helpKey`, `validate.ts` return values,
-`ProbeResult.key`, `CcsetError.messageKey`, and template-built families like
-`prompt.${kind}Line`), so a mechanical grep for `t('…')` will under-report usage. English
-is the only catalog; a second one is a new file plus one line in `index.ts`.
+**`src/i18n/`** — every user-facing string resolves through `t()`. The catalog is
+`src/i18n/en.ts` (shell vocabulary only — nothing there names an agent) plus each agent's
+`messages.ts`, merged by the registry under an agent-id namespace. `t()` returns the key
+itself on a miss rather than throwing, so a renamed key degrades to a visible literal
+rather than a crash — which is exactly how two fixtures caught the rename in #33. Keys
+are also referenced indirectly (`FieldSpec.labelKey`/`helpKey`, `Action.detailKey`,
+`WriteReport.activateKey`, `validate.ts` return values, `ProbeResult.key`,
+`CcsetError.messageKey`, and template-built families like `prompt.${kind}Line`), so a
+mechanical grep for `t('…')` will under-report usage. English is the only catalog; a
+second one is a new file plus one line in `index.ts`, and a `messages` entry per agent.
 
 ## Invariants
 
@@ -189,10 +233,22 @@ Module resolution is `Bundler`, but source imports still carry the `.js` extensi
 
 ## Current state
 
-Milestone 1. One agent (`claude-code`), one catalog (`en`), interactive-only. Not built
-and deliberately not stubbed: `apiKeyHelper` support (blocked on U1), a second agent,
-non-interactive mode. `--agent <id>` is parsed and validated but has one legal value.
+Milestone 2, partly done. Two agents (`claude-code`, `opencode`), one catalog (`en`),
+interactive-only. `--agent <id>` now has two legal values, and the agent-selection screen
+is reachable for the first time.
+
+Done in M2: the second agent, the seam work that made criterion 5 literally true, and
+`docs/adding-an-agent.md`.
+
+Not built, and deliberately not stubbed:
+- **`apiKeyHelper` support** — still blocked on U1, which needs a real third-party
+  credential. Nothing here should pretend otherwise.
+- **A non-JSON agent.** `Codec` is still `'json'`. Codex CLI is the TOML case PRD 4.3
+  names; doing it needs a format-preserving parser, because `JSON.stringify`-style
+  round-tripping would break "unmanaged keys survive". See U7.
+- **Non-interactive mode** (M3), and any additional i18n catalog.
 
 ADR 0002's flow-scrolling output with windowed long regions is implemented — see
 `src/ui/Viewport.tsx` above. Several external gates in `Important Documentation.md` §9.8
-(U1-U5, macOS, Windows) remain pending and block an npm release.
+(U1-U5, macOS, Windows) remain pending and block an npm release. M1 was never closed out:
+its remaining work is those external gates and the publish itself, not code.

@@ -467,11 +467,24 @@ cheap. Ship at `0.x` so nothing is locked.
 Manifest-merge semantics move **into** M1: they are not a refinement, they are the
 condition for writing `settings.json` without data loss.
 
-**Milestone 2 — hardening and proof of extensibility.**
+**Milestone 2 — hardening and proof of extensibility.** *Partly delivered.*
 
-- `apiKeyHelper` support, gated on the §9.3 experiment.
-- A second real agent module, which is the only honest test of §2.2 criterion 5.
-- Extension guide; error-recovery polish.
+- `apiKeyHelper` support, gated on the §9.3 experiment. **Still blocked on U1**;
+  no third-party credential has been available to settle it.
+- ~~A second real agent module, which is the only honest test of §2.2
+  criterion 5.~~ **Done:** `opencode`. Criterion 5 was false in five places when
+  measured rather than assumed, and the seam work to make it true landed first.
+  Verified by diff: adding the agent changed one file outside its own directory.
+- ~~Extension guide~~ **Done:** `docs/adding-an-agent.md`, written from adding
+  the second agent rather than from the interface.
+- Error-recovery polish. Outstanding.
+
+Gemini CLI was evaluated as the second agent and rejected: its settings schema
+has no third-party endpoint concept, so it does not serve §1.3's user. Codex CLI
+remains the intended TOML case for §4.3's codec seam, deferred behind U7 —
+round-tripping TOML without losing comments and key order needs a
+format-preserving parser, and until that is proven the §6.4 unmanaged-keys
+guarantee cannot be extended to a non-JSON agent.
 
 **Milestone 3 — reach.**
 
@@ -539,3 +552,11 @@ npm: `@droite/ccset` unpublished; `ai-agent-config` taken (v2.8.6); `ccset`,
    pattern or across the whole directory — the reason §6.5 uses a subdirectory.
 5. **Ownership of the `droite` npm scope.** Registry probes returned 401/403 (auth
    required), so availability could not be determined.
+6. **opencode config precedence.** `opencode.json` and `opencode.jsonc` may both
+   exist, and opencode's schema allows comments and trailing commas. Which file
+   wins, and whether they merge, is unverified. ccset writes only the strict-JSON
+   file and reports the other; if `.jsonc` turns out to win, the report must
+   become a refusal to write.
+7. **Format-preserving TOML.** Whether a TOML config can be parsed and re-emitted
+   with comments, key order and formatting intact. §4.3's codec seam is notional
+   until this is answered, and §6.4 cannot be promised for a TOML agent without it.

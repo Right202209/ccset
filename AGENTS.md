@@ -7,9 +7,13 @@ under `src/`:
 
 - `src/core/` contains agent-independent file I/O, validation, merging,
   masking, backups, paths, and error handling.
-- `src/agents/<id>/` contains integrations for a supported coding agent.
+- `src/agents/<id>/` contains integrations for a supported coding agent
+  (`claude-code` and `opencode`), including that agent's own paths, constants,
+  and user-facing strings.
 - `src/ui/` contains Ink screens and reusable form/list components.
-- `src/i18n/` contains the English message catalog and translation helper.
+- `src/i18n/` contains the shell's English message catalog and translation
+  helper. Agent-specific strings live with the agent and are merged by the
+  registry.
 - `src/cli.tsx` is the CLI entry point; `src/registry.ts` is the static agent
   registry; `src/types.ts` defines shared interfaces.
 
@@ -21,9 +25,10 @@ not be edited by hand.
 
 Run `npm install` to install dependencies (Node.js 18+ is required). Use
 `npm run typecheck` for a no-emit TypeScript check and `npm run build` to bundle
-the executable to `dist/cli.js` with tsup. The package currently has no
-automated test script; verify interactive changes manually using the scenarios
-listed in `Important Documentation.md`.
+the executable to `dist/cli.js` with tsup. There is no unit-test framework; the
+suite is ten executable `npm run verify:*` fixtures in `scripts/`, listed with
+what each covers in `CLAUDE.md`. Run the ones your change touches, and verify
+remaining interactive scenarios manually against `Important Documentation.md`.
 
 ## Coding Style & Naming Conventions
 
@@ -50,10 +55,16 @@ or screenshots when changing the TUI.
 
 ## Adding an Agent
 
-Implement `detect()` and `getActions()` in `src/agents/<id>/`, conforming to the
-`Agent` interface in `src/types.ts`, then add the module to the array in
-`src/registry.ts`. Keep agent-specific paths and codecs inside that module;
-reuse the generic core for merges, atomic writes, masking, and backups.
+Implement `detect()`, `getActions()` and `messages` in `src/agents/<id>/`,
+conforming to the `Agent` interface in `src/types.ts`, then add the module to the
+array in `src/registry.ts`. Those are the only two files you should need to
+touch; if you need a third, see the guide before working around it.
+
+Keep agent-specific paths, constants, strings and codecs inside that module;
+reuse the generic core for merges, atomic writes, masking, and backups. Ship a
+verification fixture, and mutate your own code to confirm the fixture fails.
+
+Full walkthrough: [`docs/adding-an-agent.md`](docs/adding-an-agent.md).
 
 ## Agent skills
 

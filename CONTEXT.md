@@ -10,16 +10,26 @@ compatibility evidence, and maintenance commitments.
 
 **Core user**:
 An individual developer configuring a coding agent to use a third-party
-Anthropic-compatible API service.
+API service.
 _Avoid_: Enterprise administrator, every Claude Code user
 
 **Provider**:
-A third-party Anthropic-compatible API service selected by the core user.
+A third-party API service selected by the core user, reached through an Agent's
+configuration. Depending on the Agent, a Provider is either a file of its own
+(Claude Code's `settings.<name>.json`) or a block inside the Agent's single
+config document (opencode's `provider.<id>`).
 _Avoid_: Agent, model
 
 **Agent**:
-A coding tool whose configuration ccset can read or write, currently Claude Code.
+A coding tool whose configuration ccset can read or write, currently Claude Code
+and opencode.
 _Avoid_: Provider
+
+**Managed key**:
+A path in an Agent's config that ccset writes, declared once in that Agent's
+`manifest.ts`. Everything else in the file is unmanaged and survives every write
+unchanged. Writing a managed key means writing the leaf, never its parent.
+_Avoid_: Supported field, known key
 
 **Supported platform**:
 A platform the project intends to keep working. Platform-specific changes require
