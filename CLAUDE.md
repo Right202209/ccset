@@ -63,10 +63,12 @@ you never write into a real `~/.claude`. The gates that mount `App` directly byp
 `viewport` prop, which pins `useTerminalViewport` instead of reading `stdout`.
 Interactive checks need a PTY — piped stdin exits `2` by design.
 
-CI (`.github/workflows/ci.yml`) runs typecheck, build, and `npm pack --dry-run` on
-Ubuntu and Windows for Node 18/20/22. The verify scripts are not wired into CI; run
-them locally. The Windows leg proves the toolchain build only — native Windows stays
-best-effort at runtime (see README).
+CI (`.github/workflows/ci.yml`) runs typecheck, build, a runtime smoke of the
+built CLI (`--version` prints the package version; non-TTY stdin exits `2` with
+the plain refusal and zero ANSI escape bytes), and `npm pack --dry-run` on
+Ubuntu and Windows for Node 18/20/22. The verify scripts are not wired into CI;
+run them locally. The smoke exercises the non-interactive surface only — native
+Windows stays best-effort for interactive use (see README).
 
 `gh` is not on `PATH`; it is unpacked at `~/gh/gh_2.76.2_linux_amd64/bin/gh`. Issues are
 the tracker — see `docs/agents/issue-tracker.md`.

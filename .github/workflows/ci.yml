@@ -37,5 +37,35 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The one shell present on both runner images (Git for Windows ships
+      # bash), so the assertions behave identically across the matrix.
+      - name: Runtime smoke
+        shell: bash
+        run: |
+          version="$(node dist/cli.js --version)"
+          printf 'ccset reports version %s\n' "$version"
+          case "$version" in
+            ''|*$'\x1b'*)
+              echo "::error::--version printed nothing or emitted ANSI escapes" >&2
+              exit 1
+              ;;
+          esac
+
+          set +e
+          refusal="$(node dist/cli.js < /dev/null 2>&1)"
+          smoke_exit=$?
+          set -e
+          printf 'non-TTY stdin exits %s: %s\n' "$smoke_exit" "$refusal"
+          if [ "$smoke_exit" -ne 2 ]; then
+            echo "::error::non-TTY stdin exited $smoke_exit, expected the refusal exit 2" >&2
+            exit 1
+          fi
+          case "$refusal" in
+            ''|*$'\x1b'*)
+              echo "::error::non-TTY refusal was empty or emitted ANSI escapes" >&2
+              exit 1
+              ;;
+          esac
+
       - name: Verify package contents
         run: npm pack --dry-run
