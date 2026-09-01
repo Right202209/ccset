@@ -6,6 +6,9 @@ dist/
 .verify/
 *.tgz
 .DS_Store
+# Local Claude Code plugin/permission state, per-machine and not shared.
+.claude/settings.json
+.claude/settings.local.json
 .env
 .env.*
 *.log
