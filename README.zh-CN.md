@@ -97,7 +97,8 @@ ccset [--agent <id>]
 
 | 变量 | 作用 |
 | --- | --- |
-| `CCSET_ASCII=1` | 使用七位 ASCII 界面：装饰字形、帮助和标点以及掩码值都会折叠为可打印 ASCII。不设置时使用 Unicode 字形。 |
+| `CCSET_LOCALE` | 界面语言。设为 `zh-Hans` 使用简体中文界面；不设置或其他值均为英文。语言只接受显式选择——ccset 不会探测系统语言。 |
+| `CCSET_ASCII=1` | 使用七位 ASCII 界面：装饰字形、帮助和标点以及掩码值都会折叠为可打印 ASCII。不设置时使用 Unicode 字形。中文不做转写，七位终端无法显示。 |
 | `CCSET_HOME` | 覆盖 ccset 读写的主目录，供隔离测试使用，不建议日常使用。 |
 
 颜色开关不在 ccset：渲染经由 Ink，它已支持 `NO_COLOR`。

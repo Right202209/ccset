@@ -11,9 +11,9 @@ under `src/`:
   (`claude-code` and `opencode`), including that agent's own paths, constants,
   and user-facing strings.
 - `src/ui/` contains Ink screens and reusable form/list components.
-- `src/i18n/` contains the shell's English message catalog and translation
-  helper. Agent-specific strings live with the agent and are merged by the
-  registry.
+- `src/i18n/` contains the shell's message catalogs (`en`, `zh-Hans`) and the
+  translation helper. Agent-specific strings live with the agent and are merged
+  by the registry.
 - `src/cli.tsx` is the CLI entry point; `src/registry.ts` is the static agent
   registry; `src/types.ts` defines shared interfaces.
 
@@ -26,7 +26,7 @@ not be edited by hand.
 Run `npm install` to install dependencies (Node.js 18+ is required). Use
 `npm run typecheck` for a no-emit TypeScript check and `npm run build` to bundle
 the executable to `dist/cli.js` with tsup. There is no unit-test framework; the
-suite is ten executable `npm run verify:*` fixtures in `scripts/`, listed with
+suite is twelve executable `npm run verify:*` fixtures in `scripts/`, listed with
 what each covers in `CLAUDE.md`. Run the ones your change touches, and verify
 remaining interactive scenarios manually against `Important Documentation.md`.
 

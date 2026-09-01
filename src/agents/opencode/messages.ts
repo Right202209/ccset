@@ -63,4 +63,59 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     'opencode.write.activate': 'opencode reads this file on start. Run it with:',
     'opencode.write.providerSaved': 'Provider block saved',
   },
+
+  'zh-Hans': {
+    /* --------------------------------------------------------- action detail */
+    'opencode.action.globalDetail': '~/.config/opencode/opencode.json',
+    'opencode.action.providersDetail': '在该文件中添加或编辑提供商配置块',
+    'opencode.action.providerAddDetail': '添加提供商配置块',
+
+    /* ---------------------------------------------------------------- fields */
+    'opencode.field.smallModel': '小型模型',
+    'opencode.field.share': '共享',
+    'opencode.field.autoupdate': '自动更新',
+    'opencode.field.username': '显示名称',
+    'opencode.field.disabledProviders': '停用的提供商',
+    'opencode.field.providerId': '提供商 ID',
+    'opencode.field.displayName': '提供商标签',
+    'opencode.field.apiKey': 'API 密钥',
+    'opencode.field.npm': 'SDK 包',
+    'opencode.field.models': '模型 ID',
+    'opencode.field.timeout': '请求超时（毫秒）',
+
+    /* --------------------------------------------------------------- choices */
+    'opencode.choice.shareManual': '手动',
+    'opencode.choice.shareAuto': '自动',
+    'opencode.choice.shareDisabled': '停用',
+    'opencode.choice.notify': '仅通知',
+
+    /* ------------------------------------------------------------------ help */
+    'opencode.help.globalModel': '以 provider/model 形式写入，例如 my-router/claude-sonnet-5。',
+    'opencode.help.smallModel': '用于标题生成等廉价的辅助任务。',
+    'opencode.help.share': '对话是否可以共享。留空则删除该键。',
+    'opencode.help.username': '代替你的系统用户名显示。留空则删除该键。',
+    'opencode.help.disabledProviders': '逗号分隔的 ID，opencode 不会加载它们。以 JSON 数组写入。',
+    'opencode.help.providerId': '将成为 "provider" 下的键名。只能使用字母、数字、- 和 _。',
+    'opencode.help.displayName': '显示在 opencode 的模型选择器中。留空则删除该键。',
+    'opencode.help.baseUrl': '端点根地址，如 https://api.example.com — 不要带尾部路径。',
+    'opencode.help.apiKey': '写入 options.apiKey。ccset 打印它的所有位置都会掩码。',
+    'opencode.help.npm': '为该提供商提供通信协议的 AI SDK 包。',
+    'opencode.help.models': '逗号分隔的 ID，是该提供商提供的模型。已有的条目保留各自设置。',
+    'opencode.help.timeout': '留空则删除该键，opencode 使用自己的默认值。',
+
+    /* ---------------------------------------------------------------- status */
+    'opencode.status.noProviders': '此文件中没有提供商配置块。',
+    'opencode.status.noBaseUrl': '此配置块中没有 options.baseURL。',
+    'opencode.status.jsoncTitle': 'opencode.jsonc（不受管理）',
+    'opencode.status.jsoncNote':
+      'opencode 也会读取此文件。ccset 绝不写入它，因为注释无法在 JSON 重写后保留 — 因此这里保存的内容可能不是 opencode 实际读取的配置。',
+
+    /* ----------------------------------------------------------------- notes */
+    'opencode.note.configPath': '文件：{path} — 保存时创建。',
+    'opencode.note.singleFile': '所有提供商都保存在这一个文件中。只有你正在编辑的配置块会改变。',
+
+    /* ----------------------------------------------------------------- write */
+    'opencode.write.activate': 'opencode 启动时会读取此文件。运行：',
+    'opencode.write.providerSaved': '提供商配置块已保存',
+  },
 }

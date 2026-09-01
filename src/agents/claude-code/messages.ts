@@ -62,4 +62,51 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.write.stateCreated': 'Created with hasCompletedOnboarding set.',
     'claudeCode.write.stateExists': 'Already present — left untouched.',
   },
+
+  'zh-Hans': {
+    /* --------------------------------------------------------- action detail */
+    'claudeCode.action.globalDetail': '~/.claude/settings.json',
+    'claudeCode.action.providersDetail': '添加或编辑 settings.<name>.json',
+    'claudeCode.action.providerAddDetail': '新建 settings.<name>.json',
+    'claudeCode.action.createState': '创建 ~/.claude.json',
+    'claudeCode.action.createStateDetail': '仅当文件不存在时 — ccset 绝不重写此文件',
+
+    /* ---------------------------------------------------------------- fields */
+    'claudeCode.field.proxyEnabled': '代理',
+    'claudeCode.field.proxyUrl': '代理 URL',
+    'claudeCode.field.disableNonessentialTraffic': '禁用非必要流量',
+    'claudeCode.field.attributionHeader': '署名标头',
+    'claudeCode.field.disableInstallationChecks': '禁用安装检查',
+    'claudeCode.field.enableToolSearch': '启用工具搜索',
+    'claudeCode.field.cleanupPeriodDays': '清理周期（天）',
+    'claudeCode.field.fallbackModel': '后备模型',
+    'claudeCode.field.defaultOpusModel': 'Opus 模型重映射',
+    'claudeCode.field.defaultSonnetModel': 'Sonnet 模型重映射',
+    'claudeCode.field.defaultHaikuModel': 'Haiku 模型重映射',
+
+    /* ------------------------------------------------------------------ help */
+    'claudeCode.help.proxyEnabled': '关闭会从文件中删除 HTTP_PROXY 和 HTTPS_PROXY。',
+    'claudeCode.help.proxyUrl': '同时写入 HTTP_PROXY 和 HTTPS_PROXY。',
+    'claudeCode.help.cleanupPeriodDays': '留空则删除该键，Claude Code 使用自己的默认值。',
+    'claudeCode.help.globalModel': '自由文本。留空则删除该键。',
+    'claudeCode.help.providerName': '将成为 settings.<name>.json。只能使用字母、数字、- 和 _。',
+    'claudeCode.help.baseUrl': '端点根地址，如 https://api.example.com — 不要带尾部路径。',
+    'claudeCode.help.token': '作为 Authorization: Bearer 请求头发送。ccset 打印它的所有位置都会掩码。',
+    'claudeCode.help.providerModel': '自由文本。留空则省略该键，全局模型生效。',
+    'claudeCode.help.fallbackModel': '逗号分隔。以 JSON 数组写入。',
+
+    /* ---------------------------------------------------------------- status */
+    'claudeCode.status.stateTitle': 'Claude Code 状态（~/.claude.json）',
+    'claudeCode.status.stateAbsentNote': 'ccset 可以创建它，并写入 hasCompletedOnboarding。',
+    'claudeCode.status.readOnlyNote': 'ccset 绝不写入此文件 — 它归 Claude Code 所有。',
+    'claudeCode.status.noProviders': '在 ~/.claude 中没有找到提供商文件。',
+    'claudeCode.status.noBaseUrl': '此文件中没有 ANTHROPIC_BASE_URL。',
+
+    /* ----------------------------------------------------------------- notes */
+    'claudeCode.note.providerPath': '文件：~/.claude/settings.<name>.json — 保存时创建。',
+
+    /* ----------------------------------------------------------------- write */
+    'claudeCode.write.stateCreated': '已创建，并写入 hasCompletedOnboarding。',
+    'claudeCode.write.stateExists': '已存在 — 未做改动。',
+  },
 }

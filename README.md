@@ -201,7 +201,8 @@ exits `2` rather than emitting control sequences into a log.
 
 | Variable | Effect |
 | --- | --- |
-| `CCSET_ASCII=1` | Use a seven-bit interface: decorative glyphs, help punctuation, prose punctuation, and masked values are folded to printable ASCII. Leave it unset for the Unicode glyphs. |
+| `CCSET_LOCALE` | Interface language. `zh-Hans` selects the Simplified Chinese catalog; unset or any other value gives English. Selection is an explicit opt-in — ccset never detects your environment's locale. |
+| `CCSET_ASCII=1` | Use a seven-bit interface: decorative glyphs, help punctuation, prose punctuation, and masked values are folded to printable ASCII. Leave it unset for the Unicode glyphs. Chinese text is not transliterated; a seven-bit terminal cannot draw it. |
 | `CCSET_HOME` | Overrides the home directory ccset reads and writes under. Intended for isolated test runs, not daily use. |
 
 Colour is not ccset's switch: it renders through Ink, which already honours
