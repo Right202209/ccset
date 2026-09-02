@@ -1,5 +1,5 @@
 import { ValidationError } from '../../core/errors.js'
-import { jsonFile } from '../../core/json-file.js'
+import { jsonFile, readJsonFile, readMode } from '../../core/json-file.js'
 import { getStringAt, type ManagedWrite } from '../../core/merge.js'
 import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
 import type {
@@ -12,7 +12,14 @@ import type { Ctx, JsonObject } from '../../types.js'
 import { validateOptionalPositiveInt, validateOptionalUrl } from '../../core/validate.js'
 import { ENV_HTTPS_PROXY, ENV_HTTP_PROXY, GLOBAL_FIELDS } from './manifest.js'
 import { SWITCH_OFF, SWITCH_ON } from './constants.js'
-import { backupsDir, globalSettingsPath } from './paths.js'
+import { backupsDir, claudeStatePath, globalSettingsPath } from './paths.js'
+import { createStateIfMissing } from './state.js'
+import {
+  claudeStatusFindings,
+  presentClaudeStatus,
+  readClaudeStatus,
+  type ClaudeStatusDto,
+} from './status-dto.js'
 
 /**
  * The agent's Non-interactive declarations. Field ids here are stable script
@@ -158,6 +165,58 @@ async function runGlobalSet(ctx: Ctx, request: OperationRequest): Promise<Operat
   }
 }
 
+/**
+ * Status reads everything through the raw DTO and never writes. Parse
+ * failures ride back as findings, so the CLI can hold the exit code at 4
+ * while every readable section still ships in data and in the human report.
+ */
+async function runStatus(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
+  const data = await readClaudeStatus(ctx)
+  const { warnings, errors } = claudeStatusFindings(data)
+  return {
+    agent: 'claude-code',
+    operation: 'status',
+    changed: false,
+    dryRun: request.dryRun,
+    targets: [],
+    warnings,
+    errors,
+    data: data as unknown as Record<string, unknown>,
+  }
+}
+
+/**
+ * Create-only by contract: an absent state file is created, a valid one is
+ * reported unchanged, and an unparseable one is refused untouched (the parse
+ * error propagates as exit 4) -- ccset never races or rewrites a file Claude
+ * Code owns.
+ */
+async function runStateInit(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
+  const target = claudeStatePath(ctx.home)
+  const existing = await readJsonFile(target)
+  const record = existing.exists
+    ? { path: target, mode: await readMode(target), backupPath: null, changed: false }
+    : await createState(ctx, target, request.dryRun)
+  return {
+    agent: 'claude-code',
+    operation: 'state.init',
+    changed: record.changed,
+    dryRun: request.dryRun,
+    targets: [record],
+    warnings: [],
+  }
+}
+
+async function createState(
+  ctx: Ctx,
+  target: string,
+  dryRun: boolean,
+): Promise<{ path: string; mode: string; backupPath: string | null; changed: boolean }> {
+  if (dryRun) return { path: target, mode: '0600', backupPath: null, changed: true }
+  const created = await createStateIfMissing(ctx)
+  return { path: created.path, mode: created.mode, backupPath: null, changed: created.created }
+}
+
 export const claudeCodeCommands: CommandDeclaration[] = [
   {
     id: 'global.set',
@@ -166,5 +225,23 @@ export const claudeCodeCommands: CommandDeclaration[] = [
     replaceable: true,
     presentation: { successTitleKey: () => 'write.globalSaved' },
     run: runGlobalSet,
+  },
+  {
+    id: 'status',
+    fields: [],
+    presentation: {
+      successTitleKey: () => 'action.status',
+      presentStatus: (data) => presentClaudeStatus(data as unknown as ClaudeStatusDto),
+    },
+    run: runStatus,
+  },
+  {
+    id: 'state.init',
+    fields: [],
+    presentation: {
+      successTitleKey: (result) =>
+        result.changed ? 'claudeCode.write.stateCreated' : 'claudeCode.write.stateExists',
+    },
+    run: runStateInit,
   },
 ]

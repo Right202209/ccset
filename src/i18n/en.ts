@@ -182,6 +182,7 @@ export const en: Record<string, string> = {
   'cli.changed': 'Changed: {changed}',
   'cli.dryRunTitle': 'Dry run — nothing was written',
   'cli.warning': 'Warning: {message}',
+  'cli.parseFailure': 'Could not parse {path} ({detail}).',
   'cli.partialCommit':
     'The operation stopped partway. These paths were already written: {paths}',
 

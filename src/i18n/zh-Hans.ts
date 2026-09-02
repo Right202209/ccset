@@ -179,6 +179,7 @@ export const zhHans: Record<string, string> = {
   'cli.changed': '是否有更改：{changed}',
   'cli.dryRunTitle': '试运行 — 未写入任何内容',
   'cli.warning': '警告：{message}',
+  'cli.parseFailure': '无法解析 {path}（{detail}）。',
   'cli.partialCommit': '操作中途停止。以下路径已被写入：{paths}',
 
   /* ------------------------------------------------------- cli usage rules */

@@ -67,6 +67,10 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
       'The proxy is on, but no proxy URL was supplied and none is on disk.',
     'claudeCode.validate.proxyConflict':
       'The proxy toggle and the proxy URL in this command contradict each other.',
+
+    /* --------------------------------------------------------- status warns */
+    'claudeCode.warning.stateAbsent': '~/.claude.json is absent; state init can create it.',
+    'claudeCode.warning.noBaseUrl': 'Provider {name} has no ANTHROPIC_BASE_URL.',
   },
 
   'zh-Hans': {
@@ -118,5 +122,9 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* -------------------------------------------------------------- commands */
     'claudeCode.validate.proxyNeedsUrl': '代理已开启，但未提供代理 URL，磁盘上也没有。',
     'claudeCode.validate.proxyConflict': '此命令中的代理开关与代理 URL 相互矛盾。',
+
+    /* --------------------------------------------------------- status warns */
+    'claudeCode.warning.stateAbsent': '~/.claude.json 不存在；state init 可以创建它。',
+    'claudeCode.warning.noBaseUrl': 'Provider {name} 没有设置 ANTHROPIC_BASE_URL。',
   },
 }
