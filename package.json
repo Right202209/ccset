@@ -34,8 +34,9 @@
     "verify:commands": "npm run build && tsup scripts/verify-commands.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands.js; status=$?; rm -rf .verify; exit $status",
     "verify:commands-status": "npm run build && tsup scripts/verify-commands-status.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-status.js; status=$?; rm -rf .verify; exit $status",
     "verify:commands-secret": "npm run build && tsup scripts/verify-commands-secret.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-secret.js; status=$?; rm -rf .verify; exit $status",
+    "verify:commands-opencode": "npm run build && tsup scripts/verify-commands-opencode.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-opencode.js; status=$?; rm -rf .verify; exit $status",
     "verify:release-artifact": "tsup scripts/verify-release-artifact.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-release-artifact.js; status=$?; rm -rf .verify; exit $status",
-    "test": "npm run verify:global-settings && npm run verify:opencode && npm run verify:codex && npm run verify:provider-safety && npm run verify:write-safety && npm run verify:ui-render && npm run verify:header-path && npm run verify:review-form && npm run verify:malformed-dirty && npm run verify:status-terminal && npm run verify:commands && npm run verify:commands-status && npm run verify:commands-secret && npm run verify:release-artifact",
+    "test": "npm run verify:global-settings && npm run verify:opencode && npm run verify:codex && npm run verify:provider-safety && npm run verify:write-safety && npm run verify:ui-render && npm run verify:header-path && npm run verify:review-form && npm run verify:malformed-dirty && npm run verify:status-terminal && npm run verify:commands && npm run verify:commands-status && npm run verify:commands-secret && npm run verify:commands-opencode && npm run verify:release-artifact",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
