@@ -76,7 +76,8 @@ Codex 没有 Test connection：ccset 内置的探测请求是 Anthropic 形态�
 - 关闭代理时会删除 `HTTP_PROXY` 和 `HTTPS_PROXY`；空字段会被省略，而不是写入 `null` 或空字符串。
 - 写入前会重新读取文件，写入采用同目录临时文件、权限设置和重命名，保证原子性。
 - POSIX 系统写入文件权限为 `0600`。每次写入前会备份到该 Agent 配置目录下的 `backups/ccset/`：Claude Code 为 `~/.claude/backups/ccset/`，opencode 为 `~/.config/opencode/backups/ccset/`，Codex 为 `~/.codex/backups/ccset/`，最多保留每个文件十份。
-- Token 仅在确认 **Test connection** 后发送，并在界面和错误信息中遮罩显示。备份仍可能包含旧 Token，可从对应 Agent 的 Status 中清除 ccset 备份。
+- Token 仅在确认 **Test connection** 后发送，并在界面和错误信息中遮罩显示。备份仍可能包含旧 Token，可从对应 Agent 的 Status 中清除 ccset 备份。备份被中断产生的残缺副本同样保存着正在复制的凭据，Status 会列出并警告，清除 ccset 备份时一并删除。
+- 保存失败不会结束会话：错误以独立屏幕显示，已输入的内容不会丢失，`esc` 返回表单，修正后可重试。
 - 对带注释的格式，注释和排版同样会保留：Codex 的 `config.toml` 采用就地修改，注释、空行、对齐和键顺序都完整保留。
 - 无法解析的文件不会被静默覆盖；工具会指明是 JSON 还是 TOML，并提示你备份后重新创建。
 - `~/.codex/auth.json` 只会被整体替换，绝不会被就地编辑：它是 Codex 的活跃凭据，登录和刷新令牌时都会被改写，因此 ccset 只在你明确要求时整文件覆盖。把已有凭据保存为 profile 时是逐字节复制，因此 ccset 不理解的 OAuth 令牌结构也能完整保留。
@@ -97,7 +98,8 @@ ccset [--agent <id>]
 
 | 变量 | 作用 |
 | --- | --- |
-| `CCSET_ASCII=1` | 使用七位 ASCII 界面：装饰字形、帮助和标点以及掩码值都会折叠为可打印 ASCII。不设置时使用 Unicode 字形。 |
+| `CCSET_LOCALE` | 界面语言。设为 `zh-Hans` 使用简体中文界面；不设置或其他值均为英文。语言只接受显式选择——ccset 不会探测系统语言。 |
+| `CCSET_ASCII=1` | 使用七位 ASCII 界面：装饰字形、帮助和标点以及掩码值都会折叠为可打印 ASCII。不设置时使用 Unicode 字形。中文不做转写，七位终端无法显示。 |
 | `CCSET_HOME` | 覆盖 ccset 读写的主目录，供隔离测试使用，不建议日常使用。 |
 
 颜色开关不在 ccset：渲染经由 Ink，它已支持 `NO_COLOR`。

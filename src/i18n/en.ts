@@ -86,6 +86,8 @@ export const en: Record<string, string> = {
   'status.fixHint': 'Apply by hand: {fix}',
   'status.unmanagedNote': '{count} key(s) ccset does not manage are preserved on every save.',
   'status.backupsNote': 'A backup can still contain a token you have since rotated.',
+  'status.partials': 'Partial copies',
+  'status.partialsNote': '{count} partial backup(s) hold a credential; Clear ccset backups removes them.',
   'status.help': '↑↓ move · enter select · esc back',
 
   /* ----------------------------------------------------------------- notes */
@@ -166,6 +168,8 @@ export const en: Record<string, string> = {
   'error.unexpected': 'Unexpected failure ({detail}).',
   'error.unsupportedCodec': 'Unsupported serialization format ({codec}).',
   'error.unknownAgent': 'Unknown agent: {id}.',
+  'error.screenTitle': 'Action failed',
+  'error.screenHint': 'Nothing you typed was lost — go back and try again.',
 
   /* --------------------------------------------------------------- message */
   'message.continue': 'enter to continue · esc back',
