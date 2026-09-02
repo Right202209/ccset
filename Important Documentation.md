@@ -1135,7 +1135,46 @@ rather than refusing. There is deliberately no Test connection for Codex: the
 probe ccset ships is Anthropic-shaped (`/v1/messages`), and a Responses-API
 endpoint is a different request it has no honest way to make yet.
 
-### 9.27 Second locale: zh-Hans (2026-09-01)
+### 9.27 Windows CI leg and the built-CLI runtime smoke (2026-09-01)
+
+The CI matrix now runs every leg on `windows-latest` next to `ubuntu-latest`
+(Node 18/20/22 each), and every leg gained a runtime smoke of the built
+`dist/cli.js` under `shell: bash`, which both runner images provide: `--version`
+prints the package version and exits 0, and non-TTY stdin exits `2` with the
+plain refusal on stderr and zero ANSI escape bytes — the non-TTY half of the
+bounded check §9.8 recorded manually for Linux, now executed continuously per
+operating system per Node version. The smoke was exercised locally (Linux x64,
+Node `20.19.5`, fresh build) and then mutation-tested: a non-TTY exit of `0`, an
+ANSI-escaped refusal, and a broken `--version` each fail the step. CLAUDE.md's
+CI paragraph was updated to match.
+
+Not evidenced, and not claimed: no Actions run of this branch exists yet — the
+Windows leg first executes on the pull request's own run, and a green leg there
+is the earliest point at which any Windows evidence begins to exist. The smoke
+drives the non-interactive surface only; an interactive Windows Terminal or
+PowerShell run is still outstanding, the §9.8 Windows external gate stays
+pending, and the `0600` guarantee remains POSIX-only by design. The verify
+fixtures run on Ubuntu and macOS after the CI integration; Windows skips them
+because Python's stdlib `pty` does not exist on win32.
+
+### 9.28 CI run 1: the Windows leg executed and passed (2026-09-01)
+
+The first Actions run of PR #44 (run `33552753749`, head `a3a23a6`) completed
+green: all six matrix legs succeeded, including the three `windows-latest` legs
+at Node 18, 20 and 22 — the first recorded Windows execution of ccset's
+toolchain and built CLI. Each leg ran the full sequence: install, typecheck,
+build, the runtime smoke of `dist/cli.js` (`--version` prints the package
+version; non-TTY stdin exits `2` with the plain refusal and zero ANSI escape
+bytes), and `npm pack --dry-run`.
+
+That upgrades part of §9.27's "not evidenced" list: the workflow has now
+executed on GitHub, and the smoke's assertions hold on a GitHub-hosted Windows
+image, not only on Linux. Still not evidenced: it is one run, on the PR's own
+branch, not on master; an interactive Windows Terminal or PowerShell run is
+outstanding; the §9.8 Windows external gate stays pending; the `0600` guarantee
+remains POSIX-only by design.
+
+### 9.29 Second locale: zh-Hans (2026-09-01)
 
 The additive path PRD §5.5 planned. `src/i18n/zh-Hans.ts` translates the shell
 catalog, and every agent ships a `zh-Hans` block beside its `en` block, so
@@ -1178,13 +1217,14 @@ English catalog a user sees by default is untouched.
 the app under the Unicode glyph set directly) and a manual narrow-terminal pass
 in zh-Hans. `string-width` already drives every cut site, but CJK double-width
 text at a tight column budget has not been eyeballed.
-### 9.28 CI gains macOS, and the verify fixtures run in it (2026-09-01)
+
+### 9.30 CI gains macOS, and the verify fixtures run in it (2026-09-01)
 
 The CI workflow now describes a 2×3 matrix — `ubuntu-latest` and `macos-latest`
 for Node 18.x, 20.x, and 22.x — with steps typecheck, build, `npm test`, and
 `npm pack --dry-run`. The eleven verify fixtures, previously local-only, are
 aggregated under one `npm test` script in `package.json` and run as a CI step
-in every matrix job. CLAUDE.md's CI paragraph was rewritten to match; it
+on every Ubuntu and macOS matrix job. CLAUDE.md's CI paragraph was rewritten to match; it
 previously said the workflow ran on Ubuntu only and that the verify scripts
 were not wired into CI.
 
@@ -1199,7 +1239,7 @@ it has no Actions runs on any branch yet. No macOS run of any kind was
 performed here, so the §9.8 macOS gate and the §5 manual smoke-test checkbox
 stay pending, and no install-from-artifact step exists on either platform.
 
-### 9.29 CI run 1: ink's CI mode muted the PTY gate (2026-09-01)
+### 9.31 CI run 1: ink's CI mode muted the PTY gate (2026-09-01)
 
 The first Actions run of PR #42 failed every matrix job at
 `verify:malformed-dirty`: the PTY session timed out waiting for the main
@@ -1227,7 +1267,7 @@ first executes in this PR's Actions run, and the darwin platform gate rests on
 the portability of Python's stdlib `pty` bridge, not on recorded evidence yet.
 ---
 
-### 9.30 Error-recovery polish (2026-09-01)
+### 9.32 Error-recovery polish (2026-09-01)
 
 PRD §7 listed "error-recovery polish" without defining it; issue #38 scoped it
 from what the code shows rather than inventing work. Three candidates were

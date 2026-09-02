@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is twelve
+There is no lint script and no unit-test framework. The test suite is eleven
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -24,20 +24,17 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:global-settings` | D1-D3, D8: unmanaged-key survival, proxy-off deletion, idempotent re-save, backup content and modes |
 | `npm run verify:opencode` | O1-O7 for the second agent: unmanaged siblings four levels deep, blank-omits, delete-on-unmanaged, the per-key `models` merge, masking, backup rotation, and that the `.jsonc` config is reported but never written |
 | `npm run verify:codex` | C1-C9 for the third agent, plus the TOML codec and a screen walk. Round-trip fidelity over a 13-document corpus, formatting survival across an edit, the credential sidecars, the switch-and-adopt flow, and that every i18n key the module's screens reach resolves |
-| `npm run verify:i18n-zh` | The zh-Hans catalog: key-for-key parity with English for the shell and every agent (placeholders included), `CCSET_LOCALE` resolution and English fallback, the unknown-locale and duplicate-key refusals, a rendered zh-Hans paint, and the localized non-TTY refusal through `dist/cli.js`. Builds first, so the boundary check exercises the shipped binary |
 | `npm run verify:provider-safety` | D7, D9: nested unmanaged provider keys, 10-backup pruning per file, masking, token absence from error paths |
 | `npm run verify:write-safety` | D4-D6, E3: `~/.claude.json` left untouched, created-when-absent, SIGKILL mid-save, read-only target exits `3` |
 | `npm run verify:ui-render` | The interface itself: renders the component tree via `ink-testing-library`, drives the whole scenario once per glyph set, and asserts masked tokens, singular focus, and printable ASCII on every ASCII Rendered paint. Also covers the agent-selection screen and runs the viewport scenarios |
 | `npm run verify:header-path` | The header's navigation path: segments accumulate on push, drop on back, and elide from the front when they outrun the terminal width |
 | `npm run verify:review-form` | The review form's row treatment: focus, changed markers, hints, Advanced toggle, `ctrl+s` |
 | `npm run verify:malformed-dirty` | T6, T9: malformed-target confirm flow and unsaved-edits prompt, driven through a real PTY |
-| `npm run verify:error-recovery` | A failed save stays in-app and keeps everything typed (read-only-directory drive, then a fixed retry), and a partial backup copy is surfaced by Status for all three agents and removed by Clear |
 | `npm run verify:status-terminal` | Status listing/refresh, narrow-terminal layout, `--version` and non-TTY exit `2` |
 | `npm run verify:release-artifact` | Packs a tarball, installs it into a temp project, checks contents/bin/shebang/mode |
 
-`verify:malformed-dirty`, `verify:status-terminal`, `verify:release-artifact`,
-and `verify:i18n-zh` build first, so they exercise `dist/cli.js`, not `src/`.
-The rest import `src/` directly.
+`verify:malformed-dirty`, `verify:status-terminal`, and `verify:release-artifact` build
+first, so they exercise `dist/cli.js`, not `src/`. The rest import `src/` directly.
 
 Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends keys, reads
 Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
@@ -56,11 +53,9 @@ for the sweep fails loudly instead of passing vacuously.
 agent's `messages.ts` alone: `registerMessages` is a load-time side effect of
 `src/registry.ts`, so a fixture that skips that import sees every agent key unresolved.
 
-`CCSET_HOME` overrides the home directory (`core/paths.ts:resolveHome`),
-`CCSET_ASCII=1` selects the seven-bit terminal capability (`ui/terminal.ts:resolveTerminal`),
-and `CCSET_LOCALE` selects the interface locale (`i18n/index.ts:resolveLocale`, applied
-through `setLocale` at the top of `main()`). Each is read at the boundary, by `cli.tsx`,
-and nowhere else. Every fixture
+`CCSET_HOME` overrides the home directory (`core/paths.ts:resolveHome`), and
+`CCSET_ASCII=1` selects the seven-bit terminal capability (`ui/terminal.ts:resolveTerminal`).
+Both are read at the boundary, by `cli.tsx`, and nowhere else. Every fixture
 that goes through the CLI points it at a `mkdtemp` directory; use it for any manual run so
 you never write into a real `~/.claude`. The gates that mount `App` directly bypass
 `cli.tsx`, so they pass the scratch home in through `ctx`, the glyph set through
@@ -68,10 +63,14 @@ you never write into a real `~/.claude`. The gates that mount `App` directly byp
 `viewport` prop, which pins `useTerminalViewport` instead of reading `stdout`.
 Interactive checks need a PTY — piped stdin exits `2` by design.
 
-CI (`.github/workflows/ci.yml`) runs typecheck, build, the verification fixtures
-(`npm test`), and `npm pack --dry-run` on Ubuntu and macOS for Node 18/20/22.
-Run the fixtures locally the same way — `npm test`, or one gate with
-`npm run verify:<name>`.
+CI (`.github/workflows/ci.yml`) runs typecheck, build, a runtime smoke of the
+built CLI (`--version` prints the package version; non-TTY stdin exits `2` with
+the plain refusal and zero ANSI escape bytes), and `npm pack --dry-run` on
+Ubuntu, macOS, and Windows for Node 18/20/22.
+Verification fixtures run via `npm test` on Ubuntu and macOS;
+Windows skips them because its PTY bridge is unavailable.
+Run them locally for a focused gate. The smoke exercises the non-interactive
+surface only — native Windows stays best-effort for interactive use (see README).
 
 `gh` is not on `PATH`; it is unpacked at `~/gh/gh_2.76.2_linux_amd64/bin/gh`. Issues are
 the tracker — see `docs/agents/issue-tracker.md`.
@@ -88,8 +87,7 @@ touching `src/ui/`.
 
 **`src/core/`** is agent-agnostic and is where safety lives: `json-file.ts` (atomic
 temp+rename writes, `0600`, parse errors), `merge.ts` (apply managed writes, preserve
-everything else), `backup.ts` (per-file rotation and the read-only backups Status
-section, both taking the directory as an argument),
+everything else), `backup.ts` (per-file rotation, taking the directory as an argument),
 `copy.ts` (atomic byte copy, used by backups and by moving a credential ccset does not
 model), `mask.ts`, `values.ts` (form↔JSON coercions), `save.ts`
 (`runSave`/`successMessage`), `validate.ts` (validator *factories* — which names are
@@ -193,7 +191,7 @@ resolves an agent's keys must import this module, or every `codex.*` key degrade
 visible literal. Adding an agent is one import plus one array element;
 `docs/adding-an-agent.md` is the guide, written from doing it.
 
-**`src/ui/`** is a navigation stack, not a router. `useScreens.ts` holds `Frame[]`; three
+**`src/ui/`** is a navigation stack, not a router. `useScreens.ts` holds `Frame[]`; two
 rules there are load-bearing and easy to break:
 - A frame keeps its producing task (`reload`) **only** when the screen it produced was
   a `list` or `status`, because re-running those is a read. Backing out of a save's
@@ -202,14 +200,6 @@ rules there are load-bearing and easy to break:
   parks the submitted values onto the form's frame first. Together these mean declining
   "back up and start fresh" returns a form still holding the token the user typed.
   Refusing a destructive write must not cost the user their input.
-- A task that throws returns an error Screen, never a fatal unmount. From
-  `open`/`replace` it **stacks**: `esc` goes back to the frame that caused it,
-  values intact, and the failure can be fixed and retried in the same session.
-  A failed re-read on back takes the reloaded frame's place instead — what
-  failed is the read that frame was showing, and stacking would make every esc
-  re-trigger the failure. The exit-code taxonomy (`PRD 4.4`) belongs to core
-  and the process boundary; inside the interface every task error is
-  recoverable.
 
 Frame titles are user-visible: the header paints them as the navigation path, eliding
 from the front when the path outruns the terminal width. A screen's `title` is a
@@ -244,13 +234,8 @@ rather than a crash — which is exactly how two fixtures caught the rename in #
 are also referenced indirectly (`FieldSpec.labelKey`/`helpKey`, `Action.detailKey`,
 `WriteReport.activateKey`, `validate.ts` return values, `ProbeResult.key`,
 `CcsetError.messageKey`, and template-built families like `prompt.${kind}Line`), so a
-mechanical grep for `t('…')` will under-report usage. Two catalogs ship today
-(`en`, `zh-Hans`); a new locale is a file in `src/i18n/`, an entry in the `catalogs`
-map in `index.ts`, and a `messages` entry per agent. `t()` resolves through the
-active locale and falls back to English for a key it has not translated yet, so an
-untranslated key degrades to English text rather than a raw key or a crash — and
-`verify:i18n-zh` holds both catalogs key-for-key identical so the fallback stays a
-safety net, not a silent gap.
+mechanical grep for `t('…')` will under-report usage. English is the only catalog; a
+second one is a new file plus one line in `index.ts`, and a `messages` entry per agent.
 
 ## Invariants
 
@@ -307,8 +292,8 @@ Module resolution is `Bundler`, but source imports still carry the `.js` extensi
 
 ## Current state
 
-Milestone 2, mostly done. Three agents (`claude-code`, `opencode`, `codex`), two
-catalogs (`en`, `zh-Hans`), interactive-only. `--agent <id>` has three legal values.
+Milestone 2, mostly done. Three agents (`claude-code`, `opencode`, `codex`), one catalog
+(`en`), interactive-only. `--agent <id>` has three legal values.
 
 Done in M2: the second agent, the seam work that made criterion 5 literally true,
 `docs/adding-an-agent.md`, and the third agent together with the TOML codec that U7
@@ -321,9 +306,7 @@ Not built, and deliberately not stubbed:
   of Codex's own source and matches its tests, but no request has been made through a
   ccset-written provider. U9 (whether a keyring credential store bypasses `auth.json`
   entirely) is why Status warns rather than refusing.
-- **Non-interactive mode** (M3). The zh-Hans catalog removed the "additional i18n
-  catalog" item that used to share this line; a third locale follows the same
-  additive path (`src/i18n/` file, `catalogs` entry, `messages` per agent).
+- **Non-interactive mode** (M3), and any additional i18n catalog.
 
 ADR 0002's flow-scrolling output with windowed long regions is implemented — see
 `src/ui/Viewport.tsx` above. Several external gates in `Important Documentation.md` §9.8

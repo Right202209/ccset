@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         node-version: [18.x, 20.x, 22.x]
 
     steps:
@@ -37,7 +37,38 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The one shell present on all runner images (Git for Windows ships
+      # bash), so the assertions behave identically across the matrix.
+      - name: Runtime smoke
+        shell: bash
+        run: |
+          version="$(node dist/cli.js --version)"
+          printf 'ccset reports version %s\n' "$version"
+          case "$version" in
+            ''|*$'\x1b'*)
+              echo "::error::--version printed nothing or emitted ANSI escapes" >&2
+              exit 1
+              ;;
+          esac
+
+          set +e
+          refusal="$(node dist/cli.js < /dev/null 2>&1)"
+          smoke_exit=$?
+          set -e
+          printf 'non-TTY stdin exits %s: %s\n' "$smoke_exit" "$refusal"
+          if [ "$smoke_exit" -ne 2 ]; then
+            echo "::error::non-TTY stdin exited $smoke_exit, expected the refusal exit 2" >&2
+            exit 1
+          fi
+          case "$refusal" in
+            ''|*$'\x1b'*)
+              echo "::error::non-TTY refusal was empty or emitted ANSI escapes" >&2
+              exit 1
+              ;;
+          esac
+
       - name: Run verification fixtures
+        if: matrix.os != 'windows-latest'
         run: npm test
 
       - name: Verify package contents
