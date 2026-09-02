@@ -477,7 +477,13 @@ condition for writing `settings.json` without data loss.
   Verified by diff: adding the agent changed one file outside its own directory.
 - ~~Extension guide~~ **Done:** `docs/adding-an-agent.md`, written from adding
   the second agent rather than from the interface.
-- Error-recovery polish. Outstanding.
+- ~~Error-recovery polish.~~ **Done.** A task failure inside the app is a
+  recoverable Screen that stacks rather than unmounting, so typed input survives
+  a transient write failure and can be retried; the §4.4 exit-code taxonomy now
+  governs core and the process boundary (an error Screen carries the same path,
+  mode, or parse position the exit path used to). Partial backup copies, which
+  hold the credential they were copying, are surfaced by Status and removed by
+  Clear ccset backups. See `Important Documentation.md` §9.27.
 
 Gemini CLI was evaluated as the second agent and rejected: its settings schema
 has no third-party endpoint concept, so it does not serve §1.3's user. Codex CLI

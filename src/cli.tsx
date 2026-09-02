@@ -68,23 +68,12 @@ async function main(): Promise<void> {
   clearScreen()
   const agentId = resolveAgentId(options.agent)
   const ctx: Ctx = { home: resolveHome() }
-  // A fatal error is carried out of the render tree rather than thrown through
-  // it: Ink has to unmount and restore the terminal before anything is printed.
-  const fatal: { error: CcsetError | null } = { error: null }
+  // Task errors recover inside the app as a Screen on the stack; what still
+  // escapes the render tree reaches main().catch, which restores nothing.
   const app = render(
-    <App
-      ctx={ctx}
-      agents={AGENTS}
-      agentId={agentId}
-      terminal={resolveTerminal()}
-      onFatal={(error) => {
-        fatal.error = error
-        app.unmount()
-      }}
-    />,
+    <App ctx={ctx} agents={AGENTS} agentId={agentId} terminal={resolveTerminal()} />,
   )
   await app.waitUntilExit()
-  if (fatal.error !== null) fail(fatal.error)
 }
 
 main().catch((err: unknown) => fail(toCcsetError(err)))

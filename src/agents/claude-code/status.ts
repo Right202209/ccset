@@ -1,5 +1,5 @@
 import type { Ctx, JsonObject, StatusLine, StatusSection } from '../../types.js'
-import { countBackups } from '../../core/backup.js'
+import { backupStatusSection } from '../../core/backup.js'
 import { JsonParseError } from '../../core/errors.js'
 import { readJsonFile, readMode } from '../../core/json-file.js'
 import { maskSecret } from '../../core/mask.js'
@@ -123,25 +123,13 @@ function providerSection(record: ProviderRecord): StatusSection {
   }
 }
 
-async function backupSection(ctx: Ctx): Promise<StatusSection> {
-  const count = await countBackups(backupsDir(ctx.home))
-  return {
-    title: t('status.backupsTitle'),
-    lines: [
-      { label: t('status.path'), value: backupsDir(ctx.home) },
-      { label: t('status.count'), value: String(count) },
-    ],
-    note: t('status.backupsNote'),
-  }
-}
-
 /** Reads everything, writes nothing. */
 export async function buildStatus(ctx: Ctx): Promise<StatusData> {
   const [state, providers, global, backups] = await Promise.all([
     inspectState(ctx),
     loadProviders(ctx),
     globalSection(ctx),
-    backupSection(ctx),
+    backupStatusSection(backupsDir(ctx.home)),
   ])
   const sections = [stateSection(state), global, ...providers.map(providerSection), backups]
   if (providers.length === 0) {
