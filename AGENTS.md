@@ -11,9 +11,9 @@ under `src/`:
   (`claude-code` and `opencode`), including that agent's own paths, constants,
   and user-facing strings.
 - `src/ui/` contains Ink screens and reusable form/list components.
-- `src/i18n/` contains the shell's English message catalog and translation
-  helper. Agent-specific strings live with the agent and are merged by the
-  registry.
+- `src/i18n/` contains the shell's message catalogs (`en`, `zh-Hans`) and the
+  translation helper. Agent-specific strings live with the agent and are merged
+  by the registry.
 - `src/cli.tsx` is the CLI entry point; `src/registry.ts` is the static agent
   registry; `src/types.ts` defines shared interfaces.
 

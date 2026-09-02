@@ -330,10 +330,11 @@ Read-only checks, no build and no execution:
 
 ### 9.4 Not built, by design
 
-> **Superseded in part by §9.25 (2026-09-01).** The second agent and the
-> agent-selection screen are now built; `--agent` has two legal values. This
-> entry is left as written because §9 is append-only. `apiKeyHelper`,
-> non-interactive mode, and a second i18n catalog remain unbuilt.
+> **Superseded in part by §9.25 (2026-09-01) and §9.27 (2026-09-01).** The second
+> agent and the agent-selection screen are now built; `--agent` has three legal
+> values, and the second i18n catalog (`zh-Hans`) has shipped. This entry is left
+> as written because §9 is append-only. `apiKeyHelper` and non-interactive mode
+> remain unbuilt.
 
 Milestone 1 stops here. Not present, and not stubbed: `apiKeyHelper` support
 (gated on U1), a second agent module (M2), non-interactive mode (M3), and any
@@ -1134,7 +1135,50 @@ rather than refusing. There is deliberately no Test connection for Codex: the
 probe ccset ships is Anthropic-shaped (`/v1/messages`), and a Responses-API
 endpoint is a different request it has no honest way to make yet.
 
-### 9.27 CI gains macOS, and the verify fixtures run in it (2026-09-01)
+### 9.27 Second locale: zh-Hans (2026-09-01)
+
+The additive path PRD §5.5 planned. `src/i18n/zh-Hans.ts` translates the shell
+catalog, and every agent ships a `zh-Hans` block beside its `en` block, so
+criterion 5's file accounting is unchanged: the `messages` record was already
+keyed by locale, and `registerMessages` now merges each locale's entries into
+that locale's catalog instead of one global one.
+
+**Selection is explicit, not detected.** `CCSET_LOCALE` joins `CCSET_HOME` and
+`CCSET_ASCII` as an environment override read once at the `cli.tsx` boundary:
+`resolveLocale()` validates it against the known catalogs and `setLocale()`
+switches the active one at the top of `main()`, before `parseArgs`, so `--help`
+and the non-TTY refusal resolve in the selected language too. An unset or
+unknown value falls back to English; the ambient `LANG` is never consulted.
+The value itself is matched leniently — case-insensitively, `_` for `-`, and a
+LANG-style codeset suffix like `.UTF-8` tolerated — while a region tag
+(`zh-CN`, `zh-TW`) never selects a script catalog.
+`t()` falls back to English for a key the active locale has not translated, so
+an untranslated key degrades to English text rather than a raw key — and
+`verify:i18n-zh` holds the catalogs key-for-key identical, which keeps that
+fallback a safety net rather than a silent gap.
+
+**The fold contract held without new code.** `ui/terminal.ts` already said a
+non-English catalog "has to pass through untouched rather than be
+transliterated"; Chinese does exactly that, which means a seven-bit terminal
+cannot draw it. Both READMEs now document that rather than papering over it.
+
+**What ran** (Linux x64, Node `20.19.5`, npm `10.8.2`): the new
+`verify:i18n-zh` gate — key-for-key parity of `en` against `zh-Hans` for the
+shell and all three agents including placeholder sets, the `resolveLocale`
+matrix, `t()`/`hasKey` under `setLocale`, the unknown-locale and duplicate-key
+refusals, the en-only fallback, a `UiSession` paint of the agent-select screen
+under zh-Hans asserting `选择 Agent`, and `dist/cli.js` spawned with
+`CCSET_LOCALE=zh-Hans` (localized non-TTY refusal, exit `2`) and
+`CCSET_LOCALE=fr` (English fallback, exit `2`). The gate was mutation-checked:
+deleting `menu.exit` from `zh-Hans.ts` turned it red. Typecheck, build,
+`verify:codex`, and `verify:ui-render` (both glyph sets) pass unchanged — the
+English catalog a user sees by default is untouched.
+
+**Not verified:** an interactive PTY session in Chinese (the paint check mounts
+the app under the Unicode glyph set directly) and a manual narrow-terminal pass
+in zh-Hans. `string-width` already drives every cut site, but CJK double-width
+text at a tight column budget has not been eyeballed.
+### 9.28 CI gains macOS, and the verify fixtures run in it (2026-09-01)
 
 The CI workflow now describes a 2×3 matrix — `ubuntu-latest` and `macos-latest`
 for Node 18.x, 20.x, and 22.x — with steps typecheck, build, `npm test`, and
@@ -1155,7 +1199,7 @@ it has no Actions runs on any branch yet. No macOS run of any kind was
 performed here, so the §9.8 macOS gate and the §5 manual smoke-test checkbox
 stay pending, and no install-from-artifact step exists on either platform.
 
-### 9.28 CI run 1: ink's CI mode muted the PTY gate (2026-09-01)
+### 9.29 CI run 1: ink's CI mode muted the PTY gate (2026-09-01)
 
 The first Actions run of PR #42 failed every matrix job at
 `verify:malformed-dirty`: the PTY session timed out waiting for the main
@@ -1183,7 +1227,7 @@ first executes in this PR's Actions run, and the darwin platform gate rests on
 the portability of Python's stdlib `pty` bridge, not on recorded evidence yet.
 ---
 
-### 9.29 Error-recovery polish (2026-09-01)
+### 9.30 Error-recovery polish (2026-09-01)
 
 PRD §7 listed "error-recovery polish" without defining it; issue #38 scoped it
 from what the code shows rather than inventing work. Three candidates were

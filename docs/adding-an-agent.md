@@ -163,6 +163,13 @@ keys and that every `labelKey`, `helpKey`, `detailKey` and choice label exists.
 Import `src/registry.js` in the fixture: `registerMessages` is a load-time side
 effect of that module, and without it your whole catalog reads as missing.
 
+Ship both locales while you are in `messages.ts`: an `en` block and a `zh-Hans`
+block. At runtime a key your agent has not translated falls back to English
+rather than to the raw key, but that is no licence to skip it:
+`verify:i18n-zh` holds every agent's two catalogs key-for-key identical and
+turns red on a missing block or a missing key. An untranslated agent is a red
+gate, not a silent gap.
+
 Record what you ran in `Important Documentation.md`. A passing local build is
 not evidence for a platform gate.
 

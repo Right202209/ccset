@@ -12,7 +12,7 @@ import {
 } from './core/errors.js'
 import { resolveHome } from './core/paths.js'
 import { resolveTerminal } from './ui/terminal.js'
-import { t } from './i18n/index.js'
+import { resolveLocale, setLocale, t } from './i18n/index.js'
 import type { Ctx } from './types.js'
 
 const BIN_NAME = 'ccset'
@@ -63,6 +63,9 @@ function resolveAgentId(requested: string | undefined): string | undefined {
 }
 
 async function main(): Promise<void> {
+  // CCSET_LOCALE, like CCSET_HOME and CCSET_ASCII, is read once at this
+  // boundary; every string below resolves in the selected locale.
+  setLocale(resolveLocale())
   const options = parseArgs(process.argv)
   requireTty()
   clearScreen()
