@@ -87,6 +87,8 @@ export const zhHans: Record<string, string> = {
   'status.fixHint': '手动应用：{fix}',
   'status.unmanagedNote': '每次保存都会原样保留 {count} 个 ccset 不管理的键。',
   'status.backupsNote': '备份中可能仍含有你已轮换的令牌。',
+  'status.partials': '未完成的副本',
+  'status.partialsNote': '{count} 个未完成的备份副本中存有凭据；清除 ccset 备份 会将它们一并删除。',
   'status.help': '↑↓ 移动 · enter 选择 · esc 返回',
 
   /* ----------------------------------------------------------------- notes */
@@ -167,6 +169,8 @@ export const zhHans: Record<string, string> = {
   'error.unexpected': '意外失败（{detail}）。',
   'error.unsupportedCodec': '不支持的序列化格式（{codec}）。',
   'error.unknownAgent': '未知 Agent：{id}。',
+  'error.screenTitle': '操作失败',
+  'error.screenHint': '你输入的内容都没有丢失 — 返回后重试。',
 
   /* --------------------------------------------------------------- message */
   'message.continue': 'enter 继续 · esc 返回',

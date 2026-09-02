@@ -1,15 +1,8 @@
 import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
 import { backupFile } from '../../core/backup.js'
-import { JsonParseError, ValidationError } from '../../core/errors.js'
+import { emptyConfig, readConfigFile, writeConfigFile } from '../../core/config-file.js'
+import { isPlainObject, readMode } from '../../core/json-file.js'
 import {
-  isPlainObject,
-  jsonFile,
-  readJsonFile,
-  readMode,
-  writeJsonFileAtomic,
-} from '../../core/json-file.js'
-import {
-  applyManagedWrites,
   countUnmanagedKeys,
   getPath,
   type ManagedWrite,
@@ -21,6 +14,7 @@ import {
   textOrUndefined,
   withDefaults,
 } from '../../core/values.js'
+import { JsonParseError, ValidationError } from '../../core/errors.js'
 import {
   PROVIDER_DEFAULTS,
   PROVIDER_ROOT,
@@ -34,7 +28,7 @@ import {
   providerTimeoutPath,
   validateProviderId,
 } from './manifest.js'
-import { backupsDir, launchCommand, opencodeConfigPath } from './paths.js'
+import { backupsDir, launchCommand, opencodeTarget } from './paths.js'
 
 /** One provider block inside the single config document. */
 export interface ProviderRecord {
@@ -140,13 +134,13 @@ export async function saveProvider(
   const id = providerIdOf(values)
   const problem = validateProviderId(id)
   if (problem !== null) throw new ValidationError(problem, { name: id })
-  const target = opencodeConfigPath(ctx.home)
-  const base = startFresh ? {} : (await readJsonFile(target)).data
-  const backupPath = await backupFile(backupsDir(ctx.home), target)
-  await writeJsonFileAtomic(jsonFile(target), applyManagedWrites(base, emitProvider(values, base)))
+  const file = await opencodeTarget(ctx.home)
+  const base = startFresh ? emptyConfig(file.path) : await readConfigFile(file)
+  const backupPath = await backupFile(backupsDir(ctx.home), file.path)
+  await writeConfigFile(file, base, emitProvider(values, base.data))
   return {
-    path: target,
-    mode: await readMode(target),
+    path: file.path,
+    mode: await readMode(file.path),
     backupPath,
     command: launchCommand(),
     activateKey: 'opencode.write.activate',
@@ -176,24 +170,25 @@ function asObject(value: unknown): JsonObject {
 
 /**
  * A malformed file must never stop the screen rendering, so a parse error is
- * reported on the list rather than thrown.
+ * reported on the list rather than thrown. The target is the managed one: a
+ * `.jsonc` when it exists, else the `.json`.
  */
 export async function loadProviders(ctx: Ctx): Promise<ProviderList> {
-  const target = opencodeConfigPath(ctx.home)
+  const file = await opencodeTarget(ctx.home)
   try {
-    const file = await readJsonFile(target)
-    const root = asObject(getPath(file.data, [PROVIDER_ROOT]))
+    const config = await readConfigFile(file)
+    const root = asObject(getPath(config.data, [PROVIDER_ROOT]))
     return {
-      path: target,
-      exists: file.exists,
+      path: file.path,
+      exists: config.exists,
       parsed: true,
       records: Object.keys(root)
         .sort()
-        .map((id) => describeRecord(file.data, id)),
+        .map((id) => describeRecord(config.data, id)),
     }
   } catch (err) {
     return {
-      path: target,
+      path: file.path,
       exists: true,
       parsed: false,
       records: [],

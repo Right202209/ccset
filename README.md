@@ -46,7 +46,7 @@ before reporting a security issue.
 
 | Menu entry | What it touches |
 | --- | --- |
-| Global settings | `~/.config/opencode/opencode.json` — model, sharing, auto-update |
+| Global settings | `~/.config/opencode/opencode.jsonc` when one exists, else `~/.config/opencode/opencode.json` — model, sharing, auto-update |
 | Providers | A `provider.<id>` block in that same file — add, edit, list |
 | Status | Reads the above. Writes nothing. |
 
@@ -55,11 +55,17 @@ editing a provider rewrites only that block. Its `models` map is merged entry by
 entry: a model already on disk keeps its own settings, a new id is added, and one
 you remove from the list is deleted.
 
-**opencode's `.jsonc` config is not managed.** opencode also loads
-`opencode.jsonc`, which may contain comments that cannot survive a JSON rewrite.
-ccset never writes that file. If it exists, Status names it and warns that a save
-may not be the config opencode actually reads — sort out which file you want
-before relying on the write.
+**ccset writes `opencode.jsonc` when it exists.** opencode loads both configs
+and merges them per key with the `.jsonc` winning every conflict — and it seeds
+a `.jsonc` itself on fresh installs. That merge order is read from opencode's
+source code, not yet confirmed by running it. So when that file exists, it is
+the one file ccset reads and writes, edited in place: your comments, key order
+and formatting survive every save, exactly as the TOML editing promises for
+Codex.
+When only `opencode.json` exists, nothing changes. A legacy `opencode.json`
+beside a managed `.jsonc` is named in Status as not managed: it still loads,
+but a key set in both files takes the `.jsonc`'s value. ccset never creates a
+`.jsonc`, never rewrites or deletes a legacy `.json`, and ignores `config.json`.
 
 There is no Test connection for opencode: a custom provider's wire protocol comes
 from whichever SDK package you name, so there is no single endpoint ccset could
@@ -73,7 +79,7 @@ probe honestly.
 | Providers | A `[model_providers.<id>]` table in that file, plus a saved credential per provider — add, edit, switch |
 | Status | Reads the above and `~/.codex/auth.json`. Writes nothing. |
 
-Codex is the one agent whose config is not JSON. `config.toml` is **edited in
+Codex's config is TOML, not JSON. `config.toml` is **edited in
 place**, not rewritten: setting a key replaces its value, adding one inserts a
 line, removing one deletes a line, and your comments, blank lines, alignment and
 key order are copied through byte for byte.
@@ -134,8 +140,9 @@ navigation path in the header; narrow terminals keep the final two steps visible
   `hasCompletedOnboarding` is missing, ccset prints the one-line fix instead of
   applying it.
 - **Comments and formatting survive too, where the format has them.** Codex's
-  `config.toml` is edited in place rather than re-serialised, so comments, blank
-  lines, alignment and key order are preserved exactly.
+  `config.toml` and opencode's `opencode.jsonc` are edited in place rather than
+  re-serialised, so comments, blank lines, alignment and key order are
+  preserved exactly.
 - **A file ccset cannot parse is never silently overwritten.** It says so — naming
   JSON or TOML, whichever the file is — and offers to back it up and start fresh.
   That choice is yours to make.
@@ -230,8 +237,8 @@ a bundler cannot resolve a dynamically scanned path.
 File I/O, merge semantics, backups, masking and path resolution live in
 `src/core/` and are agent-agnostic. `ConfigFile` carries a codec, and that seam is
 real rather than notional: `json` rebuilds the document from the parsed object,
-`toml` edits the original text so comments and key order survive. Adding a third
-format means adding a codec, not reworking the interface.
+`toml` and `jsonc` edit the original text so comments and key order survive.
+Adding a format means adding a codec, not reworking the interface.
 
 [**docs/adding-an-agent.md**](docs/adding-an-agent.md) is the full guide, written
 from adding the second one.

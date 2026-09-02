@@ -7,28 +7,28 @@ import type {
   ListItem,
 } from '../../types.js'
 import { clearBackups } from '../../core/backup.js'
-import { readJsonFile } from '../../core/json-file.js'
+import { readConfigFile } from '../../core/config-file.js'
 import { runSave } from '../../core/save.js'
 import { t } from '../../i18n/index.js'
 import { seedGlobal, seedGlobalFromDisk, saveGlobal } from './global.js'
 import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
 import { loadProviders, saveProvider, seedProvider, type ProviderRecord } from './providers.js'
-import { backupsDir, opencodeConfigPath } from './paths.js'
+import { backupsDir, opencodeTarget } from './paths.js'
 import { buildStatus } from './status.js'
 
 /* -------------------------------------------------------------- global */
 
 async function openGlobal(ctx: Ctx): Promise<ActionResult> {
-  const target = opencodeConfigPath(ctx.home)
-  const file = await readJsonFile(target)
-  const busy = t('app.busyWriting', { path: target })
+  const file = await opencodeTarget(ctx.home)
+  const config = await readConfigFile(file)
+  const busy = t('app.busyWriting', { path: file.path })
   return {
     kind: 'form',
     title: t('action.global'),
     fields: GLOBAL_FIELDS,
-    values: seedGlobal(file.data),
-    baseline: seedGlobalFromDisk(file.data),
-    notes: [t('opencode.note.configPath', { path: target }), t('note.preserved')],
+    values: seedGlobal(config.data),
+    baseline: seedGlobalFromDisk(config.data),
+    notes: [t('opencode.note.configPath', { path: file.path }), t('note.preserved')],
     busyLabel: () => busy,
     submit: async (values: FormValues) =>
       runSave('write.globalSaved', (fresh) => saveGlobal(ctx, values, fresh), busy),
@@ -43,9 +43,16 @@ function providerFields(isNew: boolean): FieldSpec[] {
   return PROVIDER_FIELDS.map((field) => (field.id === 'id' ? { ...field, readOnly: true } : field))
 }
 
-function providerForm(ctx: Ctx, values: FormValues, isNew: boolean): ActionResult {
-  const target = opencodeConfigPath(ctx.home)
-  const busy = t('app.busyWriting', { path: target })
+interface ProviderFormInput {
+  ctx: Ctx
+  values: FormValues
+  isNew: boolean
+  targetPath: string
+}
+
+function providerForm(input: ProviderFormInput): ActionResult {
+  const { ctx, values, isNew, targetPath } = input
+  const busy = t('app.busyWriting', { path: targetPath })
   return {
     kind: 'form',
     title: isNew
@@ -54,7 +61,7 @@ function providerForm(ctx: Ctx, values: FormValues, isNew: boolean): ActionResul
     fields: providerFields(isNew),
     values,
     baseline: { ...values },
-    notes: [t('opencode.note.configPath', { path: target }), t('opencode.note.singleFile')],
+    notes: [t('opencode.note.configPath', { path: targetPath }), t('opencode.note.singleFile')],
     busyLabel: () => busy,
     submit: async (next: FormValues) =>
       runSave(
@@ -66,8 +73,14 @@ function providerForm(ctx: Ctx, values: FormValues, isNew: boolean): ActionResul
 }
 
 async function openProviderForm(ctx: Ctx, id: string): Promise<ActionResult> {
-  const file = await readJsonFile(opencodeConfigPath(ctx.home))
-  return providerForm(ctx, seedProvider(file.data, id), id.length === 0)
+  const file = await opencodeTarget(ctx.home)
+  const config = await readConfigFile(file)
+  return providerForm({
+    ctx,
+    values: seedProvider(config.data, id),
+    isNew: id.length === 0,
+    targetPath: file.path,
+  })
 }
 
 function providerDetail(record: ProviderRecord): string {

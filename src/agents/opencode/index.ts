@@ -9,9 +9,8 @@ import { opencodeConfigPath, opencodeDir, opencodeJsoncPath } from './paths.js'
  * shelling out to `opencode --version` is a cross-platform hazard for no gain,
  * and ccset can write this config before opencode has ever run.
  *
- * The JSONC variant counts as detection even though ccset will not write it --
- * an installed opencode is exactly the case where the user needs to be told
- * that file exists.
+ * The JSONC variant counts as detection on its own: when it exists it is the
+ * one file ccset manages, so its presence alone means there is a config here.
  */
 async function detect(ctx: Ctx): Promise<boolean> {
   const [dir, config, jsonc] = await Promise.all([

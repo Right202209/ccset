@@ -35,13 +35,13 @@ ccset 是尽力维护的开源项目，并非托管服务。仅支持 npm 上的
 
 | 菜单项 | 操作对象 |
 | --- | --- |
-| Global settings | `~/.config/opencode/opencode.json`：模型、分享、自动更新 |
+| Global settings | `~/.config/opencode/opencode.jsonc`（若存在），否则为 `~/.config/opencode/opencode.json`：模型、分享、自动更新 |
 | Providers | 同一文件中的 `provider.<id>` 配置块，可添加、编辑、查看 |
 | Status | 读取上述内容，不会写入 |
 
 opencode 将所有 provider 保存在同一个文件中，而不是每个 provider 一个文件，因此编辑某个 provider 只会重写对应的配置块。其中的 `models` 映射按条目合并：磁盘上已有的模型保留自身设置，新增的 id 会被添加，从列表中移除的 id 会被删除。
 
-**ccset 不管理 opencode 的 `.jsonc` 配置。** opencode 也会读取 `opencode.jsonc`，其中可能包含注释，而注释无法在 JSON 重写后保留。ccset 从不写入该文件。如果该文件存在，Status 会指出它，并提示此次写入可能并非 opencode 实际读取的配置——请先确认要使用哪一个文件。
+**当 `opencode.jsonc` 存在时，ccset 写入该文件。** opencode 会同时读取两份配置并按键合并，冲突时以 `.jsonc` 为准——而且全新安装时 opencode 自己就会生成一份 `.jsonc`。这一合并顺序读自 opencode 的源码，尚未通过运行 opencode 证实。因此该文件存在时，它就是 ccset 唯一读写的文件，并且就地编辑：你的注释、键顺序和格式在每次保存后保持不变，与 Codex 的 TOML 就地编辑是同一承诺。只存在 `opencode.json` 时，一切照旧。受管理的 `.jsonc` 旁如有旧的 `opencode.json`，Status 会将其标注为不受管理：它仍会被加载，但两边都设置的键以 `.jsonc` 的值为准。ccset 从不创建 `.jsonc`，也从不改写或删除旧的 `.json`，并且一如既往地忽略 `config.json`。
 
 opencode 没有 Test connection：自定义 provider 的通信协议取决于你指定的 SDK 包，因此不存在 ccset 能够如实探测的单一端点。
 
@@ -53,7 +53,7 @@ opencode 没有 Test connection：自定义 provider 的通信协议取决于你
 | Providers | 同一文件中的 `[model_providers.<id>]` 表，以及每个 provider 各自保存的凭据，可添加、编辑、切换 |
 | Status | 读取上述内容及 `~/.codex/auth.json`，不会写入 |
 
-Codex 是唯一配置格式不是 JSON 的 Agent。ccset **就地修改** `config.toml`，而不是重新生成：设置某个键时只替换它的值，新增时插入一行，移除时删除一行；你的注释、空行、对齐和键顺序会逐字节保留。
+Codex 的配置格式是 TOML，不是 JSON。ccset **就地修改** `config.toml`，而不是重新生成：设置某个键时只替换它的值，新增时插入一行，移除时删除一行；你的注释、空行、对齐和键顺序会逐字节保留。
 
 **API Key 不会写入 `config.toml`，因为 Codex 不从那里读取它。** ccset 会把它保存到 `~/.codex/auth.<id>.json`（权限 `0600`），并在 provider 表中写入 `requires_openai_auth = true`——正是这一项让 Codex 使用该凭据。选择 **Use this provider** 后，ccset 会把保存的凭据复制到 `~/.codex/auth.json`，同时把 `model_provider` 指向该表：切换的两个环节一步完成，因为只换凭据会让 Codex 拿着新凭据继续访问旧端点。
 
@@ -78,7 +78,7 @@ Codex 没有 Test connection：ccset 内置的探测请求是 Anthropic 形态�
 - POSIX 系统写入文件权限为 `0600`。每次写入前会备份到该 Agent 配置目录下的 `backups/ccset/`：Claude Code 为 `~/.claude/backups/ccset/`，opencode 为 `~/.config/opencode/backups/ccset/`，Codex 为 `~/.codex/backups/ccset/`，最多保留每个文件十份。
 - Token 仅在确认 **Test connection** 后发送，并在界面和错误信息中遮罩显示。备份仍可能包含旧 Token，可从对应 Agent 的 Status 中清除 ccset 备份。备份被中断产生的残缺副本同样保存着正在复制的凭据，Status 会列出并警告，清除 ccset 备份时一并删除。
 - 保存失败不会结束会话：错误以独立屏幕显示，已输入的内容不会丢失，`esc` 返回表单，修正后可重试。
-- 对带注释的格式，注释和排版同样会保留：Codex 的 `config.toml` 采用就地修改，注释、空行、对齐和键顺序都完整保留。
+- 对带注释的格式，注释和排版同样会保留：Codex 的 `config.toml` 和 opencode 的 `opencode.jsonc` 采用就地修改，注释、空行、对齐和键顺序都完整保留。
 - 无法解析的文件不会被静默覆盖；工具会指明是 JSON 还是 TOML，并提示你备份后重新创建。
 - `~/.codex/auth.json` 只会被整体替换，绝不会被就地编辑：它是 Codex 的活跃凭据，登录和刷新令牌时都会被改写，因此 ccset 只在你明确要求时整文件覆盖。把已有凭据保存为 profile 时是逐字节复制，因此 ccset 不理解的 OAuth 令牌结构也能完整保留。
 

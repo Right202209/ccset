@@ -22,7 +22,7 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | Command | Covers |
 | --- | --- |
 | `npm run verify:global-settings` | D1-D3, D8: unmanaged-key survival, proxy-off deletion, idempotent re-save, backup content and modes |
-| `npm run verify:opencode` | O1-O7 for the second agent: unmanaged siblings four levels deep, blank-omits, delete-on-unmanaged, the per-key `models` merge, masking, backup rotation, and that the `.jsonc` config is reported but never written |
+| `npm run verify:opencode` | O1-O10 for the second agent: unmanaged siblings four levels deep, blank-omits, delete-on-unmanaged, the per-key `models` merge, masking, backup rotation; the JSONC codec corpus (byte-identity over comment/trailing-comma/CRLF/escape documents) and the managed-`.jsonc` gates — the `.jsonc` is written in place, the legacy `.json` byte-identical, Status naming both roles, and the malformed-`.jsonc` confirm |
 | `npm run verify:codex` | C1-C9 for the third agent, plus the TOML codec and a screen walk. Round-trip fidelity over a 13-document corpus, formatting survival across an edit, the credential sidecars, the switch-and-adopt flow, and that every i18n key the module's screens reach resolves |
 | `npm run verify:provider-safety` | D7, D9: nested unmanaged provider keys, 10-backup pruning per file, masking, token absence from error paths |
 | `npm run verify:write-safety` | D4-D6, E3: `~/.claude.json` left untouched, created-when-absent, SIGKILL mid-save, read-only target exits `3` |
@@ -38,10 +38,11 @@ first, so they exercise `dist/cli.js`, not `src/`. The rest import `src/` direct
 
 Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends keys, reads
 Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
-`verify-toml-codec.ts` and `verify-codex-auth.ts` are modules the gates import —
+`verify-toml-codec.ts`, `verify-codex-auth.ts`, `verify-opencode-jsonc.ts` and
+`verify-opencode-jsonc-scenarios.ts` are modules the gates import —
 `verify-viewport.ts` runs inside `verify:ui-render`, `kill-harness.ts` inside
-`verify:write-safety`, and the last two inside `verify:codex`. They are split out to
-keep each file inside the 300-line limit.
+`verify:write-safety`, and the last four inside `verify:codex` and `verify:opencode`
+respectively. They are split out to keep each file inside the 300-line limit.
 
 `verify:write-safety` is the one gate that forks itself: its bundle re-enters through
 `--kill-child` so the child running under SIGKILL is the shipped `saveGlobal`, not a
@@ -99,14 +100,19 @@ naming rule as a callback.
 **The codec seam is real, not notional.** `src/core/config-file.ts` dispatches on
 `ConfigFile.codec`: `readConfigFile` returns a `LoadedConfig` carrying `raw` as well as
 `data`, and `writeConfigFile` takes that base plus `ManagedWrite[]`. `json` rebuilds the
-document from the parsed object; `toml` edits the original text, because a TOML document
-carries comments, blank lines and key order that a re-emit would delete (ADR 0003).
-`src/core/toml/` is that codec — `scan.ts` records where keys, values and table headers
-*are*, `parse.ts` reads a document into a `JsonObject`, `check.ts` is the strict pass
-that decides whether ccset may rewrite the file at all, `edit.ts` applies writes by
-splicing spans, and `format.ts`/`strings.ts` render the values ccset writes. The scanner
-is deliberately tolerant and the checker deliberately strict: an edit must never refuse
-to run, but a file that fails the check reaches the user as a confirm.
+document from the parsed object; `toml` and `jsonc` edit the original text, because those
+documents carry comments, blank lines and key order that a re-emit would delete (ADR 0003,
+ADR 0004). `src/core/toml/` is the TOML codec — `scan.ts` records where keys, values and
+table headers *are*, `parse.ts` reads a document into a `JsonObject`, `check.ts` is the
+strict pass that decides whether ccset may rewrite the file at all, `edit.ts` applies
+writes by splicing spans, and `format.ts`/`strings.ts` render the values ccset writes.
+`src/core/jsonc/` is the JSONC codec, built the same way with one difference: the parser,
+the strict pass and the spans are npm's `jsonc-parser` (the one behind VS Code's settings
+editor, and the one opencode parses with); only the splices are hand-written, because the
+package's patch engine reflows the line around an edit and would rewrite bytes ccset does
+not own (ADR 0004). Both editors are deliberately tolerant and both checkers deliberately
+strict: an edit must never refuse to run, but a file that fails the check reaches the user
+as a confirm.
 
 `JsonParseError` is now one case of `ConfigParseError`, which carries its own
 `messageKey` and `titleKey` so a TOML target is described as TOML. `runSave` catches the
@@ -154,10 +160,13 @@ Three things there are load-bearing:
   `emitProvider` takes the base object — the only emit in the codebase that does.
 - **`autoupdate` is written as a real JSON boolean.** The form's domain is strings and
   `"false"` would read as truthy.
-- **`opencode.jsonc` is never written.** opencode loads it too and its schema allows
-  comments, which cannot survive a `JSON.parse` round-trip. Status reports the file and
-  warns the save may not be the config opencode reads. Which file wins is **unverified**
-  — see U6 in `Important Documentation.md`.
+- **The write target is selected in one place.** `opencodeTarget` (the agent's
+  `paths.ts`) returns the `.jsonc` when it exists — opencode merges both configs per key
+  with the `.jsonc` last, so it wins every conflict, and it seeds one on fresh installs —
+  else the `.json` as before. ccset never creates a `.jsonc` and never rewrites a legacy
+  `.json`; Status names a legacy `.json` as not managed only beside a managed `.jsonc`.
+  The runtime confirmation of the merge order is still open — see U6 in `Important
+  Documentation.md`.
 
 There is deliberately no Test connection for opencode: a custom provider's wire protocol
 comes from whichever SDK package the user names, so there is no endpoint ccset could
@@ -245,7 +254,7 @@ These are product guarantees documented in `README.md` and verified in
 - **Unmanaged keys survive.** Only manifest paths are written; everything else at every
   nesting level passes through. `env` merges per key, never wholesale. For a format that
   carries them, comments, blank lines, alignment and key order survive too — which is why
-  TOML is edited in place rather than re-serialised.
+  TOML and JSONC are edited in place rather than re-serialised.
 - **Off means absent.** Turning the proxy off deletes `HTTP_PROXY`/`HTTPS_PROXY`; a blank
   field omits its key entirely — no `null`, no `""`.
 - **Re-read immediately before writing.** Claude Code rewrites `settings.json` while

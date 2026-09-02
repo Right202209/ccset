@@ -14,11 +14,12 @@ export type JsonValue =
 export type JsonObject = { [key: string]: JsonValue }
 
 /**
- * Serialization is a seam, not an assumption (PRD 4.3). `toml` is edited in
- * place rather than re-serialised, because a TOML document carries comments and
- * key order that a parse-and-re-emit round trip would discard (ADR 0003).
+ * Serialization is a seam, not an assumption (PRD 4.3). `toml` and `jsonc` are
+ * edited in place rather than re-serialised, because those documents carry
+ * comments and key order that a parse-and-re-emit round trip would discard
+ * (ADR 0003, ADR 0004).
  */
-export type Codec = 'json' | 'toml'
+export type Codec = 'json' | 'jsonc' | 'toml'
 
 export interface ConfigFile {
   path: string
