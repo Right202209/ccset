@@ -128,7 +128,7 @@ async function assertRenderedPaint(): Promise<void> {
     try {
       await session.waitFor('选择 Agent')
       await session.waitFor('设置文件')
-      session.assertNoFatal()
+      session.assertAlive()
     } finally {
       session.stop()
     }
