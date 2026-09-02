@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActionResult } from '../types.js'
 import { toCcsetError, type CcsetError } from '../core/errors.js'
+import { t } from '../i18n/index.js'
 
 /**
  * One screen on the navigation stack. `reload` is kept only for screens whose
@@ -37,7 +38,29 @@ function toFrame(screen: ActionResult, task: Task): Frame {
   return { screen, reload: isReloadable(screen) ? task : undefined }
 }
 
-export function useScreens(onFatal: (error: CcsetError) => void): Screens {
+/**
+ * A task that throws still leaves the screens it was opened from on the stack,
+ * so its failure is a screen of its own rather than a fatal: going back from it
+ * returns to the form that produced the attempt, still holding what was typed.
+ * A transient failure -- a full disk, a read-only directory -- must not be able
+ * to discard the only copy of a token the user just entered.
+ */
+function errorScreen(error: CcsetError): ActionResult {
+  return {
+    kind: 'message',
+    title: t('error.screenTitle'),
+    lines: [t(error.messageKey, error.params), '', t('error.screenHint')],
+    tone: 'error',
+  }
+}
+
+/** An error supersedes nothing: it stacks, so the screen that caused it stays
+ *  one Esc away beneath it. */
+function isError(screen: ActionResult): boolean {
+  return screen.kind === 'message' && screen.tone === 'error'
+}
+
+export function useScreens(): Screens {
   const [frames, setFrames] = useState<Frame[]>([])
   const [busy, setBusy] = useState(false)
   const [busyLabel, setBusyLabel] = useState<string>()
@@ -48,28 +71,22 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
     framesRef.current = frames
   }, [frames])
 
-  const run = useCallback(
-    async (task: Task, label?: string): Promise<ActionResult | null> => {
-      setBusyLabel(label)
-      setBusy(true)
-      try {
-        return await task()
-      } catch (err) {
-        onFatal(toCcsetError(err))
-        return null
-      } finally {
-        setBusy(false)
-        setBusyLabel(undefined)
-      }
-    },
-    [onFatal],
-  )
+  const run = useCallback(async (task: Task, label?: string): Promise<ActionResult> => {
+    setBusyLabel(label)
+    setBusy(true)
+    try {
+      return await task()
+    } catch (err) {
+      return errorScreen(toCcsetError(err))
+    } finally {
+      setBusy(false)
+      setBusyLabel(undefined)
+    }
+  }, [])
 
   const open = useCallback(
     (task: Task, label?: string): void => {
-      void run(task, label).then((screen) => {
-        if (screen !== null) setFrames((prev) => [...prev, toFrame(screen, task)])
-      })
+      void run(task, label).then((screen) => setFrames((prev) => [...prev, toFrame(screen, task)]))
     },
     [run],
   )
@@ -83,9 +100,8 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
   const replace = useCallback(
     (task: Task, label?: string): void => {
       void run(task, label).then((screen) => {
-        if (screen === null) return
         setFrames((prev) =>
-          screen.kind === 'confirm'
+          screen.kind === 'confirm' || isError(screen)
             ? [...prev, { screen }]
             : [...prev.slice(0, -1), { screen }],
         )
@@ -107,7 +123,11 @@ export function useScreens(onFatal: (error: CcsetError) => void): Screens {
     const task = next[next.length - 1]?.reload
     if (task === undefined) return
     void run(task).then((screen) => {
-      if (screen !== null) setFrames([...next.slice(0, -1), toFrame(screen, task)])
+      // A failed re-read supersedes the frame rather than stacking: what failed
+      // is the read the frame was showing, and stacking would make every esc
+      // re-trigger the failure instead of letting navigation continue. Only
+      // list/status carry a reload, so what is replaced here is a read.
+      setFrames([...next.slice(0, -1), toFrame(screen, task)])
     })
   }, [run])
 
