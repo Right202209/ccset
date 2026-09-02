@@ -1134,9 +1134,56 @@ rather than refusing. There is deliberately no Test connection for Codex: the
 probe ccset ships is Anthropic-shaped (`/v1/messages`), and a Responses-API
 endpoint is a different request it has no honest way to make yet.
 
+### 9.27 CI gains macOS, and the verify fixtures run in it (2026-09-01)
+
+The CI workflow now describes a 2×3 matrix — `ubuntu-latest` and `macos-latest`
+for Node 18.x, 20.x, and 22.x — with steps typecheck, build, `npm test`, and
+`npm pack --dry-run`. The eleven verify fixtures, previously local-only, are
+aggregated under one `npm test` script in `package.json` and run as a CI step
+in every matrix job. CLAUDE.md's CI paragraph was rewritten to match; it
+previously said the workflow ran on Ubuntu only and that the verify scripts
+were not wired into CI.
+
+Actually run in this environment (Linux x64, Node 20.19.5, npm 10.8.2):
+`npm test` — all eleven fixtures, exit 0 — plus `npm run typecheck`,
+`git diff --check`, and a YAML parse of the workflow confirming the matrix and
+step order. Node 18.x stays in the matrix deliberately to match
+`engines: >=18`, although 18 is EOL upstream.
+
+Not evidenced, and not claimed: the workflow has never executed on GitHub —
+it has no Actions runs on any branch yet. No macOS run of any kind was
+performed here, so the §9.8 macOS gate and the §5 manual smoke-test checkbox
+stay pending, and no install-from-artifact step exists on either platform.
+
+### 9.28 CI run 1: ink's CI mode muted the PTY gate (2026-09-01)
+
+The first Actions run of PR #42 failed every matrix job at
+`verify:malformed-dirty`: the PTY session timed out waiting for the main
+screen with zero bytes from the child. Reproduced locally by setting `CI=true`
+alone. Root cause: ink 5 asks the `is-in-ci` package, and when it answers yes
+the reconciled frames are never written to stdout (`ink/build/ink.js` stores
+`lastOutput` and returns), so an interactive screen driven under `CI=true`
+renders nothing past the cursor-hide escape. The fixture inherited `CI=true`
+from the Actions environment, so the gate failed on Ubuntu too — it was never
+macOS-specific.
+
+Fix: the PTY session now strips `CI`, `CONTINUOUS_INTEGRATION`, and every
+`CI_` variable from the child environment (`GITHUB_ACTIONS` survives, so
+supports-color keeps color on), and the platform gate now admits darwin next
+to linux so the gate runs on the macOS leg of the matrix. Only this fixture
+drives the built CLI through a PTY; the other ten are unaffected.
+
+Actually run here (Linux x64, Node 20.19.5): the gate passed with
+`CI=true GITHUB_ACTIONS=true CI_PROJECT=x` — the exact conditions that failed —
+and `npm test` passed all eleven fixtures on a plain environment, typecheck
+clean.
+
+Not evidenced, and not claimed: the macOS leg has still never run anywhere; it
+first executes in this PR's Actions run, and the darwin platform gate rests on
+the portability of Python's stdlib `pty` bridge, not on recorded evidence yet.
 ---
 
-### 9.27 Error-recovery polish (2026-09-01)
+### 9.29 Error-recovery polish (2026-09-01)
 
 PRD §7 listed "error-recovery polish" without defining it; issue #38 scoped it
 from what the code shows rather than inventing work. Three candidates were

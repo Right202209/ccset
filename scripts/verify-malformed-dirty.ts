@@ -37,6 +37,20 @@ function plain(text: string): string {
   return text.replace(ANSI, '').replace(/\r/g, '')
 }
 
+/**
+ * Ink refuses to paint interactive frames once `is-in-ci` fires, so a session
+ * driven through a real PTY has to look like a user terminal, not a CI job.
+ * `CI` itself and every `CI_` relative are dropped; GITHUB_ACTIONS survives,
+ * because supports-color reads it to keep color on.
+ */
+function terminalEnv(home: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, HOME: home, LANG: 'C', LC_ALL: 'C', TERM: 'xterm-256color' }
+  for (const key of Object.keys(env)) {
+    if (key === 'CI' || key === 'CONTINUOUS_INTEGRATION' || key.startsWith('CI_')) delete env[key]
+  }
+  return env
+}
+
 class CliSession {
   private readonly child: ChildProcessWithoutNullStreams
   private output = ''
@@ -54,7 +68,7 @@ class CliSession {
       'claude-code',
     ], {
       cwd: process.cwd(),
-      env: { ...process.env, HOME: home, LANG: 'C', LC_ALL: 'C', TERM: 'xterm-256color' },
+      env: terminalEnv(home),
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     this.child.stdout.on('data', (chunk: Buffer) => {
@@ -190,7 +204,10 @@ async function verifyDirtyExit(home: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  assert.equal(process.platform, 'linux', 'built-CLI PTY verification currently requires Linux')
+  assert.ok(
+    process.platform === 'linux' || process.platform === 'darwin',
+    `built-CLI PTY verification runs on Linux and macOS, not ${process.platform}`,
+  )
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-malformed-dirty-'))
   try {
     await verifyMalformedRecovery(home)
