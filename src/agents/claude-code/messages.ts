@@ -71,6 +71,9 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* --------------------------------------------------------- status warns */
     'claudeCode.warning.stateAbsent': '~/.claude.json is absent; state init can create it.',
     'claudeCode.warning.noBaseUrl': 'Provider {name} has no ANTHROPIC_BASE_URL.',
+    'claudeCode.validate.providerBaseUrlRequired': 'A new provider needs --base-url.',
+    'claudeCode.validate.providerTokenRequired':
+      'A new provider needs a token from CCSET_TOKEN or --token-stdin.',
   },
 
   'zh-Hans': {
@@ -126,5 +129,8 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* --------------------------------------------------------- status warns */
     'claudeCode.warning.stateAbsent': '~/.claude.json 不存在；state init 可以创建它。',
     'claudeCode.warning.noBaseUrl': 'Provider {name} 没有设置 ANTHROPIC_BASE_URL。',
+    'claudeCode.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
+    'claudeCode.validate.providerTokenRequired':
+      '新建 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',
   },
 }

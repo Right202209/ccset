@@ -132,16 +132,22 @@ function normalizedValue(field: CommandFieldSpec, option: string, raw: string): 
 }
 
 /** Assignment and unset of one field cannot coexist; removal is never inferred. */
-function checkUnsetConflicts(declaration: CommandDeclaration, state: ParseState): void {
+function checkUnsetConflicts(
+  declaration: CommandDeclaration,
+  state: ParseState,
+  secretSource: 'env' | 'stdin' | null,
+): void {
   for (const id of state.unsets) {
     if (Object.prototype.hasOwnProperty.call(state.patch, id)) {
       throw usage('cli.usage.unsetConflict', { field: id })
     }
   }
+  const secretOnly = secretSource !== null && Object.keys(state.patch).length === 0
   if (
     declaration.patchRequired === true &&
     Object.keys(state.patch).length === 0 &&
-    state.unsets.length === 0
+    state.unsets.length === 0 &&
+    !secretOnly
   ) {
     throw usage('cli.usage.emptyPatch')
   }
@@ -264,7 +270,8 @@ export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
   if (declaration.argument === 'providerId' && state.providerId === undefined) {
     throw usage('cli.usage.missingProviderId')
   }
-  checkUnsetConflicts(declaration, state)
+  const secretSource = secretSourceOf(declaration, state)
+  checkUnsetConflicts(declaration, state, secretSource)
   return {
     agent,
     declaration,
@@ -277,7 +284,7 @@ export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
       replaceInvalid: state.replaceInvalid,
       dryRun: state.dryRun,
     },
-    secretSource: secretSourceOf(declaration, state),
+    secretSource,
   }
 }
 
