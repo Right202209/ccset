@@ -125,6 +125,8 @@ Run before any commit, per project rules.
 | F8 | Single registered agent. | Agent-selection screen is skipped. |
 | F9 | Success message. | Contains absolute path, resulting mode, and a `claude --settings <abs-path>` line that runs as printed. |
 | F10 | Exit with unsaved edits / without. | Confirms only in the former case. |
+| F11 | Save fails against an unusable target after fields were typed. | The failure is a Screen of its own naming the path and required mode; `esc` returns to the form still holding every typed value, token masked; fixing the cause and saving again succeeds without retyping. |
+| F12 | A partial backup copy exists (`.ccset-partial.*` from an interrupted backup). | Status lists it with a warning and a count; **Clear ccset backups** removes it together with the finished backups. |
 
 ---
 
@@ -134,7 +136,7 @@ Run before any commit, per project rules.
 | --- | --- | --- |
 | E1 | `echo "" \| npx @droite/ccset` (non-TTY). | Clear message, exit code **2**, no ANSI escapes in the pipe. |
 | E2 | Node 18, 20, 22. | Runs; global `fetch` available on all three. |
-| E3 | `~/.claude/` read-only (chmod 500). | Exit code 3, names the path, no partial state. |
+| E3 | `~/.claude/` read-only (chmod 500). | Core raises `error.permission` naming the path and required mode, with no partial state — asserted at the module level by `verify:write-safety`. The interactive app renders the same failure as a recoverable error Screen and keeps the session; see F11 and §9.27. |
 | E4 | Warm start timing. | ≤ 2 s to first paint, excluding `npx` download. |
 | E5 | Windows Terminal + PowerShell. | Best-effort: renders, paths resolve under `%USERPROFILE%`. Failures are documented, not release-blocking (§5.2 tier 2). |
 | E6 | Narrow terminal (80 cols) and resize during render. | No layout corruption. |
@@ -1176,3 +1178,120 @@ English catalog a user sees by default is untouched.
 the app under the Unicode glyph set directly) and a manual narrow-terminal pass
 in zh-Hans. `string-width` already drives every cut site, but CJK double-width
 text at a tight column budget has not been eyeballed.
+### 9.28 CI gains macOS, and the verify fixtures run in it (2026-09-01)
+
+The CI workflow now describes a 2×3 matrix — `ubuntu-latest` and `macos-latest`
+for Node 18.x, 20.x, and 22.x — with steps typecheck, build, `npm test`, and
+`npm pack --dry-run`. The eleven verify fixtures, previously local-only, are
+aggregated under one `npm test` script in `package.json` and run as a CI step
+in every matrix job. CLAUDE.md's CI paragraph was rewritten to match; it
+previously said the workflow ran on Ubuntu only and that the verify scripts
+were not wired into CI.
+
+Actually run in this environment (Linux x64, Node 20.19.5, npm 10.8.2):
+`npm test` — all eleven fixtures, exit 0 — plus `npm run typecheck`,
+`git diff --check`, and a YAML parse of the workflow confirming the matrix and
+step order. Node 18.x stays in the matrix deliberately to match
+`engines: >=18`, although 18 is EOL upstream.
+
+Not evidenced, and not claimed: the workflow has never executed on GitHub —
+it has no Actions runs on any branch yet. No macOS run of any kind was
+performed here, so the §9.8 macOS gate and the §5 manual smoke-test checkbox
+stay pending, and no install-from-artifact step exists on either platform.
+
+### 9.29 CI run 1: ink's CI mode muted the PTY gate (2026-09-01)
+
+The first Actions run of PR #42 failed every matrix job at
+`verify:malformed-dirty`: the PTY session timed out waiting for the main
+screen with zero bytes from the child. Reproduced locally by setting `CI=true`
+alone. Root cause: ink 5 asks the `is-in-ci` package, and when it answers yes
+the reconciled frames are never written to stdout (`ink/build/ink.js` stores
+`lastOutput` and returns), so an interactive screen driven under `CI=true`
+renders nothing past the cursor-hide escape. The fixture inherited `CI=true`
+from the Actions environment, so the gate failed on Ubuntu too — it was never
+macOS-specific.
+
+Fix: the PTY session now strips `CI`, `CONTINUOUS_INTEGRATION`, and every
+`CI_` variable from the child environment (`GITHUB_ACTIONS` survives, so
+supports-color keeps color on), and the platform gate now admits darwin next
+to linux so the gate runs on the macOS leg of the matrix. Only this fixture
+drives the built CLI through a PTY; the other ten are unaffected.
+
+Actually run here (Linux x64, Node 20.19.5): the gate passed with
+`CI=true GITHUB_ACTIONS=true CI_PROJECT=x` — the exact conditions that failed —
+and `npm test` passed all eleven fixtures on a plain environment, typecheck
+clean.
+
+Not evidenced, and not claimed: the macOS leg has still never run anywhere; it
+first executes in this PR's Actions run, and the darwin platform gate rests on
+the portability of Python's stdlib `pty` bridge, not on recorded evidence yet.
+---
+
+### 9.30 Error-recovery polish (2026-09-01)
+
+PRD §7 listed "error-recovery polish" without defining it; issue #38 scoped it
+from what the code shows rather than inventing work. Three candidates were
+weighed; two were real, and the third resolved itself.
+
+**Candidate 1 — a failed save discarded the form. Real, and the substance of
+the change.** `runSave` handled a malformed target by asking, but every other
+task error — `EACCES`, `ENOSPC`, a vanished directory — went to `onFatal`,
+unmounted Ink, and exited with the error's code. A transient failure cost the
+user a typed token with no way back. Tasks now recover in-app: a thrown task
+returns an error Screen carrying the error's own message (path, mode, parse
+position — the §4.4 wording, unchanged) plus a hint that nothing typed was
+lost, and `replace()` **stacks** it instead of superseding, exactly as it
+already stacks a confirm. `esc` returns to the frame beneath — the form, its
+values parked by `App.submit` — so the cause can be fixed and the save retried
+in the same session. Deciding "which errors are worth recovering from", as the
+issue put it: all of them, inside the interface. A task error means the task
+did not happen; no state is lost by showing it, and the exit-code taxonomy
+still governs core and the process boundary (start-up, non-TTY, a render-tree
+crash through `main().catch`). `onFatal` had no remaining caller, so the prop
+and its plumbing in `cli.tsx` and `ui-session.ts` were removed rather than
+kept as an unused hatch.
+
+**Candidate 2 — a partial backup was invisible. Real, and the
+credential-exposure angle.** #32 made backups atomic by copying to a
+`.ccset-partial.*` temp name before the rename; `clearBackups` already removed
+such copies, but Status counted finished backups only, so a copy holding the
+user's credential sat there unnoticed. A shared `backupStatusSection(dir)` in
+`core/backup.ts` now builds the backups section for **all three** agents —
+the three copies were otherwise identical, and polishing one would have left
+the others behind. When a partial exists, Status adds a `Partial copies` line
+in the warn tone and swaps the note to say it holds a credential and that
+Clear removes it.
+
+**Candidate 3 — `ValidationError` from `saveProvider` was a fatal. Resolved by
+candidate 1, no code.** All three agents re-validate the name at save time as
+a belt-and-braces check the form has already passed. As a fatal it was a crash
+on an "unreachable" path; as a CcsetError it degrades to an error Screen the
+user can leave. Converting it to a crashing assertion would be strictly worse,
+so it stays.
+
+(Candidate 4 in the issue — no opencode Test connection — stands as
+deliberate, per §9.25/§9.26.)
+
+**Verified by a new gate**, `npm run verify:error-recovery` (F11, F12): it
+drives the rendered app through a read-only `~/.claude` — type name, URL and
+token, save, assert the error Screen names the path and mode, `esc`, assert
+the form still holds the typed name and URL and a masked token, fix the
+permission, save again, assert success and the file on disk — and walks
+Status with a seeded partial copy, asserting the warning and that Clear
+removes both the partial and the finished backup. The opencode and codex
+sections are asserted at the module level in the same gate. Skipped under
+root or win32 for the permission drive, like E3.
+
+**Behavior change recorded here rather than buried:** exit codes 3 and 4 are
+no longer reachable from an interactive run — a task failure ends in a Screen
+and the process exits 0 when the user leaves. The §5.6 non-TTY refusal
+(exit 2) and start-up failures are untouched, and the codes remain the
+taxonomy every `CcsetError` carries. E3's pass condition and the README exit
+table were updated to say so. The one observable change to existing flows:
+an error-toned message returned by a **confirm** (Codex activation failures)
+now stacks above the confirm instead of replacing it, which makes the
+question retryable rather than one-shot.
+
+**All twelve gates pass** on Linux x64, Node 20.19.5, together with typecheck,
+build and the release-artifact gate. Every touched file is inside the
+300-line limit.

@@ -1,5 +1,5 @@
 import type { Ctx, JsonObject, StatusLine, StatusSection } from '../../types.js'
-import { countBackups } from '../../core/backup.js'
+import { backupStatusSection } from '../../core/backup.js'
 import { readConfigFile } from '../../core/config-file.js'
 import { ConfigParseError } from '../../core/errors.js'
 import { readMode } from '../../core/json-file.js'
@@ -161,18 +161,6 @@ function homeOverrideSection(override: string): StatusSection {
   }
 }
 
-async function backupSection(ctx: Ctx): Promise<StatusSection> {
-  const dir = backupsDir(ctx.home)
-  return {
-    title: t('status.backupsTitle'),
-    lines: [
-      { label: t('status.path'), value: dir },
-      { label: t('status.count'), value: String(await countBackups(dir)) },
-    ],
-    note: t('status.backupsNote'),
-  }
-}
-
 async function readAuthStore(ctx: Ctx): Promise<boolean> {
   try {
     const loaded = await readConfigFile(codexConfigFile(ctx.home))
@@ -188,7 +176,7 @@ export async function buildStatus(ctx: Ctx): Promise<StatusData> {
     loadProviders(ctx),
     globalSection(ctx),
     loadAuthState(ctx),
-    backupSection(ctx),
+    backupStatusSection(backupsDir(ctx.home)),
     readAuthStore(ctx),
   ])
   const homeOverride = codexHomeOverride(ctx.home)

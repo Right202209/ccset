@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import stringWidth from 'string-width'
 import type { Action, Agent, ConfirmScreen, Ctx, FormValues, ListItem, Viewport } from '../types.js'
-import type { CcsetError } from '../core/errors.js'
 import { t } from '../i18n/index.js'
 import { AgentSelect, MainMenu } from './Menu.js'
 import { TerminalContext, useTerminal, type Terminal } from './terminal.js'
@@ -15,7 +14,6 @@ export interface AppProps {
   agents: Agent[]
   agentId?: string
   terminal: Terminal
-  onFatal: (error: CcsetError) => void
   viewport?: Viewport
 }
 
@@ -32,7 +30,6 @@ export function App({
   agents,
   agentId,
   terminal,
-  onFatal,
   viewport: explicitViewport,
 }: AppProps): React.ReactElement {
   const { exit } = useApp()
@@ -41,7 +38,7 @@ export function App({
   const [detected, setDetected] = useState<boolean | null>(null)
   const [prompt, setPrompt] = useState<PromptKind | null>(null)
   const [dirty, setDirty] = useState(false)
-  const screens = useScreens(onFatal)
+  const screens = useScreens()
 
   useEffect(() => {
     let active = true
