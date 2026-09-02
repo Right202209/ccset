@@ -31,8 +31,9 @@
     "verify:error-recovery": "tsup scripts/verify-error-recovery.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-error-recovery.js; status=$?; rm -rf .verify; exit $status",
     "verify:malformed-dirty": "npm run build && tsup scripts/verify-malformed-dirty.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-malformed-dirty.js; status=$?; rm -rf .verify; exit $status",
     "verify:status-terminal": "npm run build && tsup scripts/verify-status-terminal.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-status-terminal.js; status=$?; rm -rf .verify; exit $status",
+    "verify:commands": "npm run build && tsup scripts/verify-commands.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands.js; status=$?; rm -rf .verify; exit $status",
     "verify:release-artifact": "tsup scripts/verify-release-artifact.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-release-artifact.js; status=$?; rm -rf .verify; exit $status",
-    "test": "npm run verify:global-settings && npm run verify:opencode && npm run verify:codex && npm run verify:provider-safety && npm run verify:write-safety && npm run verify:ui-render && npm run verify:header-path && npm run verify:review-form && npm run verify:malformed-dirty && npm run verify:status-terminal && npm run verify:release-artifact",
+    "test": "npm run verify:global-settings && npm run verify:opencode && npm run verify:codex && npm run verify:provider-safety && npm run verify:write-safety && npm run verify:ui-render && npm run verify:header-path && npm run verify:review-form && npm run verify:malformed-dirty && npm run verify:status-terminal && npm run verify:commands && npm run verify:release-artifact",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

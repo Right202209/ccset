@@ -1,12 +1,12 @@
 import type { Ctx, FormValues, JsonObject, JsonValue, WriteReport } from '../../types.js'
-import { backupFile } from '../../core/backup.js'
-import { emptyConfig, readConfigFile, writeConfigFile } from '../../core/config-file.js'
-import { ConfigParseError, ValidationError } from '../../core/errors.js'
-import { isPlainObject, readMode } from '../../core/json-file.js'
+import { configFile, readConfigFile } from '../../core/config-file.js'
+import { CcsetError, EXIT_RUNTIME, ConfigParseError, ValidationError } from '../../core/errors.js'
+import { isPlainObject } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath, type ManagedWrite } from '../../core/merge.js'
+import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
 import { intOrUndefined, jsonToText, textOrUndefined, withDefaults } from '../../core/values.js'
 import { t } from '../../i18n/index.js'
-import { saveAuthProfile } from './auth.js'
+import { authProfileWrites } from './auth.js'
 import { REQUIRES_OPENAI_AUTH, WIRE_API_RESPONSES } from './constants.js'
 import { codexConfigFile } from './global.js'
 import {
@@ -18,7 +18,7 @@ import {
   providerPath,
   validateProviderId,
 } from './manifest.js'
-import { backupsDir, launchCommand } from './paths.js'
+import { authProfilePath, backupsDir, launchCommand } from './paths.js'
 
 /** One `[model_providers.<id>]` table inside the single config document. */
 export interface ProviderRecord {
@@ -120,17 +120,38 @@ export async function saveProvider(
   const problem = validateProviderId(id)
   if (problem !== null) throw new ValidationError(problem, { name: id })
   const file = codexConfigFile(ctx.home)
-  const base = startFresh ? emptyConfig(file.path) : await readConfigFile(file)
-  const backupPath = await backupFile(backupsDir(ctx.home), file.path)
-  await writeConfigFile(file, base, emitProvider(values))
-  const authPath = await saveAuthProfile(ctx, id, String(values['apiKey'] ?? ''))
+  const authFile = configFile(authProfilePath(ctx.home, id), 'json')
+  const records = (
+    await applyPlan(
+      planTargets([
+        {
+          file,
+          base: await readPatchBase(file, startFresh),
+          writes: emitProvider(values),
+          backupsDir: backupsDir(ctx.home),
+        },
+        {
+          file: authFile,
+          base: await readConfigFile(authFile),
+          writes: authProfileWrites(String(values['apiKey'] ?? '')),
+          backupsDir: backupsDir(ctx.home),
+        },
+      ]),
+      { dryRun: false, skipUnchanged: false },
+    )
+  ).records
+  const config = records[0]
+  const auth = records[1]
+  if (config === undefined || auth === undefined) {
+    throw new CcsetError('error.unexpected', EXIT_RUNTIME, { detail: 'a target was not planned' })
+  }
   return {
     path: file.path,
-    mode: await readMode(file.path),
-    backupPath,
+    mode: config.mode,
+    backupPath: config.backupPath,
     command: launchCommand(),
     activateKey: 'codex.write.activate',
-    notes: [t('codex.write.authProfile', { path: authPath })],
+    notes: [t('codex.write.authProfile', { path: auth.path })],
   }
 }
 

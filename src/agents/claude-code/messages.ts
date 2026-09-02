@@ -61,6 +61,12 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* ----------------------------------------------------------------- write */
     'claudeCode.write.stateCreated': 'Created with hasCompletedOnboarding set.',
     'claudeCode.write.stateExists': 'Already present — left untouched.',
+
+    /* -------------------------------------------------------------- commands */
+    'claudeCode.validate.proxyNeedsUrl':
+      'The proxy is on, but no proxy URL was supplied and none is on disk.',
+    'claudeCode.validate.proxyConflict':
+      'The proxy toggle and the proxy URL in this command contradict each other.',
   },
 
   'zh-Hans': {
@@ -108,5 +114,9 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* ----------------------------------------------------------------- write */
     'claudeCode.write.stateCreated': '已创建，并写入 hasCompletedOnboarding。',
     'claudeCode.write.stateExists': '已存在 — 未做改动。',
+
+    /* -------------------------------------------------------------- commands */
+    'claudeCode.validate.proxyNeedsUrl': '代理已开启，但未提供代理 URL，磁盘上也没有。',
+    'claudeCode.validate.proxyConflict': '此命令中的代理开关与代理 URL 相互矛盾。',
   },
 }

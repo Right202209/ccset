@@ -176,4 +176,38 @@ export const zhHans: Record<string, string> = {
   'cli.agentOption': '要配置的 Agent',
   'cli.notTty':
     'ccset 是交互式的，需要终端。请直接运行它，而不是通过管道或 CI 任务。',
+  'cli.changed': '是否有更改：{changed}',
+  'cli.dryRunTitle': '试运行 — 未写入任何内容',
+  'cli.warning': '警告：{message}',
+  'cli.partialCommit': '操作中途停止。以下路径已被写入：{paths}',
+
+  /* ------------------------------------------------------- cli usage rules */
+  'cli.usage.missingAgent': '命令需要显式指定 Agent：ccset --agent <id> <command>。',
+  'cli.usage.unknownCommand': '未知命令：{command}。',
+  'cli.usage.unknownOption': '未知选项：{option}。',
+  'cli.usage.missingValue': '选项 {option} 需要一个值。',
+  'cli.usage.flagValue': '选项 {option} 不接受值。',
+  'cli.usage.duplicateOption': '选项 {option} 被给了多次。',
+  'cli.usage.emptyValue': '选项 {option} 不能为空。要移除设置请改用 --unset。',
+  'cli.usage.invalidBoolean': '选项 {option} 只接受 true 或 false（得到 {value}）。',
+  'cli.usage.invalidChoice': '选项 {option} 只接受：{choices}（得到 {value}）。',
+  'cli.usage.unexpectedArgument': '多余的参数：{value}。',
+  'cli.usage.missingProviderId': '此命令需要一个 provider id。',
+  'cli.usage.unknownField': '--unset 的字段未知：{field}。',
+  'cli.usage.notUnsettable': '字段 {field} 不支持 --unset。',
+  'cli.usage.unsetConflict': '字段 {field} 不能同时设置和移除。',
+  'cli.usage.emptyPatch': '没有要更改的内容：请至少提供一个字段。',
+  'cli.usage.replaceInvalidUnsupported': '此命令不接受 --replace-invalid。',
+  'cli.usage.noSecretAccepted': '此命令不接受密钥。',
+  'cli.usage.secretSourceConflict': '请只使用 CCSET_TOKEN 或 --token-stdin 其中之一。',
+
+  /* ----------------------------------------------------------- cli secrets */
+  'cli.secret.tooLarge': '密钥超过 64 KiB。',
+  'cli.secret.notUtf8': '密钥不是有效的 UTF-8。',
+  'cli.secret.containsNul': '密钥包含 NUL 字节。',
+  'cli.secret.multiLine': '密钥必须只有一行。',
+  'cli.secret.empty': '密钥为空。',
+  'cli.secret.padded': '密钥的开头或结尾不能有空白。',
+
+  'error.unsupportedCommand': '{agent} 不支持 {operation} 命令。',
 }

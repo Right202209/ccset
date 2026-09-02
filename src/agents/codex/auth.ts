@@ -1,11 +1,12 @@
 import { promises as fs } from 'node:fs'
 import type { Ctx, JsonObject } from '../../types.js'
 import { backupFile } from '../../core/backup.js'
-import { configFile, readConfigFile, writeConfigFile } from '../../core/config-file.js'
+import { configFile, readConfigFile } from '../../core/config-file.js'
 import { copyFileAtomic } from '../../core/copy.js'
 import { ConfigParseError, isNotFound, wrapFsError } from '../../core/errors.js'
 import { readMode } from '../../core/json-file.js'
-import { getPath } from '../../core/merge.js'
+import { getPath, type ManagedWrite } from '../../core/merge.js'
+import { commitOne } from '../../operations/commit.js'
 import { listNamedFiles } from '../../core/paths.js'
 import { jsonToText } from '../../core/values.js'
 import { AUTH_API_KEY, AUTH_MODE_API_KEY, AUTH_MODE_KEY } from './constants.js'
@@ -119,6 +120,18 @@ export async function loadAuthState(ctx: Ctx): Promise<AuthState> {
 }
 
 /**
+ * The keys ccset manages in one profile sidecar: `auth_mode` says a key is
+ * there, and the key itself. Everything else already in the sidecar -- an
+ * adopted ChatGPT profile's `tokens` block -- is unmanaged and survives.
+ */
+export function authProfileWrites(apiKey: string): ManagedWrite[] {
+  return [
+    { path: [AUTH_MODE_KEY], value: AUTH_MODE_API_KEY },
+    { path: [AUTH_API_KEY], value: apiKey },
+  ]
+}
+
+/**
  * Writes the key into the provider's sidecar, preserving anything else already
  * in it -- an adopted ChatGPT profile keeps its `tokens` block, and `auth_mode`
  * is what decides which of the two Codex uses.
@@ -126,12 +139,12 @@ export async function loadAuthState(ctx: Ctx): Promise<AuthState> {
 export async function saveAuthProfile(ctx: Ctx, name: string, apiKey: string): Promise<string> {
   const target = authProfilePath(ctx.home, name)
   const file = configFile(target, 'json')
-  const base = await readConfigFile(file)
-  await backupFile(backupsDir(ctx.home), target)
-  await writeConfigFile(file, base, [
-    { path: [AUTH_MODE_KEY], value: AUTH_MODE_API_KEY },
-    { path: [AUTH_API_KEY], value: apiKey },
-  ])
+  await commitOne({
+    file,
+    base: await readConfigFile(file),
+    writes: authProfileWrites(apiKey),
+    backupsDir: backupsDir(ctx.home),
+  })
   return target
 }
 

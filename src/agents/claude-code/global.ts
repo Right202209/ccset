@@ -1,7 +1,7 @@
 import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
-import { backupFile } from '../../core/backup.js'
-import { jsonFile, readJsonFile, readMode, writeJsonFileAtomic } from '../../core/json-file.js'
-import { applyManagedWrites, getPath, getStringAt, type ManagedWrite } from '../../core/merge.js'
+import { jsonFile } from '../../core/json-file.js'
+import { getPath, getStringAt, type ManagedWrite } from '../../core/merge.js'
+import { commitOne, readPatchBase } from '../../operations/commit.js'
 import { activationCommand, backupsDir, globalSettingsPath } from './paths.js'
 import {
   ENV_HTTPS_PROXY,
@@ -75,6 +75,10 @@ export function emitGlobal(values: FormValues): ManagedWrite[] {
  * the read is skipped and the managed keys are written over an empty object.
  * It is never taken without an explicit confirmation, and the backup is taken
  * either way, so the unreadable original survives.
+ *
+ * The write itself is the shared plan/apply core, the same one a
+ * Non-interactive command runs; only the value mapping and the presentation
+ * are the TUI Adapter's own.
  */
 export async function saveGlobal(
   ctx: Ctx,
@@ -83,13 +87,11 @@ export async function saveGlobal(
 ): Promise<WriteReport> {
   const target = globalSettingsPath(ctx.home)
   const file = jsonFile(target)
-  const base = startFresh ? {} : (await readJsonFile(target)).data
-  const backupPath = await backupFile(backupsDir(ctx.home), target)
-  await writeJsonFileAtomic(file, applyManagedWrites(base, emitGlobal(values)))
-  return {
-    path: target,
-    mode: await readMode(target),
-    backupPath,
-    command: activationCommand(target),
-  }
+  const report = await commitOne({
+    file,
+    base: await readPatchBase(file, startFresh),
+    writes: emitGlobal(values),
+    backupsDir: backupsDir(ctx.home),
+  })
+  return { ...report, command: activationCommand(target) }
 }

@@ -1,4 +1,6 @@
-/** Error taxonomy and the exit codes from PRD 4.4. */
+/** Error taxonomy and the exit codes from PRD 4.4, plus the command codes. */
+
+import type { TargetRecord } from '../operations/types.js'
 
 export const EXIT_OK = 0
 export const EXIT_RUNTIME = 1
@@ -6,6 +8,13 @@ export const EXIT_NOT_TTY = 2
 export const EXIT_PERMISSION = 3
 /** PRD 4.4: the target exists but could not be parsed, whatever its format. */
 export const EXIT_INVALID_CONFIG = 4
+/**
+ * Command-mode codes. A script has to tell a typo (64) from an agent it did
+ * not name (65) from a command the named agent does not serve (66).
+ */
+export const EXIT_USAGE = 64
+export const EXIT_UNKNOWN_AGENT = 65
+export const EXIT_UNSUPPORTED_COMMAND = 66
 
 export class CcsetError extends Error {
   readonly exitCode: number
@@ -85,6 +94,24 @@ export class ValidationError extends CcsetError {
   constructor(messageKey: string, params: Record<string, string> = {}) {
     super(messageKey, EXIT_RUNTIME, params)
     this.name = 'ValidationError'
+  }
+}
+
+/**
+ * A multi-target commit got partway before something unexpected failed. The
+ * paths already written are the error's payload: a caller that cannot undo a
+ * commit has to be able to say which files may have changed. The interrupted
+ * cause keeps its own code and exit status.
+ */
+export class PartialCommitError extends CcsetError {
+  readonly committed: TargetRecord[]
+  override readonly cause: CcsetError
+
+  constructor(committed: TargetRecord[], cause: CcsetError) {
+    super(cause.messageKey, cause.exitCode, cause.params)
+    this.name = 'PartialCommitError'
+    this.committed = committed
+    this.cause = cause
   }
 }
 
