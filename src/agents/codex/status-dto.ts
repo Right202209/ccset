@@ -1,13 +1,11 @@
 import { countBackups, countPartialBackups } from '../../core/backup.js'
-import { readConfigFile, type LoadedConfig } from '../../core/config-file.js'
+import { readConfigFile } from '../../core/config-file.js'
 import { TomlParseError } from '../../core/errors.js'
 import { readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
 import type { JsonObject, JsonValue } from '../../types.js'
-import { jsonToText } from '../../core/values.js'
-import { loadAuthState, type AuthState } from './auth.js'
-import { AUTH_STORE_KEY, AUTH_STORE_KEYRING } from './constants.js'
+import { keyringInUseIn, loadAuthState, type AuthState } from './auth.js'
 import { codexConfigFile } from './global.js'
 import { GLOBAL_FIELDS, MANAGED_GLOBAL_PATHS } from './manifest.js'
 import { loadProviders, type ProviderRecord } from './providers.js'
@@ -93,11 +91,6 @@ function toProviderStatus(record: ProviderRecord): CodexProviderStatus {
   }
 }
 
-/** Codex keeps its credential in the OS keyring when this key says `keyring`. */
-function keyringIn(loaded: LoadedConfig): boolean {
-  return jsonToText(getPath(loaded.data, AUTH_STORE_KEY)) === AUTH_STORE_KEYRING
-}
-
 function toAuthStatus(auth: AuthState): CodexAuthStatus {
   return {
     path: auth.path,
@@ -139,7 +132,7 @@ async function readConfigAndProviders(
           : undefined,
       },
       providers: list.records.map(toProviderStatus),
-      keyringInUse: loaded.exists && keyringIn(loaded),
+      keyringInUse: loaded.exists && keyringInUseIn(loaded.data),
     }
   } catch (err) {
     // A parse failure is a reported finding; any other failure propagates. The

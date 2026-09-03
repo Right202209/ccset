@@ -76,6 +76,9 @@ export const codexMessages: Record<string, Record<string, string>> = {
       'Codex keeps credentials in the OS keyring, so it does not read auth.json; saved profiles have no effect.',
     'codex.warning.homeOverride':
       'CODEX_HOME is set to {path}; Codex reads its config from there, while ccset writes under the home this run was given.',
+    'codex.validate.providerBaseUrlRequired': 'A new provider needs --base-url.',
+    'codex.validate.providerTokenRequired':
+      'A provider without a saved credential needs a key from CCSET_TOKEN or --token-stdin.',
     'codex.status.noProfileFor':
       'No saved credential for {id}. Edit the provider and enter its API key first.',
     'codex.status.authTitle': 'Live credential',
@@ -108,6 +111,7 @@ export const codexMessages: Record<string, Record<string, string>> = {
 
     /* ----------------------------------------------------------------- write */
     'codex.write.activate': 'Codex reads both files on start. Run it with:',
+    'codex.write.providerSaved': 'Provider saved',
     'codex.write.authProfile': 'Key:    {path}',
     'codex.write.switched': 'Provider switched',
     'codex.write.authSwitched': 'Auth:   {path}',
@@ -194,6 +198,8 @@ export const codexMessages: Record<string, Record<string, string>> = {
       'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；已保存的凭据配置不会生效。',
     'codex.warning.homeOverride':
       '已设置 CODEX_HOME 为 {path}；Codex 从那里读取配置，而 ccset 写入的是本次运行指定的主目录。',
+    'codex.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
+    'codex.validate.providerTokenRequired': '没有已保存凭据的 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',
     'codex.status.noProfileFor': '{id} 没有已保存的凭据。请先编辑该提供商并填入它的 API 密钥。',
     'codex.status.authTitle': '当前凭据',
     'codex.status.authMode': '认证方式',
@@ -221,6 +227,7 @@ export const codexMessages: Record<string, Record<string, string>> = {
 
     /* ----------------------------------------------------------------- write */
     'codex.write.activate': 'Codex 启动时会读取这两个文件。运行：',
+    'codex.write.providerSaved': '提供商已保存',
     'codex.write.authProfile': '密钥：{path}',
     'codex.write.switched': '提供商已切换',
     'codex.write.authSwitched': '凭据：{path}',
