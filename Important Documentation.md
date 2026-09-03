@@ -1335,3 +1335,54 @@ question retryable rather than one-shot.
 **All twelve gates pass** on Linux x64, Node 20.19.5, together with typecheck,
 build and the release-artifact gate. Every touched file is inside the
 300-line limit.
+
+### 9.33 Non-interactive operation seam: M3.1 `global set` (2026-09-03)
+
+Issue #48 landed, was code-reviewed against the repository standards, and the
+review's twelve-point fix plan was executed in full before this entry was
+written. What ships: a deep operation seam in `core/operation.ts`
+(`runOperation`, one entry point, one result builder), a fully agent-agnostic
+command layer in `core/command.ts` (`splitCommandArgv`, `buildRequest`,
+structured `UsageProblem`s instead of translated sentences), and a
+`getCommands`/`getOperation` pair on the `Agent` interface — Claude Code owns
+its own field semantics in `agents/claude-code/commands.ts` (proxy coupling,
+integer conversion, strict booleans), and no agent import, literal, or string
+remains in core. `ManagedWrite[]` stops at the seam: the request carries only
+normalized values keyed by field id plus an explicit `unset` set.
+
+Checks performed, all against a `CCSET_HOME` scratch directory through the
+built `dist/cli.js`:
+
+| # | Check | Pass condition |
+| --- | --- | --- |
+| N1 | Patch one field over a file with managed and unmanaged keys. | Only the named key moves; omitted managed keys and unmanaged keys survive. |
+| N2 | `--unset model --unset proxyEnabled` after seeding both. | `model` key gone, both proxy env keys gone, other `env` keys survive. |
+| N3 | `--dry-run --json` over a seeded file. | Envelope says `dryRun: true`, `changed: true`, real mode `0600`, `backupPath: null`; bytes and backups directory untouched; human run says `Would change:` and `(dry run`. |
+| N4 | Set a field to the value it already has. | `changed: false`, `backupPath: null`, no backups directory created. |
+| N5 | `--json` envelope shape, including `--json` **before** `--agent`. | Exactly the pinned keys, absolute target path, `exitCode` matching the process status, no secret material. |
+| N6 | Nine usage cases (missing agent, empty patch, duplicate scalar, unknown option, missing value, empty value, proxy without URL, `--proxyEnabled yes`, `--token-stdin`) and three identity cases, over a **malformed** target. | Usage exits `64`, unknown agent `66`, unsupported command `67` — proving refusal happens before any read; target bytes unchanged. |
+| N7 | Malformed target, then `--replace-invalid`. | Refused with `4` and an error envelope naming `error.invalidJson`; with the flag: exit `0`, `replacedInvalid` warning, backup of the unreadable original, fresh file written. |
+| N8 | No command word, piped stdin. | TUI refusal message, exit `2`. |
+
+Proxy semantics settled and documented in the README: a bare `--proxyUrl`
+implies enabled; `--proxyEnabled true` without a URL is a usage error;
+`--proxyEnabled false` deletes both keys; mixing any proxy set with any proxy
+unset is a conflict; `--unset proxyEnabled` is the removal path.
+
+**Executable gate added:** `npm run verify:noninteractive` (AC 7), wired into
+`npm test`. It crosses both seams — the operation entry point in-process and
+the spawned CLI — and covers N1–N8. **Mutation-to-fail evidence**: inverting
+`isNoop` in `core/operation.ts` turns the gate red at `checkPreservation`
+(`false !== true`, exit 1); replacing the `backupFile` call with `null` turns
+it red at `checkMalformed` ("the unreadable original was not backed up", exit
+1). Both mutations reverted; the gate is green.
+
+Also closed here, found by re-running `verify:i18n-zh`: four English catalog
+keys (`status.partials`, `status.partialsNote`, `error.screenTitle`,
+`error.screenHint`) had shipped without zh-Hans translations in 080f19b, so
+the parity gate was failing on master before any of this work; translated.
+
+**Still open from AC 6, deferred by agreement:** the TUI form does not yet
+submit through the operation seam — the interactive path keeps its own
+`saveGlobal` pipeline. Everything else in this entry is the non-interactive
+surface only.

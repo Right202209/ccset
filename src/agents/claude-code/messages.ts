@@ -61,6 +61,11 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* ----------------------------------------------------------------- write */
     'claudeCode.write.stateCreated': 'Created with hasCompletedOnboarding set.',
     'claudeCode.write.stateExists': 'Already present — left untouched.',
+
+    /* ------------------------------------------------------ commands (M3.1) */
+    'claudeCode.cmd.invalidBoolean': 'Invalid boolean for {option}: {value}. Use true or false.',
+    'claudeCode.cmd.proxyUrlRequired': '--proxyEnabled true requires --proxyUrl.',
+    'claudeCode.cmd.proxyConflicting': '--proxyEnabled false cannot be combined with --proxyUrl.',
   },
 
   'zh-Hans': {
@@ -108,5 +113,10 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* ----------------------------------------------------------------- write */
     'claudeCode.write.stateCreated': '已创建，并写入 hasCompletedOnboarding。',
     'claudeCode.write.stateExists': '已存在 — 未做改动。',
+
+    /* ------------------------------------------------------ commands (M3.1) */
+    'claudeCode.cmd.invalidBoolean': '{option} 的布尔值无效：{value}。请使用 true 或 false。',
+    'claudeCode.cmd.proxyUrlRequired': '--proxyEnabled true 需要同时提供 --proxyUrl。',
+    'claudeCode.cmd.proxyConflicting': '--proxyEnabled false 不能与 --proxyUrl 同时使用。',
   },
 }

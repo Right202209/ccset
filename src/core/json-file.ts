@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import type { Codec, ConfigFile, JsonObject } from '../types.js'
-import { DIR_MODE, FILE_MODE } from './constants.js'
+import { DIR_MODE, FILE_MODE, MODE_UNKNOWN } from './constants.js'
 import { CcsetError, EXIT_RUNTIME, JsonParseError, isNotFound, wrapFsError } from './errors.js'
 
 export interface LoadedFile {
@@ -122,7 +122,7 @@ export async function readMode(filePath: string): Promise<string> {
     const stats = await fs.stat(filePath)
     return `0${(stats.mode & 0o777).toString(8)}`
   } catch {
-    return '?'
+    return MODE_UNKNOWN
   }
 }
 

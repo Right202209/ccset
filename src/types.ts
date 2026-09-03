@@ -167,6 +167,22 @@ export interface Agent {
   messages?: Record<string, Record<string, string>>
   detect: (ctx: Ctx) => Promise<boolean>
   getActions: () => Action[]
+  /**
+   * Non-interactive command declarations. When present, the CLI can dispatch
+   * subcommands to the operation seam without a TTY. Agents that do not yet
+   * support non-interactive mode omit this.
+   */
+  getCommands?: () => import('./core/command.js').CommandDeclaration[]
+  /**
+   * The operation implementation the core pipeline drives for a declared
+   * command: the target, the backup location, and the agent-owned conversion
+   * from normalized values to managed writes. Undefined for an operation the
+   * agent does not implement.
+   */
+  getOperation?: (
+    operation: import('./core/operation.js').OperationId,
+    ctx: Ctx,
+  ) => import('./core/operation.js').OperationDescriptor | undefined
 }
 
 /** Result of a successful write, rendered as the success message. */

@@ -180,6 +180,8 @@ you.
 
 ## CLI
 
+Without a command word ccset is the interactive TUI:
+
 ```
 ccset [--agent <id>]
   -v, --version
@@ -187,10 +189,93 @@ ccset [--agent <id>]
 ```
 
 `--agent` takes `claude-code`, `opencode` or `codex` and skips the selection
-screen.
+screen. Run through a pipe or in CI the TUI prints a message and exits `2`
+rather than emitting control sequences into a log.
 
-ccset is interactive only. Run through a pipe or in CI it prints a message and
-exits `2` rather than emitting control sequences into a log.
+### Non-interactive commands
+
+Naming an agent **and** a command word runs headless: no screen, and the same
+merge, backup, and safety behavior as the form. Flags may sit anywhere in the
+invocation. Claude Code currently declares:
+
+```
+ccset --agent claude-code global set [options]
+```
+
+`global set` applies only the fields you name — an older script cannot erase
+keys a newer one added — and unmanaged keys always survive.
+
+| Option | Values | Effect |
+| --- | --- | --- |
+| `--model <name>` | free text | Writes `model`. |
+| `--cleanupPeriodDays <n>` | positive integer | Writes `cleanupPeriodDays` as a JSON number. |
+| `--disableNonessentialTraffic <n>` | `1` or `0` | Writes the env switch as the string `1`/`0`. |
+| `--attributionHeader <n>` | `1` or `0` | Same. |
+| `--disableInstallationChecks <n>` | `1` or `0` | Same. |
+| `--enableToolSearch <n>` | `1` or `0` | Same. |
+| `--proxyEnabled <b>` | `true` or `false` | Writes or deletes both `HTTPS_PROXY` and `HTTP_PROXY`. `true` requires `--proxyUrl`. |
+| `--proxyUrl <url>` | http(s) URL | Sets both proxy keys; giving it alone implies the proxy is enabled. |
+| `--unset <field>` | repeatable | Removes the field's key from the file. The proxy fields are one coupled unit: `--unset proxyEnabled` or `--unset proxyUrl` removes both proxy keys. |
+| `--dry-run` | | Reads, validates, prints the plan, writes nothing. |
+| `--replace-invalid` | | Backs up a target that does not parse, then replaces it with a fresh file. |
+| `--json` | | One machine-readable JSON envelope on stdout. |
+
+The parser rejects a missing `--agent`, an unknown option, a repeated scalar,
+an invalid value, a value it cannot pair with its coupling rules, and an
+invocation that names no field — all with exit `64`, all before any file is
+read. An empty string is never a value: removal is `--unset`, never
+`--field ''`. No non-interactive command takes a credential as an argument,
+and none will: provider tokens arrive through `CCSET_TOKEN` or stdin in a
+later milestone, never through argv.
+
+### JSON output
+
+`--json` makes a command print exactly one schema-versioned envelope and
+nothing else. It is secret-free and additive: new fields may appear, existing
+ones do not change shape. The envelope's `exitCode` always matches the process
+exit status, so supervision and parsing cannot disagree.
+
+```json
+{
+  "schemaVersion": 1,
+  "operation": "global.set",
+  "agentId": "claude-code",
+  "changed": true,
+  "dryRun": false,
+  "targets": [
+    {
+      "path": "/home/user/.claude/settings.json",
+      "changed": true,
+      "mode": "0600",
+      "backupPath": "/home/user/.claude/backups/ccset/settings.json.backup.1788458903109"
+    }
+  ],
+  "warnings": [],
+  "exitCode": 0
+}
+```
+
+A failure prints the same envelope with an `error` body instead of populated
+targets. `code` is the stable machine code, `reason` the primary cause as an
+i18n key plus params, and `problems` lists every collected usage problem:
+
+```json
+{
+  "schemaVersion": 1,
+  "operation": "global.set",
+  "agentId": "claude-code",
+  "dryRun": false,
+  "error": {
+    "code": "usage",
+    "message": "--model was given more than once.",
+    "reason": { "code": "error.duplicateOption", "params": { "option": "--model" } },
+    "problems": [{ "code": "error.duplicateOption", "params": { "option": "--model" } }]
+  },
+  "exitCode": 64
+}
+```
+
+### Exit codes
 
 | Exit code | Meaning |
 | --- | --- |
@@ -199,6 +284,9 @@ exits `2` rather than emitting control sequences into a log.
 | 2 | Not a TTY |
 | 3 | Permission denied on a target path (the path and required mode are named) |
 | 4 | An existing file could not be parsed (JSON or TOML) |
+| 64 | Usage: bad syntax, unknown option, invalid or duplicate value, empty patch, missing `--agent` |
+| 66 | Unknown agent |
+| 67 | The agent does not support the requested command |
 
 In the interactive app a failed action does not end the session: the error is a
 screen of its own, everything you typed is kept, and `esc` returns to the form

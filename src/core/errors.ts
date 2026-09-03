@@ -6,6 +6,12 @@ export const EXIT_NOT_TTY = 2
 export const EXIT_PERMISSION = 3
 /** PRD 4.4: the target exists but could not be parsed, whatever its format. */
 export const EXIT_INVALID_CONFIG = 4
+/** Bad command syntax, unknown option, or missing required value. */
+export const EXIT_USAGE = 64
+/** The requested agent is not in the registry. */
+export const EXIT_UNKNOWN_AGENT = 66
+/** The agent does not support the requested command. */
+export const EXIT_UNKNOWN_COMMAND = 67
 
 export class CcsetError extends Error {
   readonly exitCode: number
@@ -78,6 +84,31 @@ export class TomlParseError extends ConfigParseError {
       position,
     })
     this.name = 'TomlParseError'
+  }
+}
+
+/**
+ * One structured usage problem. The `code` is an i18n key, never a translated
+ * sentence, so the presenter can localize it and the JSON envelope can carry it
+ * verbatim; params carry the option name or value the message names.
+ */
+export interface UsageProblem {
+  code: string
+  params?: Record<string, string>
+}
+
+/** A typed error from the operation seam: a stable code plus structured problems. */
+export class OperationError extends CcsetError {
+  readonly code: string
+  readonly problems: UsageProblem[]
+
+  constructor(code: string, problems: UsageProblem | UsageProblem[], exitCode: number) {
+    const list = Array.isArray(problems) ? problems : [problems]
+    const first = list[0] ?? { code: 'error.unexpected' }
+    super(first.code, exitCode, first.params ?? {})
+    this.name = 'OperationError'
+    this.code = code
+    this.problems = list
   }
 }
 

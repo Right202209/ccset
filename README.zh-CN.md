@@ -84,15 +84,99 @@ Codex 没有 Test connection：ccset 内置的探测请求是 Anthropic 形态�
 
 ## CLI
 
+不带命令词时，ccset 是交互式 TUI：
+
 ```text
 ccset [--agent <id>]
   -v, --version
   -h, --help
 ```
 
-`--agent` 可取 `claude-code`、`opencode` 或 `codex`，指定后会跳过 Agent 选择界面。
+`--agent` 可取 `claude-code`、`opencode` 或 `codex`，指定后会跳过 Agent 选择界面。通过管道或在 CI 中运行时，TUI 会提示并以退出码 `2` 退出，而不会向日志输出控制序列。
 
-这是交互式工具。通过管道或在 CI 中运行时会提示并以退出码 `2` 退出。
+### 非交互式命令
+
+同时给出 Agent **和**命令词时，ccset 以无界面方式运行：没有屏幕，合并、备份与安全行为与表单完全一致。旗标可以出现在调用中的任意位置。Claude Code 目前声明：
+
+```text
+ccset --agent claude-code global set [选项]
+```
+
+`global set` 只应用你给出的字段——旧脚本不会抹掉新脚本添加的键——ccset 不管理的键始终原样保留。
+
+| 选项 | 取值 | 作用 |
+| --- | --- | --- |
+| `--model <name>` | 自由文本 | 写入 `model`。 |
+| `--cleanupPeriodDays <n>` | 正整数 | 以 JSON 数字写入 `cleanupPeriodDays`。 |
+| `--disableNonessentialTraffic <n>` | `1` 或 `0` | 以字符串 `1`/`0` 写入该环境开关。 |
+| `--attributionHeader <n>` | `1` 或 `0` | 同上。 |
+| `--disableInstallationChecks <n>` | `1` 或 `0` | 同上。 |
+| `--enableToolSearch <n>` | `1` 或 `0` | 同上。 |
+| `--proxyEnabled <b>` | `true` 或 `false` | 写入或删除 `HTTPS_PROXY` 和 `HTTP_PROXY` 两个键。`true` 必须同时给出 `--proxyUrl`。 |
+| `--proxyUrl <url>` | http(s) URL | 同时写入两个代理键；只给出它即表示启用代理。 |
+| `--unset <field>` | 可重复 | 从文件中删除该字段的键。代理字段是一个耦合单元：`--unset proxyEnabled` 或 `--unset proxyUrl` 都会删除两个代理键。 |
+| `--dry-run` | | 读取、校验并输出计划，不写入任何内容。 |
+| `--replace-invalid` | | 备份无法解析的目标文件，然后用新文件替换。 |
+| `--json` | | 在标准输出打印一个机器可读的 JSON 信封。 |
+
+解析器会拒绝：缺少 `--agent`、未知选项、重复的标量、无效取值、违反耦合规则的取值，以及未给出任何字段的调用——一律以退出码 `64` 拒绝，且都发生在读取任何文件之前。空字符串永远不是取值：删除只能用 `--unset`，而不是 `--字段 ''`。没有任何非交互式命令接受把凭据写成参数，将来也不会：提供商令牌将在后续里程碑中只经由 `CCSET_TOKEN` 或标准输入提供，绝不进入 argv。
+
+### JSON 输出
+
+`--json` 使命令只在标准输出打印一个带版本号的信封。它不含密钥，且只增不改：新字段可能出现，已有字段不会改变形状。信封中的 `exitCode` 始终与进程退出状态一致，监督与解析不会互相矛盾。
+
+```json
+{
+  "schemaVersion": 1,
+  "operation": "global.set",
+  "agentId": "claude-code",
+  "changed": true,
+  "dryRun": false,
+  "targets": [
+    {
+      "path": "/home/user/.claude/settings.json",
+      "changed": true,
+      "mode": "0600",
+      "backupPath": "/home/user/.claude/backups/ccset/settings.json.backup.1788458903109"
+    }
+  ],
+  "warnings": [],
+  "exitCode": 0
+}
+```
+
+失败时打印同样的信封，以 `error` 主体代替填充的 targets。`code` 是稳定的机器码，`reason` 是以 i18n 键加参数表示的主要原因，`problems` 列出收集到的全部用法问题：
+
+```json
+{
+  "schemaVersion": 1,
+  "operation": "global.set",
+  "agentId": "claude-code",
+  "dryRun": false,
+  "error": {
+    "code": "usage",
+    "message": "--model 被指定了多次。",
+    "reason": { "code": "error.duplicateOption", "params": { "option": "--model" } },
+    "problems": [{ "code": "error.duplicateOption", "params": { "option": "--model" } }]
+  },
+  "exitCode": 64
+}
+```
+
+### 退出码
+
+| 退出码 | 含义 |
+| --- | --- |
+| 0 | 成功 |
+| 1 | 运行时错误 |
+| 2 | 不是 TTY |
+| 3 | 目标路径权限被拒绝（会指明路径与所需权限） |
+| 4 | 已有文件无法解析（JSON 或 TOML） |
+| 64 | 用法错误：语法错误、未知选项、无效或重复取值、空补丁、缺少 `--agent` |
+| 66 | 未知 Agent |
+| 67 | 该 Agent 不支持所请求的命令 |
+
+在交互式应用中，动作失败不会结束会话：错误是独立的一屏，已输入的内容全部保留，`esc` 返回表单，修复原因后可以重试。只有界面之外发生失败时——启动阶段，或渲染树本身崩溃——退出码才会传给进程。
 
 ### 环境变量
 

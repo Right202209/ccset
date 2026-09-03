@@ -87,6 +87,8 @@ export const zhHans: Record<string, string> = {
   'status.fixHint': '手动应用：{fix}',
   'status.unmanagedNote': '每次保存都会原样保留 {count} 个 ccset 不管理的键。',
   'status.backupsNote': '备份中可能仍含有你已轮换的令牌。',
+  'status.partials': '不完整的副本',
+  'status.partialsNote': '{count} 个不完整的备份存有凭据；“清除 ccset 备份”可删除它们。',
   'status.help': '↑↓ 移动 · enter 选择 · esc 返回',
 
   /* ----------------------------------------------------------------- notes */
@@ -167,6 +169,36 @@ export const zhHans: Record<string, string> = {
   'error.unexpected': '意外失败（{detail}）。',
   'error.unsupportedCodec': '不支持的序列化格式（{codec}）。',
   'error.unknownAgent': '未知 Agent：{id}。',
+  'error.screenTitle': '操作失败',
+  'error.screenHint': '你输入的内容没有丢失 — 返回后重试即可。',
+
+  /* ------------------------------------------------------------ non-interactive */
+  'cmd.flag.dryRun': '显示将要更改的内容但不写入',
+  'cmd.flag.json': '输出机器可读的 JSON',
+  'cmd.flag.replaceInvalid': '用新文件替换无法读取的目标',
+  'cmd.flag.unset': '移除一个字段（可重复）',
+  'output.changed': '已更改：{path}',
+  'output.unchanged': '未更改：{path}',
+  'output.wouldChange': '将更改：{path}',
+  'output.dryRun': '（试运行 — 未写入任何文件）',
+  'warn.replacedInvalid': '用新文件替换无法读取的文件：{path}',
+
+  /* ------------------------------------------------------------- error (new) */
+  'error.unknownCommand': '未知命令：{command}。可用命令：{available}。',
+  'error.agentRequired': '请用 --agent <id> 指定 Agent。',
+  'error.agentNoCommands': '{agent} 没有非交互式命令。',
+  'error.noCommand': '未指定命令。',
+  'error.unknownOption': '未知选项：{option}。',
+  'error.missingValue': '{option} 需要一个值。',
+  'error.duplicateOption': '{option} 被指定了多次。',
+  'error.noValueExpected': '{option} 不接受值。',
+  'error.unexpectedArgument': '多余的参数：{value}。',
+  'error.unknownField': '未知字段：{value}。',
+  'error.requiredField': '缺少必填字段：{option}。',
+  'error.emptyPatch': '未指定字段 — 无事可做。',
+  'error.emptyValue': '{option} 不接受空值 — 请用 --unset 移除。',
+  'error.invalidChoice': '{option} 必须是：{choices} 之一。',
+  'error.conflictSetUnset': '不能同时设置和取消同一字段：{field}。',
 
   /* --------------------------------------------------------------- message */
   'message.continue': 'enter 继续 · esc 返回',

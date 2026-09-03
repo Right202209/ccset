@@ -3,6 +3,7 @@ import { fileExists } from '../../core/json-file.js'
 import { claudeDir, claudeStatePath } from './paths.js'
 import { claudeCodeActions } from './actions.js'
 import { claudeCodeMessages } from './messages.js'
+import { claudeCodeCommands, claudeCodeOperation } from './commands.js'
 
 /**
  * Detection is filesystem-only. Shelling out to `claude --version` would be a
@@ -23,4 +24,6 @@ export const claudeCode: Agent = {
   messages: claudeCodeMessages,
   detect,
   getActions: claudeCodeActions,
+  getCommands: () => claudeCodeCommands,
+  getOperation: claudeCodeOperation,
 }

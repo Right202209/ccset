@@ -42,3 +42,5 @@ export const CONNECTION_TIMEOUT_MS = 10_000
 export const ALLOWED_URL_PROTOCOLS = ['http:', 'https:']
 export const MAX_BACKUP_NAME_ATTEMPTS = 1000
 export const CLEANUP_DAYS_MAX = 36_500
+/** The mode readMode reports when stat fails; presenters hide the line. */
+export const MODE_UNKNOWN = '?'

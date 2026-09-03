@@ -171,6 +171,34 @@ export const en: Record<string, string> = {
   'error.screenTitle': 'Action failed',
   'error.screenHint': 'Nothing you typed was lost — go back and try again.',
 
+  /* ------------------------------------------------------------ non-interactive */
+  'cmd.flag.dryRun': 'Show what would change without writing',
+  'cmd.flag.json': 'Output machine-readable JSON',
+  'cmd.flag.replaceInvalid': 'Replace an unreadable target with a fresh file',
+  'cmd.flag.unset': 'Remove a field (repeatable)',
+  'output.changed': 'Changed: {path}',
+  'output.unchanged': 'Unchanged: {path}',
+  'output.wouldChange': 'Would change: {path}',
+  'output.dryRun': '(dry run — no files were written)',
+  'warn.replacedInvalid': 'Replaces an unreadable file with a fresh file: {path}',
+
+  /* ------------------------------------------------------------- error (new) */
+  'error.unknownCommand': 'Unknown command: {command}. Available: {available}.',
+  'error.agentRequired': 'Specify an agent with --agent <id>.',
+  'error.agentNoCommands': '{agent} has no non-interactive commands.',
+  'error.noCommand': 'No command specified.',
+  'error.unknownOption': 'Unknown option: {option}.',
+  'error.missingValue': '{option} requires a value.',
+  'error.duplicateOption': '{option} was given more than once.',
+  'error.noValueExpected': '{option} does not take a value.',
+  'error.unexpectedArgument': 'Unexpected argument: {value}.',
+  'error.unknownField': 'Unknown field: {value}.',
+  'error.requiredField': 'Missing required field: {option}.',
+  'error.emptyPatch': 'No fields specified — nothing to do.',
+  'error.emptyValue': '{option} does not accept an empty value — remove it with --unset.',
+  'error.invalidChoice': '{option} must be one of: {choices}.',
+  'error.conflictSetUnset': 'Cannot set and unset the same field: {field}.',
+
   /* --------------------------------------------------------------- message */
   'message.continue': 'enter to continue · esc back',
 

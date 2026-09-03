@@ -8,11 +8,13 @@ import {
   CcsetError,
   EXIT_NOT_TTY,
   EXIT_RUNTIME,
+  EXIT_UNKNOWN_AGENT,
   toCcsetError,
 } from './core/errors.js'
 import { resolveHome } from './core/paths.js'
 import { resolveTerminal } from './ui/terminal.js'
 import { resolveLocale, setLocale, t } from './i18n/index.js'
+import { detectSubcommand, runHeadless } from './cli/headless.js'
 import type { Ctx } from './types.js'
 
 const BIN_NAME = 'ccset'
@@ -22,6 +24,11 @@ interface CliOptions {
   agent?: string
 }
 
+/**
+ * Strict on purpose: this parser only ever sees TUI-mode argv. The headless
+ * path hands its own grammar the full argv and never reaches commander, so a
+ * command word is never rejected here as an excess argument.
+ */
 function parseArgs(argv: string[]): CliOptions {
   const program = new Command()
   program
@@ -29,7 +36,6 @@ function parseArgs(argv: string[]): CliOptions {
     .description(t('cli.description'))
     .version(VERSION, '-v, --version')
     .option('--agent <id>', t('cli.agentOption'))
-    .allowExcessArguments(false)
   program.parse(argv)
   return program.opts<CliOptions>()
 }
@@ -57,7 +63,7 @@ function clearScreen(): void {
 function resolveAgentId(requested: string | undefined): string | undefined {
   if (requested === undefined) return undefined
   if (findAgent(requested) === undefined) {
-    fail(new CcsetError('error.unknownAgent', EXIT_RUNTIME, { id: requested }))
+    fail(new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: requested }))
   }
   return requested
 }
@@ -66,6 +72,16 @@ async function main(): Promise<void> {
   // CCSET_LOCALE, like CCSET_HOME and CCSET_ASCII, is read once at this
   // boundary; every string below resolves in the selected locale.
   setLocale(resolveLocale())
+
+  // A command word selects the non-interactive path before commander parses:
+  // the headless grammar owns the full argv, --agent included.
+  const argv = process.argv.slice(2)
+  if (detectSubcommand(argv)) {
+    const ctx: Ctx = { home: resolveHome() }
+    await runHeadless(argv, ctx)
+    return
+  }
+
   const options = parseArgs(process.argv)
   requireTty()
   clearScreen()

@@ -25,6 +25,7 @@
     "verify:i18n-zh": "npm run build && tsup scripts/verify-i18n-zh.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-i18n-zh.js; status=$?; rm -rf .verify; exit $status",
     "verify:provider-safety": "tsup scripts/verify-provider-safety.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-provider-safety.js; status=$?; rm -rf .verify; exit $status",
     "verify:write-safety": "tsup scripts/verify-write-safety.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-write-safety.js; status=$?; rm -rf .verify; exit $status",
+    "verify:noninteractive": "npm run build && tsup scripts/verify-noninteractive.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-noninteractive.js; status=$?; rm -rf .verify; exit $status",
     "verify:ui-render": "tsup scripts/verify-ui-render.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-ui-render.js; status=$?; rm -rf .verify; exit $status",
     "verify:header-path": "tsup scripts/verify-header-path.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-header-path.js; status=$?; rm -rf .verify; exit $status",
     "verify:review-form": "tsup scripts/verify-review-form.tsx --format esm --platform node --out-dir .verify --clean && node .verify/verify-review-form.js; status=$?; rm -rf .verify; exit $status",
@@ -32,7 +33,7 @@
     "verify:malformed-dirty": "npm run build && tsup scripts/verify-malformed-dirty.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-malformed-dirty.js; status=$?; rm -rf .verify; exit $status",
     "verify:status-terminal": "npm run build && tsup scripts/verify-status-terminal.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-status-terminal.js; status=$?; rm -rf .verify; exit $status",
     "verify:release-artifact": "tsup scripts/verify-release-artifact.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-release-artifact.js; status=$?; rm -rf .verify; exit $status",
-    "test": "npm run verify:global-settings && npm run verify:opencode && npm run verify:codex && npm run verify:provider-safety && npm run verify:write-safety && npm run verify:ui-render && npm run verify:header-path && npm run verify:review-form && npm run verify:malformed-dirty && npm run verify:status-terminal && npm run verify:release-artifact",
+    "test": "npm run verify:global-settings && npm run verify:opencode && npm run verify:codex && npm run verify:provider-safety && npm run verify:write-safety && npm run verify:noninteractive && npm run verify:ui-render && npm run verify:header-path && npm run verify:review-form && npm run verify:malformed-dirty && npm run verify:status-terminal && npm run verify:release-artifact",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

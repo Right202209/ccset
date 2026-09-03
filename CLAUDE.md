@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is eleven
+There is no lint script and no unit-test framework. The test suite is fourteen
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -26,15 +26,19 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:codex` | C1-C9 for the third agent, plus the TOML codec and a screen walk. Round-trip fidelity over a 13-document corpus, formatting survival across an edit, the credential sidecars, the switch-and-adopt flow, and that every i18n key the module's screens reach resolves |
 | `npm run verify:provider-safety` | D7, D9: nested unmanaged provider keys, 10-backup pruning per file, masking, token absence from error paths |
 | `npm run verify:write-safety` | D4-D6, E3: `~/.claude.json` left untouched, created-when-absent, SIGKILL mid-save, read-only target exits `3` |
+| `npm run verify:noninteractive` | M3.1 N1-N8: crosses both non-interactive seams — the operation entry point in-process and the spawned CLI — covering preservation, deletion, dry-run, no-op, the JSON envelope shape, exit codes 0/2/4/64/66/67, and `--replace-invalid` recovery |
 | `npm run verify:ui-render` | The interface itself: renders the component tree via `ink-testing-library`, drives the whole scenario once per glyph set, and asserts masked tokens, singular focus, and printable ASCII on every ASCII Rendered paint. Also covers the agent-selection screen and runs the viewport scenarios |
 | `npm run verify:header-path` | The header's navigation path: segments accumulate on push, drop on back, and elide from the front when they outrun the terminal width |
 | `npm run verify:review-form` | The review form's row treatment: focus, changed markers, hints, Advanced toggle, `ctrl+s` |
+| `npm run verify:error-recovery` | F11, F12: task errors recover as a stacked Screen (form values kept), partial backups surfaced in Status and removed by Clear; skipped under root/win32 for the permission drive |
 | `npm run verify:malformed-dirty` | T6, T9: malformed-target confirm flow and unsaved-edits prompt, driven through a real PTY |
 | `npm run verify:status-terminal` | Status listing/refresh, narrow-terminal layout, `--version` and non-TTY exit `2` |
 | `npm run verify:release-artifact` | Packs a tarball, installs it into a temp project, checks contents/bin/shebang/mode |
+| `npm run verify:i18n-zh` | zh-Hans catalog parity (key-for-key, placeholder-for-placeholder), locale selection normalization, registration guards, rendered paint, and the non-TTY boundary in both locales |
 
-`verify:malformed-dirty`, `verify:status-terminal`, and `verify:release-artifact` build
-first, so they exercise `dist/cli.js`, not `src/`. The rest import `src/` directly.
+`verify:malformed-dirty`, `verify:status-terminal`, `verify:release-artifact`,
+`verify:i18n-zh`, and `verify:noninteractive` build first, so they exercise
+`dist/cli.js`, not `src/`. The rest import `src/` directly.
 
 Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends keys, reads
 Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
