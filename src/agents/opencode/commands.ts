@@ -1,5 +1,6 @@
-import { jsonFile } from '../../core/json-file.js'
-import type { ManagedWrite } from '../../core/merge.js'
+import { ValidationError } from '../../core/errors.js'
+import { isPlainObject, jsonFile } from '../../core/json-file.js'
+import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
 import type {
   CommandDeclaration,
@@ -7,8 +8,20 @@ import type {
   OperationRequest,
   OperationResult,
 } from '../../operations/types.js'
-import type { Ctx } from '../../types.js'
-import { GLOBAL_FIELDS } from './manifest.js'
+import type { Ctx, JsonObject } from '../../types.js'
+import { validateBaseUrl, validateOptionalPositiveInt } from '../../core/validate.js'
+import {
+  GLOBAL_FIELDS,
+  providerApiKeyPath,
+  providerBaseUrlPath,
+  providerModelPath,
+  providerModelsPath,
+  providerNamePath,
+  providerNpmPath,
+  providerPath,
+  providerTimeoutPath,
+  validateProviderId,
+} from './manifest.js'
 import { backupsDir, opencodeConfigPath } from './paths.js'
 import {
   opencodeStatusFindings,
@@ -112,6 +125,114 @@ async function runStatus(ctx: Ctx, request: OperationRequest): Promise<Operation
   }
 }
 
+/* ---------------------------------------------------------- provider set */
+
+const PROVIDER_COMMAND_FIELDS: CommandFieldSpec[] = [
+  { id: 'displayName', option: '--display-name', type: 'text', unsettable: true },
+  { id: 'baseUrl', option: '--base-url', type: 'text', validate: validateBaseUrl },
+  { id: 'npm', option: '--npm', type: 'text', unsettable: true },
+  { id: 'models', option: '--model', type: 'list', unsettable: true },
+  {
+    id: 'timeout',
+    option: '--timeout',
+    type: 'int',
+    validate: validateOptionalPositiveInt,
+    unsettable: true,
+  },
+]
+
+/**
+ * The models map merges per key, never wholesale: a model id already on disk
+ * is left untouched with its unmanaged options, a new one is added as an
+ * empty object, and one the user dropped is deleted. Writing the map outright
+ * would silently discard per-model settings.
+ */
+function modelWrites(id: string, wanted: string[], base: JsonObject): ManagedWrite[] {
+  const current = modelIdsOnDisk(base, id)
+  const writes: ManagedWrite[] = []
+  for (const modelId of wanted) {
+    if (!current.includes(modelId)) writes.push({ path: providerModelPath(id, modelId), value: {} })
+  }
+  for (const modelId of current) {
+    if (!wanted.includes(modelId)) writes.push({ path: providerModelPath(id, modelId), value: undefined })
+  }
+  return writes
+}
+
+function modelIdsOnDisk(base: JsonObject, id: string): string[] {
+  const models = getPath(base, providerModelsPath(id))
+  return isPlainObject(models) ? Object.keys(models).sort() : []
+}
+
+function providerPatchWrites(request: OperationRequest, base: JsonObject): ManagedWrite[] {
+  const id = request.providerId ?? ''
+  const writes: ManagedWrite[] = []
+  for (const field of PROVIDER_COMMAND_FIELDS) {
+    if (field.id === 'models') continue
+    const path = providerFieldPath(field.id, id)
+    if (path === undefined) continue
+    if (request.unsets.includes(field.id)) {
+      writes.push({ path, value: undefined })
+      continue
+    }
+    const value = request.patch[field.id]
+    if (value !== undefined) {
+      writes.push({ path, value: field.id === 'timeout' ? Number(value) : String(value) })
+    }
+  }
+  if (request.unsets.includes('models')) {
+    writes.push({ path: providerModelsPath(id), value: undefined })
+    return writes
+  }
+  const models = request.patch['models']
+  if (models !== undefined) {
+    const wanted = [...new Set(Array.isArray(models) ? models : [String(models)])]
+    writes.push(...modelWrites(id, wanted, base))
+  }
+  return writes
+}
+
+function providerFieldPath(fieldId: string, id: string): string[] | undefined {
+  const byId: Record<string, string[]> = {
+    displayName: providerNamePath(id),
+    baseUrl: providerBaseUrlPath(id),
+    npm: providerNpmPath(id),
+    timeout: providerTimeoutPath(id),
+  }
+  return byId[fieldId]
+}
+
+async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
+  const id = request.providerId ?? ''
+  const target = opencodeConfigPath(ctx.home)
+  const file = jsonFile(target)
+  const base = await readPatchBase(file, request.replaceInvalid)
+  const block = getPath(base.data, providerPath(id))
+  if (!base.exists || !isPlainObject(block)) {
+    if (typeof request.patch['baseUrl'] !== 'string') {
+      throw new ValidationError('opencode.validate.providerBaseUrlRequired', { name: id })
+    }
+    if (request.secret === undefined) {
+      throw new ValidationError('opencode.validate.providerTokenRequired', { name: id })
+    }
+  }
+  const writes = providerPatchWrites(request, base.data)
+  if (request.secret !== undefined) writes.push({ path: providerApiKeyPath(id), value: request.secret })
+  const outcome = await applyPlan(
+    planTargets([{ file, base, writes, backupsDir: backupsDir(ctx.home) }]),
+    { dryRun: request.dryRun, skipUnchanged: true },
+  )
+  return {
+    agent: 'opencode',
+    operation: 'provider.set',
+    providerId: id,
+    changed: outcome.changed,
+    dryRun: request.dryRun,
+    targets: outcome.records,
+    warnings: [],
+  }
+}
+
 export const opencodeCommands: CommandDeclaration[] = [
   {
     id: 'global.set',
@@ -120,6 +241,17 @@ export const opencodeCommands: CommandDeclaration[] = [
     replaceable: true,
     presentation: { successTitleKey: () => 'write.globalSaved' },
     run: runGlobalSet,
+  },
+  {
+    id: 'provider.set',
+    argument: 'providerId',
+    fields: PROVIDER_COMMAND_FIELDS,
+    takesSecret: true,
+    replaceable: true,
+    patchRequired: true,
+    validateArgument: validateProviderId,
+    presentation: { successTitleKey: () => 'opencode.write.providerSaved' },
+    run: runProviderSet,
   },
   {
     id: 'status',
