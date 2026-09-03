@@ -9,7 +9,7 @@ import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { commitOne } from '../../operations/commit.js'
 import { listNamedFiles } from '../../core/paths.js'
 import { jsonToText } from '../../core/values.js'
-import { AUTH_API_KEY, AUTH_MODE_API_KEY, AUTH_MODE_KEY } from './constants.js'
+import { AUTH_API_KEY, AUTH_MODE_API_KEY, AUTH_MODE_KEY, AUTH_STORE_KEY, AUTH_STORE_KEYRING } from './constants.js'
 import { authProfileName, authProfilePath, backupsDir, codexAuthPath, codexDir } from './paths.js'
 
 /**
@@ -31,6 +31,15 @@ export interface AuthProfile {
   authMode: string
   /** False when the sidecar exists but is not readable JSON. */
   readable: boolean
+}
+
+/**
+ * Codex keeps its credential in the OS keyring when this config.toml key says
+ * `keyring` -- in which case it never reads auth.json, and every profile ccset
+ * can offer would be ignored. Status reports it; provider use refuses.
+ */
+export function keyringInUseIn(data: JsonObject): boolean {
+  return jsonToText(getPath(data, AUTH_STORE_KEY)) === AUTH_STORE_KEYRING
 }
 
 export interface AuthState {
