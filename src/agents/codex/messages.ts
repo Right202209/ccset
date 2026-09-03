@@ -69,6 +69,13 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.status.noBaseUrl': 'No base_url in this table.',
     'codex.status.noAmbientAuth':
       'requires_openai_auth is not set, so Codex will not read auth.json for this provider.',
+    'codex.warning.noBaseUrl': 'Provider {name} has no base_url.',
+    'codex.warning.noAmbientAuth':
+      'Provider {name} does not set requires_openai_auth, so Codex will not read auth.json for it.',
+    'codex.warning.keyringStore':
+      'Codex keeps credentials in the OS keyring, so it does not read auth.json; saved profiles have no effect.',
+    'codex.warning.homeOverride':
+      'CODEX_HOME is set to {path}; Codex reads its config from there, while ccset writes under the home this run was given.',
     'codex.status.noProfileFor':
       'No saved credential for {id}. Edit the provider and enter its API key first.',
     'codex.status.authTitle': 'Live credential',
@@ -181,6 +188,12 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.status.noProviders': '此文件中没有 [model_providers] 表。',
     'codex.status.noBaseUrl': '此表中没有 base_url。',
     'codex.status.noAmbientAuth': '未设置 requires_openai_auth，因此 Codex 不会为该提供商读取 auth.json。',
+    'codex.warning.noBaseUrl': 'Provider {name} 没有设置 base_url。',
+    'codex.warning.noAmbientAuth': 'Provider {name} 未设置 requires_openai_auth，因此 Codex 不会为它读取 auth.json。',
+    'codex.warning.keyringStore':
+      'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；已保存的凭据配置不会生效。',
+    'codex.warning.homeOverride':
+      '已设置 CODEX_HOME 为 {path}；Codex 从那里读取配置，而 ccset 写入的是本次运行指定的主目录。',
     'codex.status.noProfileFor': '{id} 没有已保存的凭据。请先编辑该提供商并填入它的 API 密钥。',
     'codex.status.authTitle': '当前凭据',
     'codex.status.authMode': '认证方式',
