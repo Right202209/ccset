@@ -1,5 +1,13 @@
-import { configFile, readConfigFile } from '../../core/config-file.js'
-import { ValidationError } from '../../core/errors.js'
+import { configFile, readConfigFile, type LoadedConfig } from '../../core/config-file.js'
+import { FILE_MODE } from '../../core/constants.js'
+import {
+  CcsetError,
+  EXIT_RUNTIME,
+  EXIT_USAGE,
+  PartialCommitError,
+  toCcsetError,
+  ValidationError,
+} from '../../core/errors.js'
 import { isPlainObject, readMode } from '../../core/json-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
@@ -9,10 +17,11 @@ import type {
   Finding,
   OperationRequest,
   OperationResult,
+  TargetRecord,
 } from '../../operations/types.js'
 import type { Ctx, JsonObject } from '../../types.js'
-import { validateBaseUrl, validateOptionalPositiveInt } from '../../core/validate.js'
-import { keyringInUseIn, authProfileWrites } from './auth.js'
+import { makeKeyNameValidator, validateBaseUrl, validateOptionalPositiveInt } from '../../core/validate.js'
+import { activateAuthProfile, keyringInUseIn, authProfileWrites, loadAuthState } from './auth.js'
 import {
   APPROVAL_NEVER,
   APPROVAL_ON_REQUEST,
@@ -30,12 +39,13 @@ import { codexConfigFile } from './global.js'
 import {
   GLOBAL_FIELDS,
   INTEGER_FIELD_IDS,
+  MODEL_PROVIDER_PATH,
   PROVIDER_KEYS,
   providerKeyPath,
   providerPath,
   validateProviderId,
 } from './manifest.js'
-import { authProfilePath, backupsDir, codexHomeOverride } from './paths.js'
+import { authProfilePath, backupsDir, codexAuthPath, codexConfigPath, codexHomeOverride } from './paths.js'
 import {
   codexStatusFindings,
   presentCodexStatus,
@@ -295,6 +305,119 @@ async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<Oper
   }
 }
 
+/* --------------------------------------------------------- provider use */
+
+const USE_COMMAND_FIELDS: CommandFieldSpec[] = [
+  { id: 'adoptCurrentAs', option: '--adopt-current-as', type: 'text' },
+  { id: 'replaceCurrentAuth', option: '--replace-current-auth', type: 'flag' },
+]
+
+function modeAfterWrite(): string {
+  return `0${FILE_MODE.toString(8)}`
+}
+
+/**
+ * The live credential is only "known" when its bytes are one of the saved
+ * profiles. An unknown live credential may not be discarded silently: the
+ * invocation has to adopt it as a new profile or own its replacement.
+ */
+function adoptChoiceOf(request: OperationRequest): { adoptAs: string | null; replaceCurrent: boolean } {
+  const raw = request.patch['adoptCurrentAs']
+  const adoptAs = typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : null
+  const replaceCurrent = request.patch['replaceCurrentAuth'] === true
+  if (adoptAs !== null && replaceCurrent) {
+    throw new CcsetError('codex.validate.adoptOrReplace', EXIT_USAGE)
+  }
+  return { adoptAs, replaceCurrent }
+}
+
+async function runProviderUse(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
+  const id = request.providerId ?? ''
+  // Preflight, in order, before any rename or copy: the profile must exist and
+  // parse, the document must be readable, and an environment that would make
+  // the switch a no-op is refused rather than papered over with a warning.
+  const auth = await loadAuthState(ctx)
+  const profile = auth.profiles.find((candidate) => candidate.name === id)
+  if (profile === undefined) {
+    throw new ValidationError('codex.status.noProfileFor', { id })
+  }
+  // A profile that does not parse is never activated wholesale (exit 4).
+  await readConfigFile(configFile(profile.path, 'json'))
+  const file = codexConfigFile(ctx.home)
+  const configBase: LoadedConfig = await readConfigFile(file)
+  if (keyringInUseIn(configBase.data)) {
+    throw new CcsetError('codex.error.keyringUnsupported', EXIT_RUNTIME)
+  }
+  const override = codexHomeOverride(ctx.home)
+  if (override !== null) {
+    throw new CcsetError('codex.error.homeOverrideUnsupported', EXIT_RUNTIME, { path: override })
+  }
+  const { adoptAs, replaceCurrent } = adoptChoiceOf(request)
+  const conflicted = auth.exists && auth.activeName === null
+  if (conflicted && adoptAs === null && !replaceCurrent) {
+    throw new ValidationError('codex.validate.conflictNeedsChoice', { path: auth.path })
+  }
+  if (adoptAs !== null) {
+    const problem = makeKeyNameValidator(auth.profiles.map((candidate) => candidate.name))(adoptAs)
+    if (problem !== null) throw new ValidationError(problem, { name: adoptAs })
+  }
+  const authChanged = !(auth.exists && auth.activeName === id)
+  const outcome = await applyPlan(
+    planTargets([
+      {
+        file,
+        base: configBase,
+        writes: [{ path: MODEL_PROVIDER_PATH, value: id }],
+        backupsDir: backupsDir(ctx.home),
+      },
+    ]),
+    { dryRun: request.dryRun, skipUnchanged: true },
+  )
+  const targets: TargetRecord[] = [...outcome.records]
+  if (authChanged) {
+    const authPath = codexAuthPath(ctx.home)
+    if (request.dryRun) {
+      targets.push({
+        path: authPath,
+        mode: auth.exists ? await readMode(authPath) : modeAfterWrite(),
+        backupPath: null,
+        changed: true,
+      })
+    } else {
+      let report
+      try {
+        report = await activateAuthProfile(ctx, id, conflicted && adoptAs !== null ? adoptAs : null)
+      } catch (err) {
+        // Routing already landed; the envelope has to say so.
+        throw new PartialCommitError(outcome.records, toCcsetError(err))
+      }
+      if (report.adoptedPath !== null) {
+        targets.push({
+          path: report.adoptedPath,
+          mode: await readMode(report.adoptedPath),
+          backupPath: null,
+          changed: true,
+        })
+      }
+      targets.push({
+        path: report.authPath,
+        mode: await readMode(report.authPath),
+        backupPath: report.backupPath,
+        changed: true,
+      })
+    }
+  }
+  return {
+    agent: 'codex',
+    operation: 'provider.use',
+    providerId: id,
+    changed: outcome.changed || authChanged,
+    dryRun: request.dryRun,
+    targets,
+    warnings: [],
+  }
+}
+
 export const codexCommands: CommandDeclaration[] = [
   {
     id: 'global.set',
@@ -314,6 +437,14 @@ export const codexCommands: CommandDeclaration[] = [
     validateArgument: validateProviderId,
     presentation: { successTitleKey: () => 'codex.write.providerSaved' },
     run: runProviderSet,
+  },
+  {
+    id: 'provider.use',
+    argument: 'providerId',
+    fields: USE_COMMAND_FIELDS,
+    validateArgument: validateProviderId,
+    presentation: { successTitleKey: () => 'codex.write.switched' },
+    run: runProviderUse,
   },
   {
     id: 'status',

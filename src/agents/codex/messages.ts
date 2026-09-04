@@ -129,6 +129,16 @@ export const codexMessages: Record<string, Record<string, string>> = {
       'This deletes the saved credential for {id}. The provider block in config.toml is left alone.',
     'codex.confirm.remove': 'Delete the credential',
 
+    /* --------------------------------------------------------------- errors */
+    'codex.error.keyringUnsupported':
+      'Codex keeps credentials in the OS keyring, so it does not read auth.json; switching a profile would change nothing.',
+    'codex.error.homeOverrideUnsupported':
+      'CODEX_HOME points Codex at {path}; switching here would not be the switch Codex sees.',
+    'codex.validate.conflictNeedsChoice':
+      'auth.json holds a credential that is not one of the saved profiles; pass --adopt-current-as or --replace-current-auth to keep or discard it.',
+    'codex.validate.adoptOrReplace':
+      'Pass only one of --adopt-current-as and --replace-current-auth.',
+
     /* ------------------------------------------------------------------ busy */
     'codex.busy.switching': 'Switching to {id}…',
   },
@@ -243,6 +253,16 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.confirm.switch': '切换到它',
     'codex.confirm.removeProfile': '这将删除 {id} 的已保存凭据。config.toml 中的提供商配置块不受影响。',
     'codex.confirm.remove': '删除凭据',
+
+    /* --------------------------------------------------------------- errors */
+    'codex.error.keyringUnsupported':
+      'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；在这里切换凭据配置不会产生任何效果。',
+    'codex.error.homeOverrideUnsupported':
+      'CODEX_HOME 指向 {path}；在这里切换并不是 Codex 实际看到的切换。',
+    'codex.validate.conflictNeedsChoice':
+      'auth.json 中的凭据不属于任何已保存的凭据配置；请传 --adopt-current-as 保留，或 --replace-current-auth 丢弃。',
+    'codex.validate.adoptOrReplace':
+      '--adopt-current-as 与 --replace-current-auth 只能传一个。',
 
     /* ------------------------------------------------------------------ busy */
     'codex.busy.switching': '正在切换到 {id}…',
