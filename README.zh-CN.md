@@ -2,11 +2,11 @@
 
 [English](README.md) | 中文说明
 
-一个用于正确写入编程 Agent 设置文件的终端界面工具。
+一个用于正确写入编程 Agent 设置文件的终端界面工具，也是一条可脚本化的命令行。
 
 将编程 Agent 指向第三方 API 端点时，手动编辑 JSON 容易因字段名拼写错误而导致配置静默失效。ccset 会生成和编辑这些文件，并显示磁盘上已有的配置。
 
-目前支持三个 Agent：**Claude Code**、**opencode** 和 **Codex CLI**。ccset 会询问你要配置哪一个，也可以用 `--agent <id>` 指定。
+目前支持三个 Agent：**Claude Code**、**opencode** 和 **Codex CLI**。ccset 会询问你要配置哪一个，可以用 `--agent <id>` 指定，也可以无界面地执行单条命令——见 [命令行](#cli)。
 
 **ccset 只生成配置，不会启用配置。** 对 Claude Code，启用时请运行 `claude --settings <path>`，每次成功写入后 ccset 都会打印该命令。opencode 和 Codex 在启动时自行读取配置文件，无需启用命令——ccset 会如实说明，而不是编造一条命令。
 
@@ -85,14 +85,47 @@ Codex 没有 Test connection：ccset 内置的探测请求是 Anthropic 形态�
 ## CLI
 
 ```text
-ccset [--agent <id>]
-  -v, --version
-  -h, --help
+ccset [--agent <id>]             # 交互式界面
+ccset --agent <id> <command> …   # 单条操作，无界面
+ccset -v | --version | -h | --help
 ```
 
-`--agent` 可取 `claude-code`、`opencode` 或 `codex`，指定后会跳过 Agent 选择界面。
+`--agent` 可取 `claude-code`、`opencode` 或 `codex`。不带命令时启动交互式界面；通过管道或在 CI 中运行时会提示并以退出码 `2` 退出，不会向日志输出控制序列。带命令时以无界面方式执行：默认输出面向人的行式报告，加 `--json` 则在 stdout 输出一份 JSON 信封。
 
-这是交互式工具。通过管道或在 CI 中运行时会提示并以退出码 `2` 退出。
+### 命令
+
+| Agent | 命令 |
+| --- | --- |
+| `claude-code` | `status` · `global set` · `provider set <id>` · `state init` |
+| `opencode` | `status` · `global set` · `provider set <id>` |
+| `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
+
+`status` 只读取，不写入。各 `set` 命令只修补你给出的字段：省略的字段保留磁盘值，`--unset <field>` 显式删除一项，受管键周围的非受管键逐字节保留——在 Codex 的 `config.toml` 中连注释、空行和键顺序一起保留。ccset 写入的任何内容都不会启用提供商：Claude Code 等你运行 `claude --settings`，Codex 等你执行 `provider use`，opencode 在启动时自行读取配置。`state init` 在 Claude Code 的 `~/.claude.json` 不存在时创建它，否则原样保留。
+
+各命令共享的选项：
+
+| 选项 | 作用 |
+| --- | --- |
+| `--json` | 在 stdout 输出一份 JSON 信封，代替面向人的行式输出 |
+| `--dry-run` | 读取、校验并计划；不备份，不写入 |
+| `--unset <field>` | 显式删除一个字段；绝不隐式推断删除 |
+| `--replace-invalid` | 确认替换已无法解析的目标；先备份无法读取的原文件 |
+| `--token-stdin` | 从 stdin 读取 API 密钥 |
+
+密钥只能通过 `CCSET_TOKEN` 或 `--token-stdin` 进入 ccset——绝不允许作为选项、位置参数或文件，这些都会被拒绝为用法错误——并且只会写进该 provider 自己的目标：Claude Code 的 provider 文件、opencode 对应配置块的 `options.apiKey`、Codex 的 `auth.<id>.json` 旁路文件。它绝不会被打印——不在面向人的输出里，不在 JSON 信封里，也不在错误、警告或备份里。
+
+关于 Codex 的细节：`provider set` 每次保存都会重新断言 `wire_api = "responses"` 与 `requires_openai_auth = true`，并把密钥写入 `auth.<id>.json`——绝不写入 `config.toml`，也绝不碰在用的 `auth.json`。`provider use` 会把指定凭据配置复制为 `auth.json` 并在同一操作中移动 `model_provider`，先提交路由。如果 `auth.json` 中已有不属于任何已保存凭据配置的内容，切换会被拒绝，直到你传且只传 `--adopt-current-as <name>`（把它保存为新的可切换配置）或 `--replace-current-auth`（丢弃——无论如何都会先备份）。
+
+| 退出码 | 含义 |
+| --- | --- |
+| 0 | 成功 |
+| 1 | 运行时错误——被拒绝的操作，或无法如实执行该操作的环境 |
+| 2 | 非 TTY（仅交互模式） |
+| 3 | 目标路径权限不足（会指出路径与所需模式） |
+| 4 | 已有文件无法解析（JSON 或 TOML） |
+| 64 | 用法错误——未知字段或选项、非法值、空补丁 |
+| 65 | 未知 Agent id |
+| 66 | 该 Agent 不支持的命令 |
 
 ### 环境变量
 

@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is eleven
+There is no lint script and no unit-test framework. The test suite is twenty
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -31,6 +31,14 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:review-form` | The review form's row treatment: focus, changed markers, hints, Advanced toggle, `ctrl+s` |
 | `npm run verify:malformed-dirty` | T6, T9: malformed-target confirm flow and unsaved-edits prompt, driven through a real PTY |
 | `npm run verify:status-terminal` | Status listing/refresh, narrow-terminal layout, `--version` and non-TTY exit `2` |
+| `npm run verify:commands` | M3.1: the Non-interactive seam — parser/exit codes, preservation, deletion, dry-run, no-op, recovery, output, through `dist/cli.js` |
+| `npm run verify:commands-status` | M3.2: status DTOs over the seam — secret-free payloads, findings, parse failures holding exit 4 with readable sections shipping |
+| `npm run verify:commands-secret` | M3.3: every Secret source and rejection (argv/file are refusals), omission preserving disk values, masking on every output surface |
+| `npm run verify:commands-opencode` | M3.4: opencode status + global set — four-level preservation, boolean/list semantics, the JSONC finding |
+| `npm run verify:commands-opencode-provider` | M3.5: opencode provider set — per-key `models` merge, secret landing in the named block only, new-provider refusals, malformed recovery |
+| `npm run verify:commands-codex` | M3.6: codex status + global set over the TOML codec — byte preservation, integer typing, keyring/CODEX_HOME findings, backed-up replacement |
+| `npm run verify:commands-codex-provider` | M3.7: codex provider set — invariant re-assertion, sidecar preservation, live `auth.json` untouched, preflighted refusals |
+| `npm run verify:commands-codex-use` | M3.8: codex provider use — commit order, adoption/replacement choice, idempotence, unsupported environments, partial report |
 | `npm run verify:release-artifact` | Packs a tarball, installs it into a temp project, checks contents/bin/shebang/mode |
 
 `verify:malformed-dirty`, `verify:status-terminal`, and `verify:release-artifact` build

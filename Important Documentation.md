@@ -1335,3 +1335,70 @@ question retryable rather than one-shot.
 **All twelve gates pass** on Linux x64, Node 20.19.5, together with typecheck,
 build and the release-artifact gate. Every touched file is inside the
 300-line limit.
+
+### 9.33 Milestone 3: Non-interactive execution (2026-09-04)
+
+Shipped on `feat/m3-non-interactive` (commits `8e93b11`, `6c2b642`, `b9034a0`,
+`d893def`, `4262ab6`, `6ac92c8`+`34e09e4`, `1c97578`, `9e738b0`) against issue
+#47 and its tracer-bullet children #48–#56. The milestone adds a headless
+command mode, `ccset --agent <id> <command>`, over a shared operation seam
+(`src/operations/`): a pure parser that normalizes argv against declarations
+each agent module owns, opaque `Secret` handling sourced only from
+`CCSET_TOKEN` or `--token-stdin`, a plan/apply commit core with per-target
+backup, atomic `0600` writes, no-op detection and partial reporting, and a
+single-schema JSON envelope (`--json`).
+
+**The command surface.** claude-code: `status`, `global set`, `provider set`,
+`state init`. opencode: `status`, `global set`, `provider set` with per-key
+`models` merge. codex: `status`, `global set` over the format-preserving TOML
+codec, `provider set` asserting the `wire_api`/`requires_openai_auth`
+invariants and writing the `auth.<id>.json` sidecar, and `provider use` with
+explicit credential-conflict resolution (`--adopt-current-as` /
+`--replace-current-auth`), routing-before-auth ordering, and a partial report
+naming what already landed. The interactive screens keep their own flows; both
+surfaces call the same load, merge, backup and activation primitives.
+
+**Eight gates cover the seam** — `verify:commands`, `verify:commands-status`,
+`verify:commands-secret`, `verify:commands-opencode`,
+`verify:commands-opencode-provider`, `verify:commands-codex`,
+`verify:commands-codex-provider`, `verify:commands-codex-use` — all bundled and
+run through `dist/cli.js` with a scratch `CCSET_HOME` (the process seam, not a
+reimplementation). Each was shown to fail under deliberate mutations before its
+sub-ticket was committed:
+
+| Gate | Mutation evidence |
+| --- | --- |
+| `verify:commands` | dry-run records, backups, preservation, exit-code mapping |
+| `verify:commands-status` | secret-leak, exit-code mapping |
+| `verify:commands-secret` | padded-rule acceptance, dropped secret |
+| `verify:commands-opencode` | boolean conversion, two-layer secret leak |
+| `verify:commands-opencode-provider` | wholesale model-map write, secret leak, unmanaged-sibling loss |
+| `verify:commands-codex` | empty-base rebuild (comment loss), string-typed integer, wrong warning code |
+| `verify:commands-codex-provider` | live-auth touch, dropped invariant |
+| `verify:commands-codex-use` | order swap, conflict bypass, idempotence churn, partial-report loss, dropped adoption |
+
+**Secret absence is asserted, not claimed.** The secret fixtures prove the key
+never appears in argv (options that would carry it are usage refusals before
+any read), stdout, stderr, the JSON envelope, error findings, or warnings — for
+human and `--json` runs alike, on success and refusal paths
+(`verify:commands-secret`, `verify:commands-opencode-provider`,
+`verify:commands-codex-provider`, `verify:commands-codex-use`). A dry run
+creates no backup, so no copy of a secret can hide in the backups directory
+either.
+
+**Interactive gates stay green.** The no-subcommand TUI guard still exits `2`
+with no ANSI through a pipe (asserted by `verify:status-terminal` and by the
+CI runtime smoke on every leg), and the form, malformed-config, viewport and
+release-artifact gates are unchanged and passing.
+
+**Platform evidence.** The full suite passes on Linux x64, Node 20.19.5
+(2026-09-04, this register). CI (`ci.yml`) runs `npm test` on `ubuntu-latest`
+and `macos-latest`; the `windows-latest` leg builds, runs the `--version` /
+non-TTY smoke and packs, which follows the standing policy recorded in §9.27 —
+the PTY-driven interactive gates have no Windows leg, and the command gates
+ride the same suite gate rather than a separate one. POSIX modes are asserted
+on every write target (`0600`) by the command gates. Windows Terminal /
+PowerShell interactive scenarios and a Windows run of the command suite remain
+explicit best-effort gaps, unchanged from §9.28.
+
+**Residual release blockers:** none recorded as of this date.
