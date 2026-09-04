@@ -75,10 +75,33 @@ export function sameLineCommentEnd(text: string, from: number): number | null {
   return null
 }
 
+/** A comma on the same line as `from`, over spaces and tabs -- the separator
+ *  a trailing comment may sit in front of. Null when the line ends first. */
+export function commaOnLine(text: string, from: number): number | null {
+  let i = from
+  while (text.charAt(i) === ' ' || text.charAt(i) === '\t') i += 1
+  return text.charAt(i) === ',' ? i : null
+}
+
+/** Start of the line break at `index` -- `\r\n` starts at its carriage
+ *  return. `index` itself when no break is there. */
+export function lineBreakStart(text: string, index: number): number {
+  if (text.startsWith('\r\n', index)) return index
+  if (text.charAt(index) === '\n' && text.charAt(index - 1) === '\r') return index - 1
+  return index
+}
+
 /**
- * The document's line break, by majority of the first break found. A document
- * is overwhelmingly written in one style; inserted lines follow it.
+ * The document's line break, by majority: a document is overwhelmingly
+ * written in one style, and inserted lines follow the style most of the
+ * document uses. A tie goes to LF.
  */
 export function detectEol(text: string): '\r\n' | '\n' {
-  return text.includes('\r\n') ? '\r\n' : '\n'
+  let crlf = 0
+  let lf = 0
+  for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) {
+    if (text.charAt(i - 1) === '\r') crlf += 1
+    else lf += 1
+  }
+  return crlf > lf ? '\r\n' : '\n'
 }

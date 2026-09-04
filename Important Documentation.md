@@ -1431,3 +1431,40 @@ opencode with distinguishing keys in each file — has not been run; the
 research is source-level evidence, and the U6 row stays open until it is.
 `tui.json`/`tui.jsonc`, project-level `.opencode` directories, and remote
 config are untouched, per the spec's out-of-scope list.
+
+### 9.34 Post-review fix: duplicate keys in the JSONC codec (2026-09-04)
+
+A review pass executed the codec on documents the §9.33 corpus never held and
+found the rule stated there — duplicate keys read last-wins and the last
+occurrence is the one edited — only half-true in the code: the leaf lookup
+took the last duplicate, but the intermediate walk used
+`findNodeAtLocation`, which stops at the first. On
+`{"a":{"x":1},"a":{"y":2}}` a set of `a.b` landed in the first `a` while
+reads resolved the last, so the save silently missed; and a delete of `a.x`
+emptied the first `a`, then removed the last one — the live `{"y":2}` was
+destroyed. Two smaller probes: an insert spliced in front of a trailing
+comment on the last property, relocating the comment onto the new key's
+line; and `detectEol` returned CRLF when a single `\r\n` appeared anywhere,
+while its comment claimed a majority.
+
+**The fix.** Path resolution now takes the last duplicate at every level
+(`lastNodeAtPath` over property nodes; `findNodeAtLocation` is gone from the
+editor), so an edit touches exactly the document a read sees. Delete walks
+the live chain repeatedly until no occurrence of the key remains — a
+shadowed duplicate cannot resurrect the deleted value — and collapses only
+containers the delete actually emptied. Insert puts the separator in front
+of a trailing comment (reusing the document's own comma when one follows the
+comment) and places the new property after it, so the comment never changes
+lines. `detectEol` counts line breaks and follows the majority, tie to LF,
+which is what its comment now says.
+
+**Coverage.** The corpus gained a duplicate-key document (a shadowed
+`model`, duplicate `provider` objects) driven by a tweak path through the
+duplicated intermediate, with the replace expectation resolved last-match
+like the codec's walk; the read, insert and delete gates gained the probe
+cases above with byte-exact expectations — including the byte-faithful
+spacing an inline delete leaves behind. Mutation check: reverting the walk
+to first-match turns the corpus gate red (CAUGHT — "a replacement in
+duplicateKeys disturbed bytes it does not own"). The full `npm test` chain
+and typecheck pass on Node 20.19.5, and every touched file stays inside the
+300-line limit.

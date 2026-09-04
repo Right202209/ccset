@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { findNodeAtLocation, parseTree } from 'jsonc-parser'
+import { parseTree, type Node } from 'jsonc-parser'
 import { applyJsoncWrites, findJsoncProblem, readJsoncObject } from '../src/core/jsonc/index.js'
 import type { JsonObject, JsonValue } from '../src/types.js'
 
@@ -27,6 +27,8 @@ const CORPUS: Record<string, string> = {
   escapedStrings:
     '{\n  "url": "https://example.com/#frag",\n  "esc": "tab\\there \\"quoted\\" \\\\ ok",\n  "uni": "\\u00e9",\n  "tweak": 1\n}\n',
   schemaSeed: '{\n  "$schema": "https://opencode.ai/config.json"\n}\n',
+  duplicateKeys:
+    '{\n  // a shadowed duplicate: JSON reads the last one, edits land there\n  "model": "stale/first",\n  "model": "router/claude-sonnet-5",\n  "tweak": 1,\n  "provider": { "router": { "name": "First" } },\n  "provider": { "router": { "npm": "@ai-sdk/anthropic" } },\n}\n',
   managedKeys: `{
   // user comment
   "$schema": "https://opencode.ai/config.json",
@@ -62,6 +64,21 @@ const TWEAK_PATH: Record<string, string[]> = {
   escapedStrings: ['tweak'],
   schemaSeed: ['$schema'],
   managedKeys: ['username'],
+  duplicateKeys: ['provider', 'router', 'npm'],
+}
+
+/** The node a path resolves to when duplicates shadow each other: the last one, as JSON.parse reads it. */
+function lastNodeAt(root: Node, path: string[]): Node | undefined {
+  let node: Node | undefined = root
+  for (const key of path) {
+    if (node?.type !== 'object') return undefined
+    let match: Node | undefined
+    for (const child of node.children ?? []) {
+      if (child.type === 'property' && child.children?.[0]?.value === key) match = child
+    }
+    node = match?.children?.[1]
+  }
+  return node
 }
 
 function verifyRoundTrip(): void {
@@ -93,19 +110,20 @@ function verifyReads(): void {
   const provider = managed['provider'] as JsonObject
   const router = provider['router'] as JsonObject
   assert.deepEqual((router['options'] as JsonObject)['headers'], { 'x-custom': 'keep' })
+  const dup = readJsoncObject(CORPUS['duplicateKeys'] ?? '')
+  assert.equal(dup['model'], 'router/claude-sonnet-5', 'a duplicate key did not read as the last one')
+  const dupRouter = (dup['provider'] as JsonObject)['router'] as JsonObject
+  assert.equal(dupRouter['npm'], '@ai-sdk/anthropic', 'a duplicate intermediate did not read as the last one')
 }
 
-/**
- * Setting an existing key touches its value span and nothing around it. The
- * expected bytes are computed from the parse tree, so the assertion is
- * byte-exact for every corpus document, not a hand-picked few.
- */
+/** A set touches its value span and nothing around it, byte-exact against a
+ *  last-match parse-tree expectation, duplicates included. */
 function verifyReplace(): void {
   for (const [name, text] of Object.entries(CORPUS)) {
     const path = TWEAK_PATH[name] ?? []
     const root = parseTree(text, [], { allowTrailingComma: true })
     if (root === undefined) throw new Error(`corpus ${name} did not parse`)
-    const node = findNodeAtLocation(root, path)
+    const node = lastNodeAt(root, path)
     if (node === undefined) throw new Error(`corpus ${name} has no tweak key`)
     const out = applyJsoncWrites(text, [{ path, value: 'replaced' }])
     const expected = `${text.slice(0, node.offset)}"replaced"${text.slice(node.offset + node.length)}`
@@ -160,6 +178,22 @@ function verifyInsert(): void {
   )
 }
 
+/** An insert must not disturb the bytes it does not own. */
+function verifyInsertPreserves(): void {
+  assert.equal(
+    applyJsoncWrites('{\n  "one": 1 // keep\n}\n', [{ path: ['two'], value: 2 }]),
+    '{\n  "one": 1, // keep\n  "two": 2\n}\n',
+    'an insert moved a trailing comment onto the new key',
+  )
+  assert.equal(
+    applyJsoncWrites('{\r\n  "a": 1,\n  "tweak": 2\n}\n', [{ path: ['newkey'], value: 3 }]),
+    '{\r\n  "a": 1,\n  "tweak": 2,\n  "newkey": 3\n}\n',
+    'an insert into a mostly-LF document used CRLF',
+  )
+  const dupSet = applyJsoncWrites(CORPUS['duplicateKeys'] ?? '', [{ path: ['model'], value: 'router/new' }])
+  assert.equal(dupSet, (CORPUS['duplicateKeys'] ?? '').replace('"router/claude-sonnet-5"', '"router/new"'), 'a set into a duplicate key touched the shadowed occurrence')
+}
+
 function verifyDelete(): void {
   const three = '{\n  "a": 1,\n  "b": 2,\n  "c": 3\n}\n'
   assert.equal(applyJsoncWrites(three, [{ path: ['b'], value: undefined }]), '{\n  "a": 1,\n  "c": 3\n}\n')
@@ -195,6 +229,13 @@ function verifyDelete(): void {
     three,
     'deleting a key that is not there changed the document',
   )
+  const dupModel = '{\n  "model": "stale/first",\n  "model": "router/x"\n}\n'
+  assert.equal(applyJsoncWrites(dupModel, [{ path: ['model'], value: undefined }]), '{\n}\n', 'a shadowed duplicate survived its delete')
+  const dupContainers = '{\n  "a": { "x": 1, "z": 0 },\n  "a": { "x": 2 }\n}\n'
+  // Byte-faithful: the space between the swallowed comma and "z" belongs to "z".
+  assert.equal(applyJsoncWrites(dupContainers, [{ path: ['a', 'x'], value: undefined }]), '{\n  "a": {  "z": 0 }\n}\n', 'a delete through duplicate intermediates hit the wrong one')
+  const shadowOnly = '{\n  "a": { "x": 1 },\n  "a": { "y": 2 }\n}\n'
+  assert.equal(applyJsoncWrites(shadowOnly, [{ path: ['a', 'x'], value: undefined }]), shadowOnly, 'a delete of a shadowed-only key disturbed the live duplicate')
   assert.equal(findJsoncProblem(emptied), null, 'a delete produced invalid JSONC')
 }
 
@@ -250,6 +291,7 @@ export function verifyJsoncCodec(): void {
   verifyReads()
   verifyReplace()
   verifyInsert()
+  verifyInsertPreserves()
   verifyDelete()
   verifyEscaping()
   verifyIdempotent()

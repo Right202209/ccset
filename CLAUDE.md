@@ -22,7 +22,7 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | Command | Covers |
 | --- | --- |
 | `npm run verify:global-settings` | D1-D3, D8: unmanaged-key survival, proxy-off deletion, idempotent re-save, backup content and modes |
-| `npm run verify:opencode` | O1-O10 for the second agent: unmanaged siblings four levels deep, blank-omits, delete-on-unmanaged, the per-key `models` merge, masking, backup rotation; the JSONC codec corpus (byte-identity over comment/trailing-comma/CRLF/escape documents) and the managed-`.jsonc` gates — the `.jsonc` is written in place, the legacy `.json` byte-identical, Status naming both roles, and the malformed-`.jsonc` confirm |
+| `npm run verify:opencode` | O1-O10 for the second agent: unmanaged siblings four levels deep, blank-omits, delete-on-unmanaged, the per-key `models` merge, masking, backup rotation; the JSONC codec corpus (byte-identity over comment/trailing-comma/CRLF/escape/duplicate-key documents) and the managed-`.jsonc` gates — the `.jsonc` is written in place, the legacy `.json` byte-identical, Status naming both roles, and the malformed-`.jsonc` confirm |
 | `npm run verify:codex` | C1-C9 for the third agent, plus the TOML codec and a screen walk. Round-trip fidelity over a 13-document corpus, formatting survival across an edit, the credential sidecars, the switch-and-adopt flow, and that every i18n key the module's screens reach resolves |
 | `npm run verify:provider-safety` | D7, D9: nested unmanaged provider keys, 10-backup pruning per file, masking, token absence from error paths |
 | `npm run verify:write-safety` | D4-D6, E3: `~/.claude.json` left untouched, created-when-absent, SIGKILL mid-save, read-only target exits `3` |

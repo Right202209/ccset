@@ -1,12 +1,14 @@
-import { findNodeAtLocation, parseTree, type Node } from 'jsonc-parser'
+import { parseTree, type Node } from 'jsonc-parser'
 import type { JsonValue } from '../../types.js'
 import { applyManagedWrites, type ManagedWrite } from '../merge.js'
 import { renderJsoncValue, INDENT_UNIT } from './format.js'
 import {
+  commaOnLine,
   detectEol,
   endOfLine,
   indentOf,
   isIndent,
+  lineBreakStart,
   lineStartOf,
   sameLineCommentEnd,
   skipTrivia,
@@ -46,6 +48,18 @@ function propertyOf(objectNode: Node, key: string): Node | undefined {
   return found
 }
 
+/** The node a key path resolves to, taking the last duplicate at every level
+ *  -- the document JSON.parse reads. `findNodeAtLocation` stops at the first
+ *  duplicate, so the walk goes through property nodes instead. */
+function lastNodeAtPath(root: Node, path: string[]): Node | undefined {
+  let node: Node | undefined = root
+  for (const key of path) {
+    if (node?.type !== 'object') return undefined
+    node = propertyOf(node, key)?.children?.[1]
+  }
+  return node
+}
+
 function valueEnd(prop: Node): number {
   const value = prop.children?.[1]
   return value === undefined ? prop.offset + prop.length : value.offset + value.length
@@ -81,7 +95,7 @@ export function setJsoncPath(text: string, path: string[], value: JsonValue): st
   for (let depth = path.length - 1; depth >= 0; depth -= 1) {
     const key = path[depth]
     if (key === undefined) continue
-    const container = depth === 0 ? root : findNodeAtLocation(root, path.slice(0, depth))
+    const container = depth === 0 ? root : lastNodeAtPath(root, path.slice(0, depth))
     if (container === undefined) continue
     if (container.type === 'object') {
       const child = propertyOf(container, key)
@@ -121,17 +135,31 @@ function renderFreshDocument(writes: ManagedWrite[]): string {
  * the JSON codec's insertion order works. The separator goes in front of the
  * new property, so a trailing comma the document already had stays one -- the
  * author's style survives the save. An expanded object gets the new property
- * on its own line at the children's indent; an inline object stays inline.
+ * on its own line at the children's indent; an inline object stays inline. A
+ * trailing comment on the last child stays with that child: the separator
+ * goes in front of the comment and the new property takes the next slot.
  */
 function insertProperty(text: string, container: Node, added: NewProperty): string {
   const children = container.children ?? []
   const last = children[children.length - 1]
   if (last === undefined) return insertFirstProperty(text, container, added)
+  const valueEndOffset = valueEnd(last)
+  const trailing = sameLineCommentEnd(text, valueEndOffset)
   const expanded = text.slice(container.offset, container.offset + container.length).includes('\n')
   const indent = insertIndent(text, last, expanded)
   const rendered = `${JSON.stringify(added.key)}: ${renderJsoncValue(added.value, indent, detectEol(text))}`
-  const content = expanded ? `,${detectEol(text)}${indent}${rendered}` : `, ${rendered}`
-  return spliceSpan(text, { start: valueEnd(last), end: valueEnd(last) }, content)
+  const line = `${detectEol(text)}${indent}${rendered}`
+  if (trailing === null) {
+    const content = expanded ? `,${line}` : `, ${rendered}`
+    return spliceSpan(text, { start: valueEndOffset, end: valueEndOffset }, content)
+  }
+  const comma = commaOnLine(text, trailing)
+  if (comma !== null) {
+    return spliceSpan(text, { start: comma + 1, end: comma + 1 }, expanded ? line : ` ${rendered}`)
+  }
+  const withComma = spliceSpan(text, { start: valueEndOffset, end: valueEndOffset }, ',')
+  const slot = lineBreakStart(text, trailing) + 1
+  return spliceSpan(withComma, { start: slot, end: slot }, expanded ? line : ` ${rendered}`)
 }
 
 /** Where a new child line sits: the existing children's indent when the
@@ -159,38 +187,43 @@ function insertFirstProperty(text: string, container: Node, added: NewProperty):
 /* -------------------------------------------------------------- delete */
 
 /**
- * Removes one property and, when that leaves a container object empty, the
- * container too -- the same rule the JSON merge applies along a deleted path,
- * so a `.jsonc` target behaves like the `.json` one. The root object is never
- * removed.
+ * Removes every occurrence of the key along the path -- the shadowed
+ * duplicates too, so a deleted value cannot resurrect from behind the live
+ * one -- and, when that leaves a container object empty, the container too:
+ * the same rule the JSON merge applies along a deleted path, so a `.jsonc`
+ * target behaves like the `.json` one. The root object is never removed.
  */
 export function deleteJsoncPath(text: string, path: string[]): string {
   if (path.length === 0) return text
-  const removed = removeProperty(text, path)
-  if (removed === null) return text
-  return deleteIfEmpty(removed, path.slice(0, -1))
+  let current = text
+  for (;;) {
+    const removed = removeLiveProperty(current, path)
+    if (removed === null) return current
+    current = collapseIfEmpty(removed, path.slice(0, -1))
+  }
 }
 
-function removeProperty(text: string, path: string[]): string | null {
+/** Removes the one occurrence of the leaf key the live container holds. */
+function removeLiveProperty(text: string, path: string[]): string | null {
   const key = path[path.length - 1]
   if (key === undefined) return null
   const root = parseRoot(text)
   if (root === undefined) return null
-  const container = path.length === 1 ? root : findNodeAtLocation(root, path.slice(0, -1))
+  const container = lastNodeAtPath(root, path.slice(0, -1))
   if (container?.type !== 'object') return null
   const prop = propertyOf(container, key)
   if (prop === undefined) return null
-  const span = removalSpan(text, prop)
-  return spliceSpan(text, span, '')
+  return spliceSpan(text, removalSpan(text, prop), '')
 }
 
-function deleteIfEmpty(text: string, containerPath: string[]): string {
+/** Collapses a container the delete emptied, and its emptied parents. */
+function collapseIfEmpty(text: string, containerPath: string[]): string {
   if (containerPath.length === 0) return text
   const root = parseRoot(text)
   if (root === undefined) return text
-  const container = findNodeAtLocation(root, containerPath)
+  const container = lastNodeAtPath(root, containerPath)
   if (container?.type !== 'object' || (container.children ?? []).length > 0) return text
-  return deleteJsoncPath(text, containerPath)
+  return collapseIfEmpty(removeLiveProperty(text, containerPath) ?? text, containerPath.slice(0, -1))
 }
 
 /**
