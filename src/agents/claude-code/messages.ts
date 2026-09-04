@@ -66,6 +66,8 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.cmd.invalidBoolean': 'Invalid boolean for {option}: {value}. Use true or false.',
     'claudeCode.cmd.proxyUrlRequired': '--proxyEnabled true requires --proxyUrl.',
     'claudeCode.cmd.proxyConflicting': '--proxyEnabled false cannot be combined with --proxyUrl.',
+    'claudeCode.cmd.proxySetUnset':
+      'Cannot set and unset the proxy in one invocation — removal is --unset proxyEnabled.',
   },
 
   'zh-Hans': {
@@ -118,5 +120,6 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.cmd.invalidBoolean': '{option} 的布尔值无效：{value}。请使用 true 或 false。',
     'claudeCode.cmd.proxyUrlRequired': '--proxyEnabled true 需要同时提供 --proxyUrl。',
     'claudeCode.cmd.proxyConflicting': '--proxyEnabled false 不能与 --proxyUrl 同时使用。',
+    'claudeCode.cmd.proxySetUnset': '不能在同一次调用中既设置又取消代理 — 请用 --unset proxyEnabled 移除。',
   },
 }

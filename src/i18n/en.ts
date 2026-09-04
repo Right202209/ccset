@@ -172,10 +172,6 @@ export const en: Record<string, string> = {
   'error.screenHint': 'Nothing you typed was lost — go back and try again.',
 
   /* ------------------------------------------------------------ non-interactive */
-  'cmd.flag.dryRun': 'Show what would change without writing',
-  'cmd.flag.json': 'Output machine-readable JSON',
-  'cmd.flag.replaceInvalid': 'Replace an unreadable target with a fresh file',
-  'cmd.flag.unset': 'Remove a field (repeatable)',
   'output.changed': 'Changed: {path}',
   'output.unchanged': 'Unchanged: {path}',
   'output.wouldChange': 'Would change: {path}',

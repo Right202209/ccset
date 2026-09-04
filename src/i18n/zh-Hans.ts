@@ -173,10 +173,6 @@ export const zhHans: Record<string, string> = {
   'error.screenHint': '你输入的内容没有丢失 — 返回后重试即可。',
 
   /* ------------------------------------------------------------ non-interactive */
-  'cmd.flag.dryRun': '显示将要更改的内容但不写入',
-  'cmd.flag.json': '输出机器可读的 JSON',
-  'cmd.flag.replaceInvalid': '用新文件替换无法读取的目标',
-  'cmd.flag.unset': '移除一个字段（可重复）',
   'output.changed': '已更改：{path}',
   'output.unchanged': '未更改：{path}',
   'output.wouldChange': '将更改：{path}',

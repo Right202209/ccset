@@ -1,7 +1,7 @@
 import type { Ctx } from '../types.js'
 import { findAgent } from '../registry.js'
 import type { Agent } from '../types.js'
-import type { CommandDeclaration } from '../core/command.js'
+import type { CommandDeclaration, SplitArgv } from '../core/command.js'
 import { buildRequest, describeCommands, findCommand, splitCommandArgv } from '../core/command.js'
 import { runOperation, type OperationRequest, type OperationResult } from '../core/operation.js'
 import {
@@ -45,7 +45,8 @@ export function detectSubcommand(argv: string[]): boolean {
 export function extractAgentId(argv: string[]): string | undefined {
   let agent: string | undefined
   for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i]!
+    const arg = argv[i]
+    if (arg === undefined) continue
     if (arg === '--agent') {
       const value = argv[i + 1]
       if (value !== undefined && !value.startsWith('-')) {
@@ -76,7 +77,7 @@ function resolveAgent(argv: string[], errCtx: ErrorContext): Agent {
 /** The declaration the command words name, with every syntax problem collected. */
 function resolveDeclaration(
   agent: Agent,
-  parsed: ReturnType<typeof splitCommandArgv>,
+  parsed: SplitArgv,
   errCtx: ErrorContext,
 ): CommandDeclaration {
   const commands = agent.getCommands?.() ?? []

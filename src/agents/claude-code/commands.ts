@@ -75,7 +75,7 @@ function proxyCoupling(inv: ParsedInvocation): UsageProblem[] {
   const touched = enabled !== undefined || inv.values['proxyUrl'] !== undefined
   const unsetProxy = inv.unset.has('proxyEnabled') || inv.unset.has('proxyUrl')
   if (touched && unsetProxy) {
-    problems.push({ code: 'error.conflictSetUnset', params: { field: 'proxy' } })
+    problems.push({ code: 'claudeCode.cmd.proxySetUnset' })
   }
   return problems
 }

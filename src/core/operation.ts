@@ -71,6 +71,11 @@ function isNoop(base: LoadedConfig, merged: JsonObject): boolean {
   return renderJson(base.data) === renderJson(merged)
 }
 
+/** The target record for a plan that stopped before any write: real mode, no backup. */
+async function plannedTarget(path: string, changed: boolean): Promise<TargetResult> {
+  return { path, changed, mode: await readMode(path), backupPath: null }
+}
+
 /** The one place an OperationResult is assembled, so every path reports alike. */
 function buildResult(
   req: OperationRequest,
@@ -136,16 +141,12 @@ export async function runOperation(
   // 4. A dry run has done every read and check; it stops before backup/write.
   //    The mode is a read-only stat, so reporting it breaks nothing.
   if (req.dryRun) {
-    return buildResult(req, changed, [
-      { path, changed, mode: await readMode(path), backupPath: null },
-    ], warnings)
+    return buildResult(req, changed, [await plannedTarget(path, changed)], warnings)
   }
 
   // 5. No-op — no backup, no write, nothing rotated.
   if (!changed) {
-    return buildResult(req, false, [
-      { path, changed: false, mode: await readMode(path), backupPath: null },
-    ], warnings)
+    return buildResult(req, false, [await plannedTarget(path, false)], warnings)
   }
 
   // 6. Backup, then the atomic write.

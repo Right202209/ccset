@@ -255,21 +255,24 @@ exit status, so supervision and parsing cannot disagree.
 }
 ```
 
-A failure prints the same envelope with an `error` body instead of populated
-targets. `code` is the stable machine code, `reason` the primary cause as an
-i18n key plus params, and `problems` lists every collected usage problem:
+A failure prints the same envelope with empty `targets` and `warnings` and an
+`error` body. `code` is the stable machine code, `reason` the primary cause as
+an i18n key plus params, and `problems` lists every collected usage problem:
 
 ```json
 {
   "schemaVersion": 1,
   "operation": "global.set",
   "agentId": "claude-code",
+  "changed": false,
   "dryRun": false,
+  "targets": [],
+  "warnings": [],
   "error": {
     "code": "usage",
-    "message": "--model was given more than once.",
-    "reason": { "code": "error.duplicateOption", "params": { "option": "--model" } },
-    "problems": [{ "code": "error.duplicateOption", "params": { "option": "--model" } }]
+    "message": "Cannot set and unset the same field: model.",
+    "reason": { "code": "error.conflictSetUnset", "params": { "field": "model" } },
+    "problems": [{ "code": "error.conflictSetUnset", "params": { "field": "model" } }]
   },
   "exitCode": 64
 }

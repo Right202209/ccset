@@ -1386,3 +1386,36 @@ the parity gate was failing on master before any of this work; translated.
 submit through the operation seam — the interactive path keeps its own
 `saveGlobal` pipeline. Everything else in this entry is the non-interactive
 surface only.
+
+### 9.34 Review fixes for M3.1 (2026-09-04)
+
+The re-review of `53a6a8e` (two-axis, fixed point `master`) surfaced small hard
+findings and doc drift; all fixed in place. AGENTS.md's fixture count now says
+fourteen. `splitCommandArgv` and `extractAgentId` narrow the indexed argument
+instead of asserting it; the `--` prefix slice uses a named `OPTION_PREFIX`;
+`verify-noninteractive` names its no-exit-status sentinel. The dead
+`cmd.flag.*` keys left both shell catalogs (nothing referenced them). The
+proxy set+unset usage error stopped borrowing `error.conflictSetUnset` with a
+pseudo-field: it now has its own agent-owned key
+(`claudeCode.cmd.proxySetUnset`), so the message no longer names a field that
+does not exist. `runOperation`'s dry-run and no-op branches share one
+`plannedTarget` builder, and `headless.ts` names `SplitArgv` instead of
+reaching for `ReturnType<typeof>`.
+
+The README and README.zh-CN failure-envelope examples were rewritten to match
+a live run: the real envelope carries `changed`, `targets` and `warnings`
+alongside `error`, and the example is now the set+unset conflict
+(`ccset --agent claude-code global set --model a --unset model --json`), a
+request-level usage error, because parse-level errors fire before the command
+word resolves and report `"operation": null` — by design, per the envelope
+contract.
+
+Ran: `npm run typecheck`, `npm run build`, `npm run verify:noninteractive`
+(N1–N8 green), `npm run verify:i18n-zh` (catalog parity holds after the key
+removals), `npm run verify:status-terminal`, and live `dist/cli.js` probes
+against a scratch `CCSET_HOME` for both envelope shapes and the new proxy
+message. Every touched file is inside the 300-line limit. Deliberately not
+changed: `--json=true` still refuses with exit 64 in human form — the flag
+table documents bare flags only, and #47's out-of-scope list excludes
+Commander-style presence booleans; and the three argv walkers that each encode
+"`--agent` takes a value" remain a recorded judgement-call smell, not a bug.

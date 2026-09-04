@@ -29,6 +29,9 @@ import type { JsonObject } from '../src/types.js'
 
 const CLI = path.join(process.cwd(), 'dist/cli.js')
 
+/** spawnSync reports null when the child died by signal; the sentinel keeps asserts loud. */
+const NO_EXIT_STATUS = -1
+
 interface CliRun {
   status: number
   stdout: string
@@ -40,7 +43,7 @@ function runCli(args: string[], home: string): CliRun {
     env: { ...process.env, CCSET_HOME: home },
     encoding: 'utf8',
   })
-  return { status: child.status ?? -1, stdout: child.stdout ?? '', stderr: child.stderr ?? '' }
+  return { status: child.status ?? NO_EXIT_STATUS, stdout: child.stdout ?? '', stderr: child.stderr ?? '' }
 }
 
 async function seed(home: string, data: JsonObject): Promise<void> {

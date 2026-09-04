@@ -145,19 +145,22 @@ ccset --agent claude-code global set [选项]
 }
 ```
 
-失败时打印同样的信封，以 `error` 主体代替填充的 targets。`code` 是稳定的机器码，`reason` 是以 i18n 键加参数表示的主要原因，`problems` 列出收集到的全部用法问题：
+失败时打印同样的信封，`targets` 与 `warnings` 为空，并带有 `error` 主体。`code` 是稳定的机器码，`reason` 是以 i18n 键加参数表示的主要原因，`problems` 列出收集到的全部用法问题：
 
 ```json
 {
   "schemaVersion": 1,
   "operation": "global.set",
   "agentId": "claude-code",
+  "changed": false,
   "dryRun": false,
+  "targets": [],
+  "warnings": [],
   "error": {
     "code": "usage",
-    "message": "--model 被指定了多次。",
-    "reason": { "code": "error.duplicateOption", "params": { "option": "--model" } },
-    "problems": [{ "code": "error.duplicateOption", "params": { "option": "--model" } }]
+    "message": "不能同时设置和取消同一字段：model。",
+    "reason": { "code": "error.conflictSetUnset", "params": { "field": "model" } },
+    "problems": [{ "code": "error.conflictSetUnset", "params": { "field": "model" } }]
   },
   "exitCode": 64
 }

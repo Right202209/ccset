@@ -1,6 +1,7 @@
 import type { JsonValue } from '../types.js'
 import type { UsageProblem } from './errors.js'
 import { EXIT_USAGE, OperationError } from './errors.js'
+import { OPTION_PREFIX } from './constants.js'
 import type { OperationId, OperationRequest } from './operation.js'
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ interface FlagToken {
 function tokenize(arg: string, index: number): FlagToken {
   const eq = arg.indexOf('=')
   return {
-    key: eq >= 0 ? arg.slice(2, eq) : arg.slice(2),
+    key: eq >= 0 ? arg.slice(OPTION_PREFIX.length, eq) : arg.slice(OPTION_PREFIX.length),
     inline: eq >= 0 ? arg.slice(eq + 1) : undefined,
     index,
   }
@@ -148,7 +149,8 @@ export function splitCommandArgv(argv: string[]): SplitArgv {
   let positionals = 0
   let i = 0
   while (i < argv.length) {
-    const arg = argv[i]!
+    const arg = argv[i]
+    if (arg === undefined) break
     if (arg.startsWith('-')) {
       i = splitOption(out, argv, tokenize(arg, i))
     } else {

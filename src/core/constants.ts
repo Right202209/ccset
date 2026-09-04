@@ -44,3 +44,6 @@ export const MAX_BACKUP_NAME_ATTEMPTS = 1000
 export const CLEANUP_DAYS_MAX = 36_500
 /** The mode readMode reports when stat fails; presenters hide the line. */
 export const MODE_UNKNOWN = '?'
+
+/** The two-dash prefix of every long command-line option. */
+export const OPTION_PREFIX = '--'
