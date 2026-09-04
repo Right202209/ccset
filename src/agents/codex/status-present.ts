@@ -1,4 +1,5 @@
 import type { KeyedStatusSection } from '../../operations/types.js'
+import { backupsSection } from '../../operations/status-sections.js'
 import type { JsonValue } from '../../types.js'
 import type { CodexAuthStatus, CodexProviderStatus, CodexProfileStatus, CodexStatusDto } from './status-dto.js'
 
@@ -119,20 +120,6 @@ function profilesSection(dto: CodexStatusDto): KeyedStatusSection {
   }
 }
 
-function backupsSection(dto: CodexStatusDto): KeyedStatusSection {
-  return {
-    titleKey: 'status.backupsTitle',
-    lines: [
-      { labelKey: 'status.path', value: dto.backups.path },
-      { labelKey: 'status.count', value: String(dto.backups.count) },
-      ...(dto.backups.partials > 0
-        ? [{ labelKey: 'status.partials', value: String(dto.backups.partials), tone: 'warn' as const }]
-        : []),
-    ],
-    noteKey: 'status.backupsNote',
-  }
-}
-
 /** The agent's own keyed rendering of its DTO for the human report. */
 export function presentCodexStatus(dto: CodexStatusDto): KeyedStatusSection[] {
   const sections: KeyedStatusSection[] = [globalSection(dto)]
@@ -156,6 +143,6 @@ export function presentCodexStatus(dto: CodexStatusDto): KeyedStatusSection[] {
       noteKey: 'codex.status.homeOverrideNote',
     })
   }
-  sections.push(backupsSection(dto))
+  sections.push(backupsSection(dto.backups))
   return sections
 }

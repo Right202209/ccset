@@ -1437,3 +1437,21 @@ than unknown-agent 65 (the walk lives once, in `src/commands/globals.ts`,
 shared by the parser and the failure fallback, keeping `parser.ts` within the
 size standard). Evidence: full `npm test` plus `verify:i18n-zh` and
 `npm run typecheck` green on Linux x64; both README option tables updated.
+
+**Standards round (same date).** The remaining findings from the re-review
+were closed. The Codex `runProviderSet` was split behind a `preflightProviderSet`
+helper, back under the function-size limit; `authMoveRecords` lost its
+five-parameter debt (the provider id joined the preflight result and the
+dry-run record moved to the caller). `CCSET_TOKEN` is now read once at the
+`cli.tsx` boundary like `CCSET_HOME`, `CCSET_ASCII`, and `CCSET_LOCALE`: only
+its presence reaches the parser, which is pure against the environment again,
+and CLAUDE.md's boundary rule says so. `--proxy` spells its toggle `on|off`
+like every other switch — a choice field, with `true`/`false` refused — proven
+red-green in `verify:commands` at both the process seam and the operation seam.
+The dead `excludeSecrets` branch left the Claude status DTO, the shared
+`SWITCH_ON`/`SWITCH_OFF` constants replaced the magic `'1'`/`'0'` comparisons,
+and the three identical backup sections collapsed into one builder
+(`src/operations/status-sections.ts`). Recorded as accepted: a no-op record
+for an absent target reports `mode: '?'` — the honest placeholder `readMode`
+documents — rather than a mode nothing will ever have. Evidence: full
+`npm test` green on Linux x64 plus `npm run typecheck`.

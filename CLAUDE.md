@@ -61,9 +61,11 @@ for the sweep fails loudly instead of passing vacuously.
 agent's `messages.ts` alone: `registerMessages` is a load-time side effect of
 `src/registry.ts`, so a fixture that skips that import sees every agent key unresolved.
 
-`CCSET_HOME` overrides the home directory (`core/paths.ts:resolveHome`), and
-`CCSET_ASCII=1` selects the seven-bit terminal capability (`ui/terminal.ts:resolveTerminal`).
-Both are read at the boundary, by `cli.tsx`, and nowhere else. Every fixture
+`CCSET_HOME` overrides the home directory (`core/paths.ts:resolveHome`),
+`CCSET_ASCII=1` selects the seven-bit terminal capability (`ui/terminal.ts:resolveTerminal`),
+and `CCSET_TOKEN` carries a provider secret to the command layer (the parser
+sees only its presence; the value never enters argv, output, or errors). All
+are read at the boundary, by `cli.tsx`, and nowhere else. Every fixture
 that goes through the CLI points it at a `mkdtemp` directory; use it for any manual run so
 you never write into a real `~/.claude`. The gates that mount `App` directly bypass
 `cli.tsx`, so they pass the scratch home in through `ctx`, the glyph set through

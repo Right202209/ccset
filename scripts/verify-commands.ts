@@ -68,7 +68,7 @@ async function checkSeamDeletion(home: string): Promise<void> {
     env: { HTTPS_PROXY: 'http://old.example', HTTP_PROXY: 'http://old.example' },
     model: 'old',
   })
-  const off = await executeOperation(agent, { home }, request({ proxy: false }))
+  const off = await executeOperation(agent, { home }, request({ proxy: 'off' }))
   assert.equal(off.changed, true)
   const afterOff = JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, unknown>
   const env = afterOff['env'] as Record<string, unknown> | undefined
@@ -257,6 +257,25 @@ async function checkSyntaxBeforeReads(home: string): Promise<void> {
   assert.equal(await fs.readFile(target, 'utf8'), '{ not json\n', 'the target was touched')
 }
 
+/** --proxy spells its toggle like every other switch: on or off. */
+async function checkProxyToggle(home: string): Promise<void> {
+  const target = await seed(home, { model: 'old' })
+  const on = await runCli(
+    ['--agent', 'claude-code', 'global', 'set', '--proxy', 'on', '--proxy-url', 'http://p.example'],
+    { CCSET_HOME: home },
+  )
+  assert.equal(on.code, 0, `--proxy on was refused: ${on.stderr}`)
+  const saved = JSON.parse(await fs.readFile(target, 'utf8')) as { env?: Record<string, string> }
+  assert.equal(saved.env?.HTTPS_PROXY, 'http://p.example', 'proxy on did not set both keys')
+  const off = await runCli(['--agent', 'claude-code', 'global', 'set', '--proxy', 'off'], {
+    CCSET_HOME: home,
+  })
+  assert.equal(off.code, 0, `--proxy off was refused: ${off.stderr}`)
+  const after = JSON.parse(await fs.readFile(target, 'utf8')) as { env?: Record<string, string> }
+  assert.equal('HTTPS_PROXY' in (after.env ?? {}), false, 'proxy off did not delete both keys')
+  await expectUsage(['--agent', 'claude-code', 'global', 'set', '--proxy', 'true'], 'expects one of')
+}
+
 async function withHome(label: string, run: (home: string) => Promise<void>): Promise<void> {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), `ccset-cmd-${label}-`))
   try {
@@ -274,6 +293,7 @@ async function main(): Promise<void> {
   await withHome('cli-out', checkCliOutputs)
   await withHome('cli-codes', checkCliExitCodes)
   await withHome('cli-failures', checkCliFailureEnvelopes)
+  await withHome('proxy', checkProxyToggle)
   await withHome('cli-order', checkSyntaxBeforeReads)
   process.stdout.write('Non-interactive command verification passed.\n')
 }

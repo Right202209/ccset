@@ -3,6 +3,7 @@ import { JsonParseError } from '../../core/errors.js'
 import { readJsonFile, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath, getStringAt } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
+import type { BackupsSummary } from '../../operations/status-sections.js'
 import type { JsonObject, JsonValue } from '../../types.js'
 import { ENV_HTTPS_PROXY, ENV_HTTP_PROXY, GLOBAL_FIELDS, MANAGED_GLOBAL_PATHS, PROVIDER_FIELDS, PROVIDER_TOKEN_PATH } from './manifest.js'
 import { backupsDir, globalSettingsPath } from './paths.js'
@@ -43,16 +44,13 @@ export interface ClaudeStatusDto {
     onboarded?: boolean
   }
   providers: ClaudeProviderStatus[]
-  backups: { path: string; count: number; partials: number }
+  backups: BackupsSummary
 }
 
 /** Field ids that carry a credential; the DTO reports presence, never value. */
 const SECRET_FIELD_IDS = new Set(['token'])
 
-function managedValues(
-  data: JsonObject,
-  excludeSecrets: boolean,
-): Record<string, JsonValue | undefined> {
+function managedValues(data: JsonObject): Record<string, JsonValue | undefined> {
   const managed: Record<string, JsonValue | undefined> = {}
   for (const field of GLOBAL_FIELDS) {
     if (field.path === undefined) continue
@@ -61,7 +59,7 @@ function managedValues(
   // The proxy is two env keys behind one toggle; the URL is their readable
   // representative on disk.
   managed['proxyUrl'] = getStringAt(data, ENV_HTTPS_PROXY) ?? getStringAt(data, ENV_HTTP_PROXY)
-  return excludeSecrets ? withoutSecrets(managed) : managed
+  return managed
 }
 
 function withoutSecrets(
@@ -84,7 +82,7 @@ async function readFileStatus(path: string): Promise<ClaudeFileStatus> {
       exists: file.exists,
       mode: file.exists ? await readMode(path) : undefined,
       parsed: true,
-      managed: managedValues(file.data, false),
+      managed: managedValues(file.data),
       unmanagedKeys: countUnmanagedKeys(file.data, MANAGED_GLOBAL_PATHS),
     }
   } catch (err) {

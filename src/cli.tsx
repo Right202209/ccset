@@ -129,7 +129,9 @@ async function main(): Promise<void> {
     await launchTui()
     return
   }
-  process.exit(await runCommand(argv, AGENTS))
+  // CCSET_TOKEN, like the overrides above, is read once at this boundary: the
+  // parser learns only whether a token is present, and the secret reader its value.
+  process.exit(await runCommand(argv, AGENTS, process.env['CCSET_TOKEN']))
 }
 
 main().catch((err: unknown) => fail(toCcsetError(err)))

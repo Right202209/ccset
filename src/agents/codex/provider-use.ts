@@ -36,6 +36,8 @@ function adoptChoiceOf(request: OperationRequest): { adoptAs: string | null; rep
 }
 
 interface UsePreflight {
+  /** The provider being switched to; decided at the preflight's front door. */
+  id: string
   auth: AuthState
   file: ConfigFile
   configBase: LoadedConfig
@@ -77,7 +79,7 @@ async function preflightProviderUse(
     const problem = makeKeyNameValidator(auth.profiles.map((candidate) => candidate.name))(adoptAs)
     if (problem !== null) throw new ValidationError(problem, { name: adoptAs })
   }
-  return { auth, file, configBase, adoptAs, replaceCurrent, conflicted }
+  return { id, auth, file, configBase, adoptAs, replaceCurrent, conflicted }
 }
 
 /** Adoption commits the new profile before the live copy; if the copy fails,
@@ -99,28 +101,16 @@ async function withAdoptedProfile(
   return committed
 }
 
-/** The live-auth half of a switch: planned in a dry run, committed after routing. */
+/** The live-auth half of a switch, committed after routing; if the copy fails,
+ * the partial report must still name the profile the adoption already wrote. */
 async function authMoveRecords(
   ctx: Ctx,
-  id: string,
   pre: UsePreflight,
-  dryRun: boolean,
   committed: TargetRecord[],
 ): Promise<TargetRecord[]> {
-  const authPath = codexAuthPath(ctx.home)
-  if (dryRun) {
-    return [
-      {
-        path: authPath,
-        mode: pre.auth.exists ? await readMode(authPath) : MODE_AFTER_WRITE,
-        backupPath: null,
-        changed: true,
-      },
-    ]
-  }
   let report
   try {
-    report = await activateAuthProfile(ctx, id, pre.conflicted && pre.adoptAs !== null ? pre.adoptAs : null)
+    report = await activateAuthProfile(ctx, pre.id, pre.conflicted && pre.adoptAs !== null ? pre.adoptAs : null)
   } catch (err) {
     // Routing already landed; the envelope has to say so.
     throw new PartialCommitError(await withAdoptedProfile(ctx, pre, committed), toCcsetError(err))
@@ -160,7 +150,17 @@ export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promi
   )
   const targets: TargetRecord[] = [...outcome.records]
   if (authChanged) {
-    targets.push(...(await authMoveRecords(ctx, id, pre, request.dryRun, outcome.records)))
+    if (request.dryRun) {
+      // A dry run still plans the credential move it would make.
+      targets.push({
+        path: codexAuthPath(ctx.home),
+        mode: pre.auth.exists ? await readMode(codexAuthPath(ctx.home)) : MODE_AFTER_WRITE,
+        backupPath: null,
+        changed: true,
+      })
+    } else {
+      targets.push(...(await authMoveRecords(ctx, pre, outcome.records)))
+    }
   }
   return {
     agent: 'codex',

@@ -32,7 +32,7 @@ import { presentClaudeStatus } from './status-present.js'
 const SWITCH_VALUES = ['on', 'off']
 
 const GLOBAL_COMMAND_FIELDS: CommandFieldSpec[] = [
-  { id: 'proxy', option: '--proxy', type: 'boolean' },
+  { id: 'proxy', option: '--proxy', type: 'choice', choices: SWITCH_VALUES },
   {
     id: 'proxyUrl',
     option: '--proxy-url',
@@ -93,7 +93,8 @@ function conflict(messageKey: string): never {
  * destination is refused rather than guessed.
  */
 function proxyWrites(request: OperationRequest, base: JsonObject): ManagedWrite[] {
-  const proxy = request.patch['proxy']
+  const raw = request.patch['proxy']
+  const proxy = raw === 'on' ? true : raw === 'off' ? false : undefined
   const url = request.patch['proxyUrl']
   const unsetUrl = request.unsets.includes('proxyUrl')
   if (proxy === false && url !== undefined) conflict('claudeCode.validate.proxyConflict')

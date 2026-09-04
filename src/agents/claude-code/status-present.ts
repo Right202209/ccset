@@ -1,5 +1,7 @@
 import type { KeyedStatusSection } from '../../operations/types.js'
+import { backupsSection } from '../../operations/status-sections.js'
 import type { JsonValue } from '../../types.js'
+import { SWITCH_OFF, SWITCH_ON } from './constants.js'
 import type { ClaudeProviderStatus, ClaudeStatusDto } from './status-dto.js'
 
 /**
@@ -14,7 +16,7 @@ export function presentClaudeStatus(dto: ClaudeStatusDto): KeyedStatusSection[] 
     sections.push({ titleKey: 'status.providersTitle', lines: [], noteKey: 'claudeCode.status.noProviders' })
   }
   for (const provider of dto.providers) sections.push(providerSection(provider))
-  sections.push(backupsSection(dto))
+  sections.push(backupsSection(dto.backups))
   return sections
 }
 
@@ -82,7 +84,7 @@ function globalSection(dto: ClaudeStatusDto): KeyedStatusSection {
     const value = managed[id]
     lines.push({
       labelKey: labelOf(id),
-      valueKey: value === '1' ? 'choice.on' : value === '0' ? 'choice.off' : 'choice.unmanaged',
+      valueKey: value === SWITCH_ON ? 'choice.on' : value === SWITCH_OFF ? 'choice.off' : 'choice.unmanaged',
     })
   }
   return {
@@ -111,19 +113,5 @@ function providerSection(provider: ClaudeProviderStatus): KeyedStatusSection {
     titleParams: { name: provider.name },
     lines,
     noteKey: provider.managed?.['baseUrl'] === undefined ? 'claudeCode.status.noBaseUrl' : undefined,
-  }
-}
-
-function backupsSection(dto: ClaudeStatusDto): KeyedStatusSection {
-  return {
-    titleKey: 'status.backupsTitle',
-    lines: [
-      { labelKey: 'status.path', value: dto.backups.path },
-      { labelKey: 'status.count', value: String(dto.backups.count) },
-      ...(dto.backups.partials > 0
-        ? [{ labelKey: 'status.partials', value: String(dto.backups.partials), tone: 'warn' as const }]
-        : []),
-    ],
-    noteKey: 'status.backupsNote',
   }
 }

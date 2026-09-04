@@ -3,6 +3,7 @@ import { JsonParseError } from '../../core/errors.js'
 import { fileExists, readJsonFile, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
+import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
 import type { JsonObject, JsonValue } from '../../types.js'
 import { GLOBAL_FIELDS, MANAGED_GLOBAL_PATHS, providerApiKeyPath } from './manifest.js'
 import { backupsDir, opencodeConfigPath, opencodeJsoncPath } from './paths.js'
@@ -38,7 +39,7 @@ export interface OpencodeStatusDto {
   providers: OpencodeProviderStatus[]
   jsoncPresent: boolean
   jsoncPath: string
-  backups: { path: string; count: number; partials: number }
+  backups: BackupsSummary
 }
 
 const SECRET_FIELD_IDS = new Set(['apiKey'])
@@ -153,20 +154,6 @@ function lineOf(id: string, labelKey: string, managed: Record<string, JsonValue 
   }
 }
 
-function backupsSection(dto: OpencodeStatusDto): KeyedStatusSection {
-  return {
-    titleKey: 'status.backupsTitle',
-    lines: [
-      { labelKey: 'status.path', value: dto.backups.path },
-      { labelKey: 'status.count', value: String(dto.backups.count) },
-      ...(dto.backups.partials > 0
-        ? [{ labelKey: 'status.partials', value: String(dto.backups.partials), tone: 'warn' as const }]
-        : []),
-    ],
-    noteKey: 'status.backupsNote',
-  }
-}
-
 function providerSection(provider: OpencodeProviderStatus): KeyedStatusSection {
   const managed = provider.managed ?? {}
   return {
@@ -226,6 +213,6 @@ export function presentOpencodeStatus(dto: OpencodeStatusDto): KeyedStatusSectio
       noteKey: 'opencode.status.jsoncNote',
     })
   }
-  sections.push(backupsSection(dto))
+  sections.push(backupsSection(dto.backups))
   return sections
 }

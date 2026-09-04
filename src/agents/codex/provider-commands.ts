@@ -1,4 +1,4 @@
-import { configFile, readConfigFile } from '../../core/config-file.js'
+import { configFile, readConfigFile, type LoadedConfig } from '../../core/config-file.js'
 import { ValidationError } from '../../core/errors.js'
 import { isPlainObject, readMode } from '../../core/json-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
@@ -112,7 +112,20 @@ function providerPreflightWarnings(base: JsonObject, home: string): Finding[] {
   return warnings
 }
 
-export async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
+interface ProviderSetPreflight {
+  id: string
+  file: ConfigFile
+  base: LoadedConfig
+  authFile: ConfigFile
+  authBase: LoadedConfig
+  warnings: Finding[]
+}
+
+/** Reads and validates both targets before anything is planned or written. */
+async function preflightProviderSet(
+  ctx: Ctx,
+  request: OperationRequest,
+): Promise<ProviderSetPreflight> {
   const id = request.providerId ?? ''
   const file = codexConfigFile(ctx.home)
   const base = await readPatchBase(file, request.replaceInvalid)
@@ -129,19 +142,23 @@ export async function runProviderSet(ctx: Ctx, request: OperationRequest): Promi
   if (request.secret === undefined && !(authBase.exists && profileHasKey(authBase.data))) {
     throw new ValidationError('codex.validate.providerTokenRequired', { name: id })
   }
-  const warnings = providerPreflightWarnings(base.data, ctx.home)
+  return { id, file, base, authFile, authBase, warnings: providerPreflightWarnings(base.data, ctx.home) }
+}
+
+export async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
+  const pre = await preflightProviderSet(ctx, request)
   const targets = [
     {
-      file,
-      base,
-      writes: providerPatchWrites(request, id),
+      file: pre.file,
+      base: pre.base,
+      writes: providerPatchWrites(request, pre.id),
       backupsDir: backupsDir(ctx.home),
     },
   ]
   if (request.secret !== undefined) {
     targets.push({
-      file: authFile,
-      base: authBase,
+      file: pre.authFile,
+      base: pre.authBase,
       writes: authProfileWrites(request.secret),
       backupsDir: backupsDir(ctx.home),
     })
@@ -156,8 +173,8 @@ export async function runProviderSet(ctx: Ctx, request: OperationRequest): Promi
     // operation has nothing to say about its bytes, and a JSON re-render
     // would only churn the file.
     records.push({
-      path: authFile.path,
-      mode: await readMode(authFile.path),
+      path: pre.authFile.path,
+      mode: await readMode(pre.authFile.path),
       backupPath: null,
       changed: false,
     })
@@ -165,11 +182,11 @@ export async function runProviderSet(ctx: Ctx, request: OperationRequest): Promi
   return {
     agent: 'codex',
     operation: 'provider.set',
-    providerId: id,
+    providerId: pre.id,
     changed: outcome.changed,
     dryRun: request.dryRun,
     targets: records,
-    warnings,
+    warnings: pre.warnings,
     launchCommand: launchCommand(),
     launchKey: 'codex.write.activate',
   }

@@ -9,9 +9,10 @@ import type {
 import { scanGlobals } from './globals.js'
 
 /**
- * The command-mode parser. Pure against the filesystem, so a syntax error can
- * never have a side effect. Every value it returns was normalized against a
- * declaration the agent module owns.
+ * The command-mode parser. Pure against the filesystem and the environment,
+ * so a syntax error can never have a side effect: the token's presence
+ * arrives as a parameter read once at the cli.tsx boundary. Every value it
+ * returns was normalized against a declaration the agent module owns.
  */
 
 export interface ParsedCommand {
@@ -236,6 +237,7 @@ function readPositional(token: string, declaration: CommandDeclaration, state: P
 function finishParse(
   declaration: CommandDeclaration,
   tokens: string[],
+  tokenEnv: string | undefined,
 ): { request: OperationRequest; secretSource: 'env' | 'stdin' | null } {
   const state: ParseState = { patch: {}, unsets: [], replaceInvalid: false, dryRun: false, tokenStdin: false }
   for (let index = 0; index < tokens.length; ) {
@@ -249,7 +251,7 @@ function finishParse(
   if (declaration.argument === 'providerId' && state.providerId === undefined) {
     throw usage('cli.usage.missingProviderId')
   }
-  const secretSource = secretSourceOf(declaration, state)
+  const secretSource = secretSourceOf(declaration, state, tokenEnv)
   checkUnsetConflicts(declaration, state, secretSource)
   return {
     request: {
@@ -264,7 +266,7 @@ function finishParse(
   }
 }
 
-export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
+export function parseCommand(argv: string[], agents: Agent[], tokenEnv: string | undefined): ParsedCommand {
   const { agentId, json, rest } = extractGlobals([...argv])
   const agent = agents.find((candidate) => candidate.id === agentId)
   if (agent === undefined) {
@@ -272,7 +274,7 @@ export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
   }
   const { declaration, tokens } = matchDeclaration(rest, agent, agents)
   try {
-    const { request, secretSource } = finishParse(declaration, tokens)
+    const { request, secretSource } = finishParse(declaration, tokens, tokenEnv)
     return { agent, declaration, json, request, secretSource }
   } catch (err) {
     // The declaration had matched, so a failure envelope can still name the
@@ -284,12 +286,14 @@ export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
   }
 }
 
-function secretSourceOf(declaration: CommandDeclaration, state: ParseState): 'env' | 'stdin' | null {
+function secretSourceOf(
+  declaration: CommandDeclaration,
+  state: ParseState,
+  tokenEnv: string | undefined,
+): 'env' | 'stdin' | null {
   if (declaration.takesSecret !== true) return null
-  const fromEnv = process.env['CCSET_TOKEN']
-  if (state.tokenStdin && fromEnv !== undefined && fromEnv.length > 0) {
-    throw usage('cli.usage.secretSourceConflict')
-  }
+  const fromEnv = tokenEnv !== undefined && tokenEnv.length > 0 ? tokenEnv : undefined
+  if (state.tokenStdin && fromEnv !== undefined) throw usage('cli.usage.secretSourceConflict')
   if (state.tokenStdin) return 'stdin'
-  return fromEnv !== undefined && fromEnv.length > 0 ? 'env' : null
+  return fromEnv !== undefined ? 'env' : null
 }

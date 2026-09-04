@@ -21,9 +21,12 @@ function output(lines: string[], toStderr: boolean): void {
   else process.stdout.write(text)
 }
 
-async function readSecret(source: 'env' | 'stdin' | null): Promise<OperationRequest['secret']> {
+async function readSecret(
+  source: 'env' | 'stdin' | null,
+  tokenEnv: string | undefined,
+): Promise<OperationRequest['secret']> {
   if (source === 'stdin') return secretFromStdin()
-  if (source === 'env') return secretFromEnv(process.env['CCSET_TOKEN']) ?? undefined
+  if (source === 'env') return secretFromEnv(tokenEnv) ?? undefined
   return undefined
 }
 
@@ -71,11 +74,21 @@ function presentFailure(parsed: ParsedCommand | undefined, err: CcsetError, argv
   return err.exitCode
 }
 
-export async function runCommand(argv: string[], agents: Agent[]): Promise<number> {
+/**
+ * Command-mode execution: parse, read the secret if one applies, run the
+ * operation through the seam, and present. The process exit status always
+ * matches what the human lines and the JSON envelope report. `tokenEnv` is
+ * the boundary's CCSET_TOKEN read; only its presence reaches the parser.
+ */
+export async function runCommand(
+  argv: string[],
+  agents: Agent[],
+  tokenEnv: string | undefined,
+): Promise<number> {
   let parsed: ParsedCommand | undefined
   try {
-    parsed = parseCommand(argv, agents)
-    const secret = await readSecret(parsed.secretSource)
+    parsed = parseCommand(argv, agents, tokenEnv)
+    const secret = await readSecret(parsed.secretSource, tokenEnv)
     const request: OperationRequest =
       secret === undefined ? parsed.request : { ...parsed.request, secret }
     const ctx: Ctx = { home: resolveHome() }

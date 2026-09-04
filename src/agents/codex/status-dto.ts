@@ -4,6 +4,7 @@ import { TomlParseError } from '../../core/errors.js'
 import { readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
+import type { BackupsSummary } from '../../operations/status-sections.js'
 import type { JsonObject, JsonValue } from '../../types.js'
 import { keyringInUseIn, loadAuthState, type AuthState } from './auth.js'
 import { codexConfigFile } from './global.js'
@@ -66,7 +67,7 @@ export interface CodexStatusDto {
   profiles: CodexProfileStatus[]
   keyringInUse: boolean
   homeOverride: string | null
-  backups: { path: string; count: number; partials: number }
+  backups: BackupsSummary
 }
 
 function managedValues(data: JsonObject): Record<string, JsonValue | undefined> {
