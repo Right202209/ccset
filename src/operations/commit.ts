@@ -54,8 +54,8 @@ export interface ApplyOutcome {
 }
 
 const EMPTY_JSON_DOCUMENT = '{}\n'
-/** What writeTextAtomic would leave on a POSIX disk; chmod is best-effort on win32. */
-const MODE_AFTER_WRITE = `0${FILE_MODE.toString(8)}`
+/** What writeTextAtomic leaves on a POSIX disk; chmod is best-effort on win32. */
+export const MODE_AFTER_WRITE = `0${FILE_MODE.toString(8)}`
 
 function isEmptyDocument(codec: ConfigFile['codec'], rendered: string): boolean {
   return codec === 'toml' ? rendered.length === 0 : rendered === EMPTY_JSON_DOCUMENT

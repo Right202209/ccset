@@ -1402,3 +1402,20 @@ PowerShell interactive scenarios and a Windows run of the command suite remain
 explicit best-effort gaps, unchanged from §9.28.
 
 **Residual release blockers:** none recorded as of this date.
+
+**Post-review pass (same date).** The two-axis review of the milestone diff
+(standards + spec, against master) was run at completion; findings and their
+resolution: the launch command is now part of every write result's human
+output and JSON envelope (`launchCommand` on `OperationResult`), `--json`
+produces its envelope on parse-stage usage and unknown-agent failures too, the
+opencode JSONC warning rides on write results and not only on status, the
+adopt/replace mutual exclusion is decided before any filesystem read, and a
+partial report now names an adoption profile that committed before the failed
+live-auth copy. The file- and function-size limits flagged by the standards
+axis were restored by splitting the per-agent command and status modules
+(`provider-commands.ts`, `provider-use.ts`, `status-present.ts` per agent) and
+by deriving the one `MODE_AFTER_WRITE` from `core/constants.ts` everywhere.
+Accepted judgement-call debt, recorded rather than silently dropped: the
+parser's internal helpers pass four to five same-family parameters, and the
+per-field unset/patch coercion loop appears in a small variation per agent
+module because each agent owns its own field-to-key mapping.

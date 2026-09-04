@@ -84,6 +84,14 @@ export interface OperationResult {
   errors?: Finding[]
   /** Paths already committed when an unexpected failure stopped a multi-target commit. */
   partial?: string[]
+  /**
+   * How the agent is pointed at what this operation wrote, exactly as the
+   * TUI's write report carries it. Absent when the agent has nothing to
+   * activate beyond reading its own config on start.
+   */
+  launchCommand?: string
+  /** The catalog key that introduces the launch command in the human report. */
+  launchKey?: string
 }
 
 /* ------------------------------------------------------- declarations */

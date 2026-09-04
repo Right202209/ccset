@@ -8,9 +8,9 @@ import type {
 } from '../operations/types.js'
 
 /**
- * The command-mode parser. Pure: no filesystem access and no secret
- * consumption, so a syntax error can never have a side effect. Every value it
- * returns was normalized against a declaration the agent module owns.
+ * The command-mode parser. Pure against the filesystem, so a syntax error can
+ * never have a side effect. Every value it returns was normalized against a
+ * declaration the agent module owns.
  */
 
 export interface ParsedCommand {
@@ -67,7 +67,7 @@ function extractGlobals(
 
 /**
  * Two-word verbs are the norm (`global set`), so the two-token spelling is
- * tried first. A verb some agent declares but this one does not serve is a
+ * tried first. A verb another agent declares but this one does not serve is a
  * distinct failure from one no agent declares.
  */
 function matchDeclaration(
@@ -288,10 +288,7 @@ export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
   }
 }
 
-function secretSourceOf(
-  declaration: CommandDeclaration,
-  state: ParseState,
-): 'env' | 'stdin' | null {
+function secretSourceOf(declaration: CommandDeclaration, state: ParseState): 'env' | 'stdin' | null {
   if (declaration.takesSecret !== true) return null
   const fromEnv = process.env['CCSET_TOKEN']
   if (state.tokenStdin && fromEnv !== undefined && fromEnv.length > 0) {

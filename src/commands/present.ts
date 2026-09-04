@@ -36,6 +36,9 @@ export function humanMutation(result: OperationResult, titleKey: string | undefi
     t('cli.changed', {
       changed: t(result.changed ? 'status.yes' : 'status.no'),
     }),
+    ...(result.launchCommand === undefined
+      ? []
+      : [t(result.launchKey ?? 'write.activate'), result.launchCommand]),
     ...warningLines(result.warnings),
   ]
   return lines

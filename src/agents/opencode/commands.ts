@@ -1,10 +1,11 @@
 import { ValidationError } from '../../core/errors.js'
-import { isPlainObject, jsonFile } from '../../core/json-file.js'
+import { fileExists, isPlainObject, jsonFile } from '../../core/json-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
 import type {
   CommandDeclaration,
   CommandFieldSpec,
+  Finding,
   OperationRequest,
   OperationResult,
 } from '../../operations/types.js'
@@ -22,7 +23,7 @@ import {
   providerTimeoutPath,
   validateProviderId,
 } from './manifest.js'
-import { backupsDir, opencodeConfigPath } from './paths.js'
+import { backupsDir, launchCommand, opencodeConfigPath, opencodeJsoncPath } from './paths.js'
 import {
   opencodeStatusFindings,
   presentOpencodeStatus,
@@ -58,6 +59,17 @@ const GLOBAL_COMMAND_FIELDS: CommandFieldSpec[] = [
 
 function managedPathOf(fieldId: string): string[] | undefined {
   return GLOBAL_FIELDS.find((field) => field.id === fieldId)?.path
+}
+
+/**
+ * The one warning every write to opencode's config can carry: a `.jsonc`
+ * beside the managed file means the save may not be the document opencode
+ * reads. Status says it too; a write result saying it is what makes an
+ * unattended save honest.
+ */
+async function jsoncWarning(ctx: Ctx): Promise<Finding[]> {
+  const present = await fileExists(opencodeJsoncPath(ctx.home))
+  return present ? [{ code: 'opencode.warning.jsoncPresent' }] : []
 }
 
 /** `autoupdate` is `true | false | "notify"` in the schema -- real booleans. */
@@ -105,7 +117,9 @@ async function runGlobalSet(ctx: Ctx, request: OperationRequest): Promise<Operat
     changed: outcome.changed,
     dryRun: request.dryRun,
     targets: outcome.records,
-    warnings: [],
+    warnings: await jsoncWarning(ctx),
+    launchCommand: launchCommand(),
+    launchKey: 'opencode.write.activate',
   }
 }
 
@@ -229,7 +243,9 @@ async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<Oper
     changed: outcome.changed,
     dryRun: request.dryRun,
     targets: outcome.records,
-    warnings: [],
+    warnings: await jsoncWarning(ctx),
+    launchCommand: launchCommand(),
+    launchKey: 'opencode.write.activate',
   }
 }
 

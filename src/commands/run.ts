@@ -43,12 +43,36 @@ function presentSuccess(parsed: ParsedCommand, result: Awaited<ReturnType<typeof
   return exitCode
 }
 
-function presentFailure(parsed: ParsedCommand | undefined, err: CcsetError): number {
-  if (parsed?.json === true) {
+/**
+ * Best-effort context for the failure envelope when parsing never completed,
+ * so `--json` can honor its contract even on a usage error.
+ */
+function globalsOf(argv: string[]): { agentId: string | null; json: boolean } {
+  let agentId: string | null = null
+  let json = false
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index] ?? ''
+    if (token === '--json') {
+      json = true
+    } else if (token === '--agent') {
+      agentId = argv[index + 1] ?? null
+      index += 1
+    } else if (token.startsWith('--agent=')) {
+      agentId = token.slice('--agent='.length)
+    }
+  }
+  return { agentId: agentId !== null && agentId.length > 0 ? agentId : null, json }
+}
+
+function presentFailure(parsed: ParsedCommand | undefined, err: CcsetError, argv: string[]): number {
+  // --json owes its envelope on ordinary failure too, and a parse-stage
+  // failure never built a ParsedCommand; the raw flags say what was asked.
+  const fallback = parsed === undefined ? globalsOf(argv) : null
+  if (parsed?.json === true || fallback?.json === true) {
     printEnvelope(
       errorEnvelope(err, {
-        agent: parsed.agent.id,
-        operation: parsed.declaration.id,
+        agent: parsed?.agent.id ?? fallback?.agentId ?? null,
+        operation: parsed?.declaration.id ?? null,
       }),
     )
     return err.exitCode
@@ -68,6 +92,6 @@ export async function runCommand(argv: string[], agents: Agent[]): Promise<numbe
     const result = await executeOperation(parsed.agent, ctx, request)
     return presentSuccess(parsed, result)
   } catch (err) {
-    return presentFailure(parsed, toCcsetError(err))
+    return presentFailure(parsed, toCcsetError(err), argv)
   }
 }

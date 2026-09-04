@@ -7,38 +7,22 @@ import { authProfilePath, backupsDir, codexAuthPath, codexConfigPath } from '../
 import { EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
 
 /**
- * M3.8: Codex provider use across the process seam. A switch replaces the live
- * auth.json with the named profile and points model_provider at it, in that
- * order; an unknown live credential is never discarded without exactly one of
+ * M3.8: Codex provider use across the process seam. Routing first, then the
+ * live credential; an unknown live credential needs exactly one of
  * --adopt-current-as or --replace-current-auth; a byte-identical live profile
- * switches idempotently; and a failure after the routing commit reports the
- * committed path as partial. The fixture goes red if the order flips, a
- * conflict is bypassed, or the partial report is lost.
+ * switches idempotently; a post-routing failure reports partial. Red if the
+ * order flips, a conflict is bypassed, or the partial report is lost.
  */
 
 const ROUTER_KEY = 'CX-ROUTER-KEY-0123456789'
 const LIVE_KEY = 'CX-LIVE-KEY-0123456789'
 const UNKNOWN_KEY = 'CX-UNKNOWN-KEY-01234567'
 
-const ROUTER_PROFILE = `{
-  "OPENAI_API_KEY": "${ROUTER_KEY}",
-  "auth_mode": "apikey"
-}
-`
+const ROUTER_PROFILE = `{"OPENAI_API_KEY": "${ROUTER_KEY}", "auth_mode": "apikey"}\n`
 
-const KNOWN_LIVE = `{
-  "OPENAI_API_KEY": "${LIVE_KEY}",
-  "auth_mode": "chatgpt",
-  "tokens": { "id_token": "keep-me" }
-}
-`
+const KNOWN_LIVE = `{"OPENAI_API_KEY": "${LIVE_KEY}", "auth_mode": "chatgpt", "tokens": {"id_token": "keep-me"}}\n`
 
-const UNKNOWN_LIVE = `{
-  "OPENAI_API_KEY": "${UNKNOWN_KEY}",
-  "auth_mode": "chatgpt",
-  "tokens": { "id_token": "adopt-me" }
-}
-`
+const UNKNOWN_LIVE = `{"OPENAI_API_KEY": "${UNKNOWN_KEY}", "auth_mode": "chatgpt", "tokens": {"id_token": "adopt-me"}}\n`
 
 const CORPUS = `# codex provider use corpus
 

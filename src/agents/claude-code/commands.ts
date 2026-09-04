@@ -1,34 +1,27 @@
 import { ValidationError } from '../../core/errors.js'
 import { jsonFile, readJsonFile, readMode } from '../../core/json-file.js'
 import { getStringAt, type ManagedWrite } from '../../core/merge.js'
-import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
+import { applyPlan, MODE_AFTER_WRITE, planTargets, readPatchBase } from '../../operations/commit.js'
 import type {
   CommandDeclaration,
   CommandFieldSpec,
   OperationRequest,
   OperationResult,
-  Secret,
 } from '../../operations/types.js'
 import type { Ctx, JsonObject } from '../../types.js'
-import { validateOptionalPositiveInt, validateOptionalUrl, validateBaseUrl } from '../../core/validate.js'
+import { validateOptionalPositiveInt, validateOptionalUrl } from '../../core/validate.js'
 import {
   ENV_HTTPS_PROXY,
   ENV_HTTP_PROXY,
   GLOBAL_FIELDS,
-  PROVIDER_BASE_URL_PATH,
-  PROVIDER_FIELDS,
-  PROVIDER_TOKEN_PATH,
   validateProviderName,
 } from './manifest.js'
 import { SWITCH_OFF, SWITCH_ON } from './constants.js'
-import { backupsDir, claudeStatePath, globalSettingsPath, providerSettingsPath } from './paths.js'
+import { activationCommand, backupsDir, claudeStatePath, globalSettingsPath } from './paths.js'
+import { runProviderSet, PROVIDER_COMMAND_FIELDS } from './provider-commands.js'
 import { createStateIfMissing } from './state.js'
-import {
-  claudeStatusFindings,
-  presentClaudeStatus,
-  readClaudeStatus,
-  type ClaudeStatusDto,
-} from './status-dto.js'
+import { claudeStatusFindings, readClaudeStatus, type ClaudeStatusDto } from './status-dto.js'
+import { presentClaudeStatus } from './status-present.js'
 
 /**
  * The agent's Non-interactive declarations. Field ids here are stable script
@@ -171,6 +164,7 @@ async function runGlobalSet(ctx: Ctx, request: OperationRequest): Promise<Operat
     dryRun: request.dryRun,
     targets: outcome.records,
     warnings: [],
+    launchCommand: activationCommand(globalSettingsPath(ctx.home)),
   }
 }
 
@@ -221,83 +215,9 @@ async function createState(
   target: string,
   dryRun: boolean,
 ): Promise<{ path: string; mode: string; backupPath: string | null; changed: boolean }> {
-  if (dryRun) return { path: target, mode: '0600', backupPath: null, changed: true }
+  if (dryRun) return { path: target, mode: MODE_AFTER_WRITE, backupPath: null, changed: true }
   const created = await createStateIfMissing(ctx)
   return { path: created.path, mode: created.mode, backupPath: null, changed: created.created }
-}
-
-/* ---------------------------------------------------------- provider set */
-
-const PROVIDER_COMMAND_FIELDS: CommandFieldSpec[] = [
-  { id: 'baseUrl', option: '--base-url', type: 'text', validate: validateBaseUrl },
-  { id: 'model', option: '--model', type: 'text', unsettable: true },
-  { id: 'fallbackModel', option: '--fallback-model', type: 'list', unsettable: true },
-  { id: 'defaultOpusModel', option: '--default-opus-model', type: 'text', unsettable: true },
-  { id: 'defaultSonnetModel', option: '--default-sonnet-model', type: 'text', unsettable: true },
-  { id: 'defaultHaikuModel', option: '--default-haiku-model', type: 'text', unsettable: true },
-]
-
-function providerManagedPathOf(fieldId: string): string[] | undefined {
-  return PROVIDER_FIELDS.find((field) => field.id === fieldId)?.path
-}
-
-/**
- * The token comes only from the request's secret -- CCSET_TOKEN or stdin,
- * never an option -- and lands in this provider's file alone. It is never
- * unsettable; a rotated token replaces it, deletion is not a thing.
- */
-function providerPatchWrites(request: OperationRequest, secret: Secret | undefined): ManagedWrite[] {
-  const writes: ManagedWrite[] = []
-  const baseUrl = request.patch['baseUrl']
-  if (typeof baseUrl === 'string') writes.push({ path: PROVIDER_BASE_URL_PATH, value: baseUrl })
-  if (secret !== undefined) writes.push({ path: PROVIDER_TOKEN_PATH, value: secret })
-  for (const field of PROVIDER_COMMAND_FIELDS) {
-    if (field.id === 'baseUrl') continue
-    const path = providerManagedPathOf(field.id)
-    if (path === undefined) continue
-    if (request.unsets.includes(field.id)) {
-      writes.push({ path, value: undefined })
-      continue
-    }
-    const value = request.patch[field.id]
-    if (value !== undefined) {
-      writes.push({ path, value: Array.isArray(value) ? value : String(value) })
-    }
-  }
-  return writes
-}
-
-async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
-  const id = request.providerId ?? ''
-  const target = providerSettingsPath(ctx.home, id)
-  const file = jsonFile(target)
-  const base = await readPatchBase(file, request.replaceInvalid)
-  if (!base.exists && typeof request.patch['baseUrl'] !== 'string') {
-    throw new ValidationError('claudeCode.validate.providerBaseUrlRequired', { name: id })
-  }
-  if (!base.exists && request.secret === undefined) {
-    throw new ValidationError('claudeCode.validate.providerTokenRequired', { name: id })
-  }
-  const outcome = await applyPlan(
-    planTargets([
-      {
-        file,
-        base,
-        writes: providerPatchWrites(request, request.secret),
-        backupsDir: backupsDir(ctx.home),
-      },
-    ]),
-    { dryRun: request.dryRun, skipUnchanged: true },
-  )
-  return {
-    agent: 'claude-code',
-    operation: 'provider.set',
-    providerId: id,
-    changed: outcome.changed,
-    dryRun: request.dryRun,
-    targets: outcome.records,
-    warnings: [],
-  }
 }
 
 export const claudeCodeCommands: CommandDeclaration[] = [

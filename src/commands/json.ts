@@ -20,6 +20,7 @@ export interface CommandEnvelope {
   errors?: Finding[]
   data?: unknown
   partial?: string[]
+  launchCommand?: string
   error?: { code: string; params: Record<string, string> }
 }
 
@@ -37,6 +38,7 @@ export function successEnvelope(result: OperationResult, exitCode: number): Comm
     errors: result.errors,
     data: result.data,
     partial: result.partial,
+    launchCommand: result.launchCommand,
   }
 }
 
