@@ -250,9 +250,10 @@ async function checkDryRun(): Promise<void> {
 }
 
 /**
- * The auth move fails after the routing commit: the backup directory is made
- * unwritable while the routing write is a no-op, so the only thing that could
- * have landed is the routing record -- and the partial report must name it.
+ * The auth move fails after the routing plan: the backup directory is made
+ * unwritable while the routing write is a no-op. The skipped routing target
+ * cannot have changed, so the partial report names only the paths that may
+ * have -- the adopted profile -- and never a no-op the command skipped.
  */
 async function checkPartialReport(): Promise<void> {
   const before = await seed(UNKNOWN_LIVE, false, ROUTED_CORPUS)
@@ -268,9 +269,14 @@ async function checkPartialReport(): Promise<void> {
     const envelope = JSON.parse(result.stdout) as Envelope
     assert.equal(envelope.ok, false)
     assert.equal(
-      (envelope.partial ?? []).some((partial) => partial.endsWith('config.toml')),
+      (envelope.partial ?? []).some((partial) => partial.endsWith('auth.kept.json')),
       true,
-      'the partial report did not name the committed routing',
+      'the partial report did not name the adopted profile',
+    )
+    assert.equal(
+      (envelope.partial ?? []).some((partial) => partial.endsWith('config.toml')),
+      false,
+      'the partial report named a no-op the command skipped',
     )
     assert.equal(await liveOf(before.home), UNKNOWN_LIVE, 'the live credential moved despite the failure')
     assert.equal(

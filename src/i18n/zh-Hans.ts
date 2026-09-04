@@ -203,6 +203,7 @@ export const zhHans: Record<string, string> = {
   'cli.usage.unsetConflict': '字段 {field} 不能同时设置和移除。',
   'cli.usage.emptyPatch': '没有要更改的内容：请至少提供一个字段。',
   'cli.usage.replaceInvalidUnsupported': '此命令不接受 --replace-invalid。',
+  'cli.usage.dryRunUnsupported': '此命令不接受 --dry-run。',
   'cli.usage.noSecretAccepted': '此命令不接受密钥。',
   'cli.usage.secretSourceConflict': '请只使用 CCSET_TOKEN 或 --token-stdin 其中之一。',
 

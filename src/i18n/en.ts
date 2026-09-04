@@ -204,6 +204,7 @@ export const en: Record<string, string> = {
   'cli.usage.unsetConflict': 'Field {field} cannot be both set and unset.',
   'cli.usage.emptyPatch': 'Nothing to change: supply at least one field.',
   'cli.usage.replaceInvalidUnsupported': '--replace-invalid is not accepted by this command.',
+  'cli.usage.dryRunUnsupported': '--dry-run is not accepted by this command.',
   'cli.usage.noSecretAccepted': 'This command does not accept a secret.',
   'cli.usage.secretSourceConflict': 'Use either CCSET_TOKEN or --token-stdin, not both.',
 

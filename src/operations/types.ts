@@ -132,6 +132,8 @@ export interface CommandDeclaration {
   takesSecret?: boolean
   /** The command accepts --replace-invalid for a target it can reconstruct. */
   replaceable?: boolean
+  /** The command changes state, so --dry-run can plan the same change without writing. */
+  dryRunnable?: boolean
   /** The command changes state, so an invocation supplying nothing is a usage error. */
   patchRequired?: boolean
   /** Validates the positional argument with the agent's own name rules. */

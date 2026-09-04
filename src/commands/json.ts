@@ -54,7 +54,8 @@ export function errorEnvelope(
     ok: false,
     exitCode: err.exitCode,
     targets: partial.committed,
-    partial: partial.committed?.map((record) => record.path),
+    // A record the commit skipped as a no-op is not a path that may have changed.
+    partial: partial.committed?.filter((record) => record.changed).map((record) => record.path),
     error: { code: err.messageKey, params: err.params },
   }
 }

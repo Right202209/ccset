@@ -216,7 +216,7 @@ Options the commands share:
 | Option | Effect |
 | --- | --- |
 | `--json` | One JSON envelope on stdout instead of human lines |
-| `--dry-run` | Read, validate and plan; no backup, no write |
+| `--dry-run` | Read, validate and plan; no backup, no write. State-changing commands only — `status` refuses it |
 | `--unset <field>` | Remove one field explicitly; removal is never inferred |
 | `--replace-invalid` | Confirmed replacement of a target that no longer parses; the unreadable original is backed up first |
 | `--token-stdin` | Read the API key from stdin |

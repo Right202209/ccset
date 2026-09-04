@@ -107,7 +107,7 @@ ccset -v | --version | -h | --help
 | 选项 | 作用 |
 | --- | --- |
 | `--json` | 在 stdout 输出一份 JSON 信封，代替面向人的行式输出 |
-| `--dry-run` | 读取、校验并计划；不备份，不写入 |
+| `--dry-run` | 读取、校验并计划；不备份，不写入。仅限会更改状态的命令——`status` 会拒绝它 |
 | `--unset <field>` | 显式删除一个字段；绝不隐式推断删除 |
 | `--replace-invalid` | 确认替换已无法解析的目标；先备份无法读取的原文件 |
 | `--token-stdin` | 从 stdin 读取 API 密钥 |

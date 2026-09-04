@@ -6,6 +6,7 @@ import type {
   OperationRequest,
   PatchMap,
 } from '../operations/types.js'
+import { scanGlobals } from './globals.js'
 
 /**
  * The command-mode parser. Pure against the filesystem, so a syntax error can
@@ -41,28 +42,13 @@ export function missingAgentError(): CcsetError {
 }
 
 /** Strips --json and reads --agent, which every command requires explicitly. */
-function extractGlobals(
-  tokens: string[],
-): { agentId: string; json: boolean; rest: string[] } {
-  const rest: string[] = []
-  let agentId: string | undefined
-  let json = false
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index] ?? ''
-    if (token === '--json') {
-      json = true
-    } else if (token === '--agent') {
-      agentId = tokens[index + 1]
-      if (agentId === undefined) throw usage('cli.usage.missingValue', { option: token })
-      index += 1
-    } else if (token.startsWith('--agent=')) {
-      agentId = token.slice('--agent='.length)
-    } else {
-      rest.push(token)
-    }
+function extractGlobals(tokens: string[]): { agentId: string; json: boolean; rest: string[] } {
+  const scan = scanGlobals(tokens)
+  if (scan.missingValueFor !== null) {
+    throw usage('cli.usage.missingValue', { option: scan.missingValueFor })
   }
-  if (agentId === undefined || agentId.length === 0) throw missingAgentError()
-  return { agentId, json, rest }
+  if (scan.agentId === null) throw missingAgentError()
+  return { agentId: scan.agentId, json: scan.json, rest: scan.rest }
 }
 
 /**
@@ -211,6 +197,7 @@ function readOption(
   if (option === '--unset') return readUnset(token, tokens, index, declaration, state)
   if (option === '--dry-run') {
     if (!bare) throw usage('cli.usage.flagValue', { option })
+    if (declaration.dryRunnable !== true) throw usage('cli.usage.dryRunUnsupported')
     if (state.dryRun) throw usage('cli.usage.duplicateOption', { option })
     state.dryRun = true
     return index + 1
@@ -245,20 +232,12 @@ function readPositional(token: string, declaration: CommandDeclaration, state: P
   state.providerId = token
 }
 
-export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
-  const { agentId, json, rest } = extractGlobals([...argv])
-  const agent = agents.find((candidate) => candidate.id === agentId)
-  if (agent === undefined) {
-    throw new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: agentId })
-  }
-  const { declaration, tokens } = matchDeclaration(rest, agent, agents)
-  const state: ParseState = {
-    patch: {},
-    unsets: [],
-    replaceInvalid: false,
-    dryRun: false,
-    tokenStdin: false,
-  }
+/** Field parsing for a matched declaration: everything a usage error interrupts. */
+function finishParse(
+  declaration: CommandDeclaration,
+  tokens: string[],
+): { request: OperationRequest; secretSource: 'env' | 'stdin' | null } {
+  const state: ParseState = { patch: {}, unsets: [], replaceInvalid: false, dryRun: false, tokenStdin: false }
   for (let index = 0; index < tokens.length; ) {
     const token = tokens[index] ?? ''
     if (token.startsWith('-')) index = readOption(token, tokens, index, declaration, state)
@@ -273,9 +252,6 @@ export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
   const secretSource = secretSourceOf(declaration, state)
   checkUnsetConflicts(declaration, state, secretSource)
   return {
-    agent,
-    declaration,
-    json,
     request: {
       operation: declaration.id,
       providerId: state.providerId,
@@ -285,6 +261,26 @@ export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
       dryRun: state.dryRun,
     },
     secretSource,
+  }
+}
+
+export function parseCommand(argv: string[], agents: Agent[]): ParsedCommand {
+  const { agentId, json, rest } = extractGlobals([...argv])
+  const agent = agents.find((candidate) => candidate.id === agentId)
+  if (agent === undefined) {
+    throw new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: agentId })
+  }
+  const { declaration, tokens } = matchDeclaration(rest, agent, agents)
+  try {
+    const { request, secretSource } = finishParse(declaration, tokens)
+    return { agent, declaration, json, request, secretSource }
+  } catch (err) {
+    // The declaration had matched, so a failure envelope can still name the
+    // operation even though no ParsedCommand escapes the parser.
+    if (err instanceof CcsetError && err.command === undefined) {
+      err.command = { agent: agent.id, operation: declaration.id }
+    }
+    throw err
   }
 }
 

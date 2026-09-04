@@ -21,6 +21,11 @@ export class CcsetError extends Error {
   /** i18n key describing the failure, for the UI. */
   readonly messageKey: string
   readonly params: Record<string, string>
+  /**
+   * Attached by the command parser once a declaration has matched, so a
+   * failure envelope can name the operation even when parsing never completed.
+   */
+  command?: { agent: string; operation: string }
 
   constructor(messageKey: string, exitCode: number, params: Record<string, string> = {}) {
     super(`${messageKey} ${JSON.stringify(params)}`)

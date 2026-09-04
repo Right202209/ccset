@@ -1419,3 +1419,21 @@ Accepted judgement-call debt, recorded rather than silently dropped: the
 parser's internal helpers pass four to five same-family parameters, and the
 per-field unset/patch coercion loop appears in a small variation per agent
 module because each agent owns its own field-to-key mapping.
+
+**Second review round (same date).** A re-review of the completed milestone
+against #47 confirmed the contract with four remaining findings, each closed
+red-green (the extended fixture was shown failing before the fix): a partial
+report now names only paths the commit actually wrote, so a no-op target the
+command skipped is never listed as possibly changed (the Codex `provider use`
+partial fixture asserts the adopted profile and the absence of the skipped
+`config.toml`); a failure envelope names the operation once the parser had
+matched a declaration (`CcsetError.command`, attached in `parseCommand`, read
+by the failure presenter — `global set --json` with nothing to change reports
+`global.set`); `--dry-run` is a declared capability (`dryRunnable`) refused by
+commands that do not change state, `status` included, with a distinct usage
+message and exit 64; and `--agent` never reads its value from a following
+flag, so `--agent --json status` is a usage error 64 with an envelope rather
+than unknown-agent 65 (the walk lives once, in `src/commands/globals.ts`,
+shared by the parser and the failure fallback, keeping `parser.ts` within the
+size standard). Evidence: full `npm test` plus `verify:i18n-zh` and
+`npm run typecheck` green on Linux x64; both README option tables updated.

@@ -226,6 +226,7 @@ export const claudeCodeCommands: CommandDeclaration[] = [
     fields: GLOBAL_COMMAND_FIELDS,
     patchRequired: true,
     replaceable: true,
+    dryRunnable: true,
     presentation: { successTitleKey: () => 'write.globalSaved' },
     run: runGlobalSet,
   },
@@ -236,6 +237,7 @@ export const claudeCodeCommands: CommandDeclaration[] = [
     takesSecret: true,
     replaceable: true,
     patchRequired: true,
+    dryRunnable: true,
     validateArgument: validateProviderName,
     presentation: { successTitleKey: () => 'write.providerSaved' },
     run: runProviderSet,
@@ -252,6 +254,7 @@ export const claudeCodeCommands: CommandDeclaration[] = [
   {
     id: 'state.init',
     fields: [],
+    dryRunnable: true,
     presentation: {
       successTitleKey: (result) =>
         result.changed ? 'claudeCode.write.stateCreated' : 'claudeCode.write.stateExists',

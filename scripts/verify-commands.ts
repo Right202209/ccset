@@ -210,6 +210,40 @@ async function checkCliExitCodes(home: string): Promise<void> {
   assert.equal(unknownVerb.code, EXIT_USAGE, 'an unknown verb did not exit 64')
 }
 
+/**
+ * A parse-stage failure still owes --json its envelope, and the envelope names
+ * what parsing had already recognized: the operation once a declaration
+ * matched, an agent only when one was actually named.
+ */
+async function checkCliFailureEnvelopes(home: string): Promise<void> {
+  const emptyPatch = await runCli(['--agent', 'claude-code', 'global', 'set', '--json'], {
+    CCSET_HOME: home,
+  })
+  assert.equal(emptyPatch.code, EXIT_USAGE, 'an empty patch did not exit 64')
+  const envelope = JSON.parse(emptyPatch.stdout) as {
+    agent: string | null
+    operation: string | null
+    ok: boolean
+    exitCode: number
+    error: { code: string }
+  }
+  assert.equal(envelope.agent, 'claude-code')
+  assert.equal(envelope.operation, 'global.set', 'a recognized operation was not named')
+  assert.equal(envelope.exitCode, EXIT_USAGE)
+  assert.equal(envelope.error?.code, 'cli.usage.emptyPatch')
+
+  const swallowed = await runCli(['--agent', '--json', 'status'], { CCSET_HOME: home })
+  assert.equal(swallowed.code, EXIT_USAGE, '--agent before a flag did not exit 64')
+  const misread = JSON.parse(swallowed.stdout) as {
+    agent: string | null
+    error: { code: string }
+  }
+  assert.equal(misread.agent, null, 'an agent id was read out of the next flag')
+  assert.equal(misread.error?.code, 'cli.usage.missingValue')
+
+  await expectUsage(['--agent', 'claude-code', 'status', '--dry-run'], 'dry-run is not accepted')
+}
+
 /** A syntax error must precede any read: the malformed target plays no part. */
 async function checkSyntaxBeforeReads(home: string): Promise<void> {
   await seed(home, { model: 'old' })
@@ -239,6 +273,7 @@ async function main(): Promise<void> {
   await withHome('recover', checkSeamRecovery)
   await withHome('cli-out', checkCliOutputs)
   await withHome('cli-codes', checkCliExitCodes)
+  await withHome('cli-failures', checkCliFailureEnvelopes)
   await withHome('cli-order', checkSyntaxBeforeReads)
   process.stdout.write('Non-interactive command verification passed.\n')
 }
