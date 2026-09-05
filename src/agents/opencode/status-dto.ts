@@ -1,19 +1,21 @@
 import { countBackups, countPartialBackups } from '../../core/backup.js'
+import { readConfigFile } from '../../core/config-file.js'
 import { JsonParseError } from '../../core/errors.js'
-import { fileExists, readJsonFile, readMode } from '../../core/json-file.js'
+import { fileExists, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
 import type { JsonObject, JsonValue } from '../../types.js'
 import { GLOBAL_FIELDS, MANAGED_GLOBAL_PATHS, providerApiKeyPath } from './manifest.js'
-import { backupsDir, opencodeConfigPath, opencodeJsoncPath } from './paths.js'
+import { backupsDir, opencodeConfigPath, opencodeTarget } from './paths.js'
 import { loadProviders, type ProviderRecord } from './providers.js'
 
 /**
  * The raw status payload for opencode, secret-free and machine-readable: the
- * one config document, the provider blocks inside it, the JSONC warning, and
- * the backup counts. The TUI keeps its own translated view of the same
- * loaders; this DTO is what the operation seam and JSON output carry.
+ * managed config document, the provider blocks inside it, a legacy `.json`
+ * sitting beside a managed `.jsonc`, and the backup counts. The TUI keeps its
+ * own translated view of the same loaders; this DTO is what the operation
+ * seam and JSON output carry.
  */
 
 export interface OpencodeConfigStatus {
@@ -37,8 +39,8 @@ export interface OpencodeProviderStatus {
 export interface OpencodeStatusDto {
   config: OpencodeConfigStatus
   providers: OpencodeProviderStatus[]
-  jsoncPresent: boolean
-  jsoncPath: string
+  /** Set only when a legacy opencode.json sits beside the managed .jsonc. */
+  legacyJson?: { path: string }
   backups: BackupsSummary
 }
 
@@ -83,7 +85,6 @@ export function opencodeStatusFindings(dto: OpencodeStatusDto): {
 } {
   const warnings: Finding[] = []
   const errors: Finding[] = []
-  if (dto.jsoncPresent) warnings.push({ code: 'opencode.warning.jsoncPresent' })
   if (dto.config.exists && !dto.config.parsed) {
     errors.push({
       code: 'cli.parseFailure',
@@ -100,44 +101,44 @@ export function opencodeStatusFindings(dto: OpencodeStatusDto): {
 
 /** Reads everything, writes nothing. */
 export async function readOpencodeStatus(ctx: { home: string }): Promise<OpencodeStatusDto> {
-  const target = opencodeConfigPath(ctx.home)
+  const target = await opencodeTarget(ctx.home)
+  const legacyPath = opencodeConfigPath(ctx.home)
   const backupsDirPath = backupsDir(ctx.home)
-  const [count, partials, jsoncPresent] = await Promise.all([
+  const [count, partials, legacyPresent] = await Promise.all([
     countBackups(backupsDirPath),
     countPartialBackups(backupsDirPath),
-    fileExists(opencodeJsoncPath(ctx.home)),
+    target.codec === 'jsonc' ? fileExists(legacyPath) : Promise.resolve(false),
   ])
   const backups = { path: backupsDirPath, count, partials }
+  const legacyJson = legacyPresent ? { path: legacyPath } : undefined
   try {
-    const file = await readJsonFile(target)
+    const config = await readConfigFile(target)
     const list = await loadProviders(ctx)
     return {
       config: {
-        path: target,
-        exists: file.exists,
-        mode: file.exists ? await readMode(target) : undefined,
+        path: target.path,
+        exists: config.exists,
+        mode: config.exists ? await readMode(target.path) : undefined,
         parsed: true,
-        managed: managedValues(file.data),
-        unmanagedKeys: countUnmanagedKeys(file.data, MANAGED_GLOBAL_PATHS),
+        managed: managedValues(config.data),
+        unmanagedKeys: countUnmanagedKeys(config.data, MANAGED_GLOBAL_PATHS),
       },
-      providers: list.records.map((record) => toProviderStatus(file.data, record)),
-      jsoncPresent,
-      jsoncPath: opencodeJsoncPath(ctx.home),
+      providers: list.records.map((record) => toProviderStatus(config.data, record)),
+      legacyJson,
       backups,
     }
   } catch (err) {
     if (!(err instanceof JsonParseError)) throw err
     return {
       config: {
-        path: target,
+        path: target.path,
         exists: true,
-        mode: await readMode(target),
+        mode: await readMode(target.path),
         parsed: false,
         position: String(err.params['position'] ?? ''),
       },
       providers: [],
-      jsoncPresent,
-      jsoncPath: opencodeJsoncPath(ctx.home),
+      legacyJson,
       backups,
     }
   }
@@ -206,11 +207,11 @@ export function presentOpencodeStatus(dto: OpencodeStatusDto): KeyedStatusSectio
     sections.push({ titleKey: 'status.providersTitle', lines: [], noteKey: 'opencode.status.noProviders' })
   }
   for (const provider of dto.providers) sections.push(providerSection(provider))
-  if (dto.jsoncPresent) {
+  if (dto.legacyJson !== undefined) {
     sections.push({
-      titleKey: 'opencode.status.jsoncTitle',
-      lines: [{ labelKey: 'status.path', value: dto.jsoncPath, tone: 'warn' }],
-      noteKey: 'opencode.status.jsoncNote',
+      titleKey: 'opencode.status.legacyJsonTitle',
+      lines: [{ labelKey: 'status.path', value: dto.legacyJson.path, tone: 'warn' }],
+      noteKey: 'opencode.status.legacyJsonNote',
     })
   }
   sections.push(backupsSection(dto.backups))

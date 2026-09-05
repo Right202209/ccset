@@ -7,7 +7,8 @@
 export const opencodeMessages: Record<string, Record<string, string>> = {
   en: {
     /* --------------------------------------------------------- action detail */
-    'opencode.action.globalDetail': '~/.config/opencode/opencode.json',
+    'opencode.action.globalDetail':
+      '~/.config/opencode/opencode.jsonc when it exists, else opencode.json',
     'opencode.action.providersDetail': 'Add or edit a provider block in that file',
     'opencode.action.providerAddDetail': 'Add a provider block',
 
@@ -50,15 +51,13 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     /* ---------------------------------------------------------------- status */
     'opencode.status.noProviders': 'No provider blocks in this file.',
     'opencode.status.noBaseUrl': 'No options.baseURL in this block.',
-    'opencode.warning.jsoncPresent':
-      'An opencode.jsonc sits beside the managed config; the save may not be the file opencode reads.',
+    'opencode.status.legacyJsonTitle': 'opencode.json (not managed)',
+    'opencode.status.legacyJsonNote':
+      'opencode loads this file first, then the managed opencode.jsonc — a key set in both takes the .jsonc value. ccset does not edit this file.',
     'opencode.warning.noBaseUrl': 'Provider {name} has no options.baseURL.',
     'opencode.validate.providerBaseUrlRequired': 'A new provider needs --base-url.',
     'opencode.validate.providerTokenRequired':
       'A new provider needs a key from CCSET_TOKEN or --token-stdin.',
-    'opencode.status.jsoncTitle': 'opencode.jsonc (not managed)',
-    'opencode.status.jsoncNote':
-      'opencode also loads this file. ccset never writes it, because a comment cannot survive a JSON rewrite — so a save here may not be the config opencode reads.',
 
     /* ----------------------------------------------------------------- notes */
     'opencode.note.configPath': 'File: {path} — created on save.',
@@ -72,7 +71,8 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
 
   'zh-Hans': {
     /* --------------------------------------------------------- action detail */
-    'opencode.action.globalDetail': '~/.config/opencode/opencode.json',
+    'opencode.action.globalDetail':
+      '~/.config/opencode/opencode.jsonc（若存在），否则为 opencode.json',
     'opencode.action.providersDetail': '在该文件中添加或编辑提供商配置块',
     'opencode.action.providerAddDetail': '添加提供商配置块',
 
@@ -112,13 +112,12 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     /* ---------------------------------------------------------------- status */
     'opencode.status.noProviders': '此文件中没有提供商配置块。',
     'opencode.status.noBaseUrl': '此配置块中没有 options.baseURL。',
-    'opencode.warning.jsoncPresent': '受管配置旁存在 opencode.jsonc；写入的文件可能不是 opencode 实际读取的。',
+    'opencode.status.legacyJsonTitle': 'opencode.json（不受管理）',
+    'opencode.status.legacyJsonNote':
+      'opencode 先读取此文件，再读取受管理的 opencode.jsonc — 两边都设置的键以 .jsonc 为准。ccset 不会编辑此文件。',
     'opencode.warning.noBaseUrl': 'Provider {name} 没有设置 options.baseURL。',
     'opencode.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
     'opencode.validate.providerTokenRequired': '新建 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',
-    'opencode.status.jsoncTitle': 'opencode.jsonc（不受管理）',
-    'opencode.status.jsoncNote':
-      'opencode 也会读取此文件。ccset 绝不写入它，因为注释无法在 JSON 重写后保留 — 因此这里保存的内容可能不是 opencode 实际读取的配置。',
 
     /* ----------------------------------------------------------------- notes */
     'opencode.note.configPath': '文件：{path} — 保存时创建。',

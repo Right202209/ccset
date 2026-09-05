@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import type { ConfigFile, JsonObject } from '../types.js'
-import { CcsetError, EXIT_RUNTIME, TomlParseError, isNotFound, wrapFsError } from './errors.js'
+import { CcsetError, EXIT_RUNTIME, JsonParseError, TomlParseError, isNotFound, wrapFsError } from './errors.js'
+import { findJsoncProblem, applyJsoncWrites, readJsoncObject } from './jsonc/index.js'
 import { parseJsonObject, writeTextAtomic } from './json-file.js'
 import { applyManagedWrites, type ManagedWrite } from './merge.js'
 import { applyTomlWrites, findTomlProblem, readTomlObject } from './toml/index.js'
@@ -11,9 +12,9 @@ import { applyTomlWrites, findTomlProblem, readTomlObject } from './toml/index.j
  * set or removed without disturbing anything else -- belongs to the codec.
  *
  * The `raw` field is why this exists separately from json-file.ts. A JSON write
- * can be rebuilt from parsed data, but a format-preserving TOML write edits the
- * original text, so the base a save merges into has to carry the text as well as
- * the object.
+ * can be rebuilt from parsed data, but a format-preserving TOML or JSONC write
+ * edits the original text, so the base a save merges into has to carry the text
+ * as well as the object.
  */
 
 export interface LoadedConfig {
@@ -36,6 +37,11 @@ export function emptyConfig(path: string): LoadedConfig {
 
 function parse(file: ConfigFile, raw: string): JsonObject {
   if (file.codec === 'json') return parseJsonObject(raw, file.path)
+  if (file.codec === 'jsonc') {
+    const problem = findJsoncProblem(raw)
+    if (problem !== null) throw new JsonParseError(file.path, problem)
+    return readJsoncObject(raw)
+  }
   const problem = findTomlProblem(raw)
   if (problem !== null) throw new TomlParseError(file.path, problem)
   return readTomlObject(raw)
@@ -55,6 +61,7 @@ export async function readConfigFile(file: ConfigFile): Promise<LoadedConfig> {
 
 function render(file: ConfigFile, base: LoadedConfig, writes: ManagedWrite[]): string {
   if (file.codec === 'toml') return applyTomlWrites(base.raw, writes)
+  if (file.codec === 'jsonc') return applyJsoncWrites(base.raw, writes)
   if (file.codec === 'json') {
     return `${JSON.stringify(applyManagedWrites(base.data, writes), null, 2)}\n`
   }

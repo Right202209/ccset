@@ -5,9 +5,11 @@ import path from 'node:path'
 import { saveGlobal } from '../src/agents/opencode/global.js'
 import { loadProviders, saveProvider } from '../src/agents/opencode/providers.js'
 import { buildStatus } from '../src/agents/opencode/status.js'
-import { backupsDir, opencodeConfigPath, opencodeJsoncPath } from '../src/agents/opencode/paths.js'
+import { backupsDir, opencodeConfigPath } from '../src/agents/opencode/paths.js'
 import { BACKUP_INFIX, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
+import { verifyJsoncScenarios } from './verify-opencode-jsonc-scenarios.js'
+import { verifyJsoncCodec } from './verify-opencode-jsonc.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 
 /**
@@ -15,6 +17,11 @@ import type { FormValues, JsonObject } from '../src/types.js'
  * document, so these cover what the Claude Code fixtures cannot: unmanaged
  * siblings four levels deep, and a models map that has to merge per key
  * instead of being written wholesale.
+ *
+ * The managed-.jsonc gates (O7 revised, O8-O10) live in
+ * verify-opencode-jsonc-scenarios.ts and the JSONC codec corpus in
+ * verify-opencode-jsonc.ts; both run here, the way verify-toml-codec runs
+ * inside verify:codex (issue #46).
  */
 
 const API_KEY = 'OPENCODE-TEST-KEY-1234567890'
@@ -169,27 +176,6 @@ async function verifyBackupsAndMasking(home: string): Promise<void> {
   assert.equal(serialized.includes(maskSecret(API_KEY)), true, 'O6: Status did not mask the key')
 }
 
-/** O7: a JSONC config beside the managed one is reported, never written. */
-async function verifyJsoncIsReportedNotWritten(home: string): Promise<void> {
-  const jsonc = opencodeJsoncPath(home)
-  const contents = '{\n  // a comment ccset cannot round-trip\n  "theme": "gruvbox"\n}\n'
-  await fs.writeFile(jsonc, contents, { mode: 0o600 })
-  const before = await fs.stat(jsonc)
-
-  await saveProvider({ home }, providerValues('router', 'model-keep'))
-  const status = await buildStatus({ home })
-
-  assert.equal(status.jsoncPresent, true, 'O7: a .jsonc config was not detected')
-  assert.equal(
-    JSON.stringify(status.sections).includes('opencode.jsonc'),
-    true,
-    'O7: Status did not name the unmanaged .jsonc file',
-  )
-  assert.equal(await fs.readFile(jsonc, 'utf8'), contents, 'O7: ccset wrote the .jsonc file')
-  const after = await fs.stat(jsonc)
-  assert.equal(after.mtimeMs, before.mtimeMs, 'O7: ccset touched the .jsonc file')
-}
-
 /** The provider list is read back from the keys of one document. */
 async function verifyDiscovery(home: string): Promise<void> {
   const list = await loadProviders({ home })
@@ -215,7 +201,9 @@ async function main(): Promise<void> {
     await verifyGlobalTypes(home)
     await verifyDiscovery(home)
     await verifyBackupsAndMasking(home)
-    await verifyJsoncIsReportedNotWritten(home)
+
+    verifyJsoncCodec()
+    await verifyJsoncScenarios(providerValues, API_KEY)
 
     process.stdout.write('opencode agent verification passed.\n')
   } finally {

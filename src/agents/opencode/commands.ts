@@ -1,11 +1,10 @@
 import { ValidationError } from '../../core/errors.js'
-import { fileExists, isPlainObject, jsonFile } from '../../core/json-file.js'
+import { isPlainObject } from '../../core/json-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
 import type {
   CommandDeclaration,
   CommandFieldSpec,
-  Finding,
   OperationRequest,
   OperationResult,
 } from '../../operations/types.js'
@@ -23,7 +22,7 @@ import {
   providerTimeoutPath,
   validateProviderId,
 } from './manifest.js'
-import { backupsDir, launchCommand, opencodeConfigPath, opencodeJsoncPath } from './paths.js'
+import { backupsDir, launchCommand, opencodeTarget } from './paths.js'
 import {
   opencodeStatusFindings,
   presentOpencodeStatus,
@@ -61,17 +60,6 @@ function managedPathOf(fieldId: string): string[] | undefined {
   return GLOBAL_FIELDS.find((field) => field.id === fieldId)?.path
 }
 
-/**
- * The one warning every write to opencode's config can carry: a `.jsonc`
- * beside the managed file means the save may not be the document opencode
- * reads. Status says it too; a write result saying it is what makes an
- * unattended save honest.
- */
-async function jsoncWarning(ctx: Ctx): Promise<Finding[]> {
-  const present = await fileExists(opencodeJsoncPath(ctx.home))
-  return present ? [{ code: 'opencode.warning.jsoncPresent' }] : []
-}
-
 /** `autoupdate` is `true | false | "notify"` in the schema -- real booleans. */
 function autoupdateValue(raw: string): boolean | string {
   if (raw === 'true') return true
@@ -104,8 +92,7 @@ function globalPatchWrites(request: OperationRequest): ManagedWrite[] {
 }
 
 async function runGlobalSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
-  const target = opencodeConfigPath(ctx.home)
-  const file = jsonFile(target)
+  const file = await opencodeTarget(ctx.home)
   const base = await readPatchBase(file, request.replaceInvalid)
   const outcome = await applyPlan(
     planTargets([{ file, base, writes: globalPatchWrites(request), backupsDir: backupsDir(ctx.home) }]),
@@ -117,13 +104,13 @@ async function runGlobalSet(ctx: Ctx, request: OperationRequest): Promise<Operat
     changed: outcome.changed,
     dryRun: request.dryRun,
     targets: outcome.records,
-    warnings: await jsoncWarning(ctx),
+    warnings: [],
     launchCommand: launchCommand(),
     launchKey: 'opencode.write.activate',
   }
 }
 
-/** Status reads the one document through the raw DTO and never writes. */
+/** Status reads the managed document through the raw DTO and never writes. */
 async function runStatus(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
   const data = await readOpencodeStatus(ctx)
   const { warnings, errors } = opencodeStatusFindings(data)
@@ -218,8 +205,7 @@ function providerFieldPath(fieldId: string, id: string): string[] | undefined {
 
 async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
   const id = request.providerId ?? ''
-  const target = opencodeConfigPath(ctx.home)
-  const file = jsonFile(target)
+  const file = await opencodeTarget(ctx.home)
   const base = await readPatchBase(file, request.replaceInvalid)
   const block = getPath(base.data, providerPath(id))
   if (!base.exists || !isPlainObject(block)) {
@@ -243,7 +229,7 @@ async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<Oper
     changed: outcome.changed,
     dryRun: request.dryRun,
     targets: outcome.records,
-    warnings: await jsoncWarning(ctx),
+    warnings: [],
     launchCommand: launchCommand(),
     launchKey: 'opencode.write.activate',
   }

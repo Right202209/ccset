@@ -31,8 +31,8 @@ _Avoid_: Credential, login, account
 **Codec**:
 How a config document is read and written for one serialization format. A Codec
 that edits the original text rather than re-serialising a parse is
-format-preserving; ccset's TOML Codec is, because comments and key order are
-part of what "unmanaged keys survive" has to cover.
+format-preserving; ccset's TOML and JSONC Codecs are, because comments and key
+order are part of what "unmanaged keys survive" has to cover.
 _Avoid_: Parser, serializer, file format
 
 **Agent**:

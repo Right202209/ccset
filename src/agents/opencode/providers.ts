@@ -1,6 +1,6 @@
 import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
-import { ValidationError, JsonParseError } from '../../core/errors.js'
-import { isPlainObject, jsonFile, readJsonFile } from '../../core/json-file.js'
+import { readConfigFile } from '../../core/config-file.js'
+import { isPlainObject } from '../../core/json-file.js'
 import {
   countUnmanagedKeys,
   getPath,
@@ -14,6 +14,7 @@ import {
   textOrUndefined,
   withDefaults,
 } from '../../core/values.js'
+import { JsonParseError, ValidationError } from '../../core/errors.js'
 import {
   PROVIDER_DEFAULTS,
   PROVIDER_ROOT,
@@ -27,7 +28,7 @@ import {
   providerTimeoutPath,
   validateProviderId,
 } from './manifest.js'
-import { backupsDir, launchCommand, opencodeConfigPath } from './paths.js'
+import { backupsDir, launchCommand, opencodeTarget } from './paths.js'
 
 /** One provider block inside the single config document. */
 export interface ProviderRecord {
@@ -133,8 +134,7 @@ export async function saveProvider(
   const id = providerIdOf(values)
   const problem = validateProviderId(id)
   if (problem !== null) throw new ValidationError(problem, { name: id })
-  const target = opencodeConfigPath(ctx.home)
-  const file = jsonFile(target)
+  const file = await opencodeTarget(ctx.home)
   const base = await readPatchBase(file, startFresh)
   const report = await commitOne({
     file,
@@ -168,24 +168,25 @@ function asObject(value: unknown): JsonObject {
 
 /**
  * A malformed file must never stop the screen rendering, so a parse error is
- * reported on the list rather than thrown.
+ * reported on the list rather than thrown. The target is the managed one: a
+ * `.jsonc` when it exists, else the `.json`.
  */
 export async function loadProviders(ctx: Ctx): Promise<ProviderList> {
-  const target = opencodeConfigPath(ctx.home)
+  const file = await opencodeTarget(ctx.home)
   try {
-    const file = await readJsonFile(target)
-    const root = asObject(getPath(file.data, [PROVIDER_ROOT]))
+    const config = await readConfigFile(file)
+    const root = asObject(getPath(config.data, [PROVIDER_ROOT]))
     return {
-      path: target,
-      exists: file.exists,
+      path: file.path,
+      exists: config.exists,
       parsed: true,
       records: Object.keys(root)
         .sort()
-        .map((id) => describeRecord(file.data, id)),
+        .map((id) => describeRecord(config.data, id)),
     }
   } catch (err) {
     return {
-      path: target,
+      path: file.path,
       exists: true,
       parsed: false,
       records: [],

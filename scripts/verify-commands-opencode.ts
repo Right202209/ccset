@@ -11,7 +11,9 @@ import { runCli as spawnCli, type RunResult } from './cli-harness.js'
  * document must keep every unmanaged key at every nesting level, write
  * opencode's real boolean and list shapes, delete only what --unset names,
  * and report status without secret material -- holding exit 4 on a parse
- * failure while the readable sections still ship.
+ * failure while the readable sections still ship. With a managed `.jsonc`
+ * beside a legacy `.json`, reads and writes land in the `.jsonc` -- comments
+ * intact -- and the legacy file is named but never rewritten.
  */
 
 const API_KEY = 'OC-FIXTURE-SECRET-0123456789'
@@ -105,21 +107,41 @@ async function checkStatus(home: string): Promise<void> {
   const result = await runCli(['--agent', 'opencode', 'status', '--json'], home)
   assert.equal(result.code, 0)
   const envelope = JSON.parse(result.stdout) as {
-    warnings: { code: string; params?: Record<string, string> }[]
-    data: { config: { parsed: boolean; managed?: Record<string, unknown> }; providers: { id: string; apiKeyPresent?: boolean; managed?: Record<string, unknown> }[]; jsoncPresent: boolean }
+    warnings: { code: string }[]
+    data: {
+      config: { path: string; parsed: boolean }
+      providers: { id: string; apiKeyPresent?: boolean }[]
+      legacyJson?: { path: string }
+    }
   }
-  assert.equal(envelope.data.config.parsed, true)
-  assert.equal(envelope.data.jsoncPresent, true)
-  assert.ok(envelope.warnings.some((warning) => warning.code === 'opencode.warning.jsoncPresent'))
-  const router = envelope.data.providers.find((provider) => provider.id === 'router')
-  assert.equal(router?.apiKeyPresent, true, 'key presence was not reported')
+  assert.equal(envelope.data.config.path, jsonc, 'status did not read the managed .jsonc')
+  assert.equal(envelope.data.config.parsed, true, 'a commented .jsonc failed to parse')
+  assert.equal(envelope.data.legacyJson?.path, opencodeConfigPath(home), 'the legacy .json was not named')
+  assert.equal(envelope.warnings.length, 0, 'the managed target raised a warning')
+  assert.equal(envelope.data.providers.length, 0, 'providers were read from the unmanaged legacy file')
   assert.equal(JSON.stringify(envelope.data).includes(API_KEY), false, 'the API key leaked into the JSON')
 
   const human = await runCli(['--agent', 'opencode', 'status'], home)
   assert.equal(human.code, 0)
-  assert.ok(human.stdout.includes('router'), 'the human status lost a provider')
+  assert.ok(human.stdout.includes('opencode.json (not managed)'), 'the human status lost the legacy note')
   assert.equal(human.stdout.includes(API_KEY), false, 'the API key leaked into the human report')
   assert.equal(`${human.stdout}${human.stderr}`.includes('\x1b'), false, 'ANSI reached status')
+}
+
+async function checkManagedTargetWrite(home: string): Promise<void> {
+  await seed(home)
+  const jsonc = opencodeJsoncPath(home)
+  await fs.writeFile(jsonc, '{\n  // comment\n  "theme": "gruvbox"\n}\n', { mode: 0o600 })
+  const result = await runCli(
+    ['--agent', 'opencode', 'global', 'set', '--model', 'router/m1', '--json'],
+    home,
+  )
+  assert.equal(result.code, 0, `global set failed: ${result.stderr}`)
+  const managed = await fs.readFile(jsonc, 'utf8')
+  assert.match(managed, /\/\/ comment/, 'the save disturbed bytes it does not own')
+  assert.match(managed, /"model": "router\/m1"/, 'the managed key did not land in the .jsonc')
+  assert.match(managed, /"theme": "gruvbox"/, 'an unmanaged key in the .jsonc was lost')
+  assert.equal(await fs.readFile(opencodeConfigPath(home), 'utf8'), ORIGINAL, 'the legacy .json was rewritten')
 }
 
 async function checkStatusParseFailure(home: string): Promise<void> {
@@ -153,6 +175,7 @@ async function main(): Promise<void> {
   await withHome('global', checkGlobalSet)
   await withHome('unset', checkUnsetNoOpDryRun)
   await withHome('status', checkStatus)
+  await withHome('managed', checkManagedTargetWrite)
   await withHome('status4', checkStatusParseFailure)
   process.stdout.write('opencode status and global set verification passed.\n')
 }

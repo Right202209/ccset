@@ -1,19 +1,21 @@
 import type { Ctx, JsonObject, StatusLine, StatusSection } from '../../types.js'
 import { backupStatusSection } from '../../core/backup.js'
+import { readConfigFile } from '../../core/config-file.js'
 import { JsonParseError } from '../../core/errors.js'
-import { fileExists, readJsonFile, readMode } from '../../core/json-file.js'
+import { fileExists, readMode } from '../../core/json-file.js'
 import { maskSecret } from '../../core/mask.js'
 import { countUnmanagedKeys } from '../../core/merge.js'
 import { t } from '../../i18n/index.js'
 import { seedGlobalFromDisk } from './global.js'
 import { MANAGED_GLOBAL_PATHS } from './manifest.js'
 import { loadProviders, type ProviderList, type ProviderRecord } from './providers.js'
-import { backupsDir, opencodeConfigPath, opencodeJsoncPath } from './paths.js'
+import { backupsDir, opencodeConfigPath, opencodeTarget } from './paths.js'
 
 export interface StatusData {
   sections: StatusSection[]
   providers: ProviderList
-  jsoncPresent: boolean
+  /** A legacy opencode.json sits beside the managed .jsonc. */
+  legacyJsonPresent: boolean
 }
 
 function blankAsUnset(value: string): string {
@@ -34,21 +36,21 @@ function globalLines(data: JsonObject): StatusLine[] {
 }
 
 async function globalSection(ctx: Ctx): Promise<StatusSection> {
-  const target = opencodeConfigPath(ctx.home)
-  const lines: StatusLine[] = [{ label: t('status.path'), value: target }]
+  const file = await opencodeTarget(ctx.home)
+  const lines: StatusLine[] = [{ label: t('status.path'), value: file.path }]
   try {
-    const file = await readJsonFile(target)
-    if (!file.exists) {
+    const config = await readConfigFile(file)
+    if (!config.exists) {
       lines.push({ label: t('status.present'), value: t('status.absent'), tone: 'warn' })
       return { title: t('status.globalTitle'), lines }
     }
-    lines.push({ label: t('status.mode'), value: await readMode(target) })
-    lines.push(...globalLines(file.data))
+    lines.push({ label: t('status.mode'), value: await readMode(file.path) })
+    lines.push(...globalLines(config.data))
     return {
       title: t('status.globalTitle'),
       lines,
       note: t('status.unmanagedNote', {
-        count: countUnmanagedKeys(file.data, MANAGED_GLOBAL_PATHS),
+        count: countUnmanagedKeys(config.data, MANAGED_GLOBAL_PATHS),
       }),
     }
   } catch (err) {
@@ -99,27 +101,32 @@ function providerSections(list: ProviderList): StatusSection[] {
 }
 
 /**
- * opencode also loads a JSONC variant that ccset will not write, so a config
- * sitting beside the managed one is reported rather than ignored: a save that
- * lands in the file opencode does not read would otherwise look successful.
+ * A legacy `opencode.json` beside the managed `.jsonc` is named for what it
+ * is: still loaded by opencode, but not managed, so a key set in both files
+ * takes the value of the file ccset writes. When no `.jsonc` exists the
+ * `.json` is the managed file and needs no such note.
  */
-function jsoncSection(ctx: Ctx): StatusSection {
+async function legacyJsonSection(ctx: Ctx): Promise<StatusSection | null> {
+  const target = await opencodeTarget(ctx.home)
+  if (target.codec !== 'jsonc') return null
+  const legacyPath = opencodeConfigPath(ctx.home)
+  if (!(await fileExists(legacyPath))) return null
   return {
-    title: t('opencode.status.jsoncTitle'),
-    lines: [{ label: t('status.path'), value: opencodeJsoncPath(ctx.home), tone: 'warn' }],
-    note: t('opencode.status.jsoncNote'),
+    title: t('opencode.status.legacyJsonTitle'),
+    lines: [{ label: t('status.path'), value: legacyPath, tone: 'warn' }],
+    note: t('opencode.status.legacyJsonNote'),
   }
 }
 
 /** Reads everything, writes nothing. */
 export async function buildStatus(ctx: Ctx): Promise<StatusData> {
-  const [providers, global, backups, jsoncPresent] = await Promise.all([
+  const [providers, global, backups, legacy] = await Promise.all([
     loadProviders(ctx),
     globalSection(ctx),
     backupStatusSection(backupsDir(ctx.home)),
-    fileExists(opencodeJsoncPath(ctx.home)),
+    legacyJsonSection(ctx),
   ])
   const sections = [global, ...providerSections(providers), backups]
-  if (jsoncPresent) sections.push(jsoncSection(ctx))
-  return { sections, providers, jsoncPresent }
+  if (legacy !== null) sections.push(legacy)
+  return { sections, providers, legacyJsonPresent: legacy !== null }
 }

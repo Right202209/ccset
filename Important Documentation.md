@@ -20,7 +20,7 @@ the dependent part.
 | U3 | Is `fallbackModel` in settings JSON a `string[]` or a comma-joined string? | Write each form, launch, observe whether it is honoured or rejected. | §4.2.3 Advanced field type. |
 | U4 | Does Claude Code prune `~/.claude/backups/` by filename pattern or across the whole directory? | Place a foreign file there, use Claude Code until rotation occurs, check survival. | Confirms §6.5's subdirectory choice. Low risk — the subdirectory is safe either way. |
 | U5 | Is the `droite` npm scope owned/creatable by the publisher? | `npm whoami`, then `npm org ls droite` while authenticated. | Publishing at Milestone 1. |
-| U6 | When both `~/.config/opencode/opencode.json` and `opencode.jsonc` exist, which does opencode load — and does it merge them or pick one? | Write a distinguishing key into each, launch opencode, inspect the effective value. | Whether ccset's write to `opencode.json` is the config opencode reads. ccset currently reports the `.jsonc` file and warns; if the answer is "`.jsonc` wins", the warning must become a refusal to write. |
+| U6 | When both `~/.config/opencode/opencode.json` and `opencode.jsonc` exist, which does opencode load — and does it merge them or pick one? | Write a distinguishing key into each, launch opencode, inspect the effective value. | Answered from source at v1.18.25 (issue #39): both load, merged per key, `.jsonc` last, so the `.jsonc` wins conflicts. The decision that follows — ccset writes the `.jsonc` (issue #46, §9.34) — is implemented; the runtime experiment itself has not been run, so the row stays open. |
 | U7 | ~~Can a TOML config be round-tripped without losing comments, key order, and formatting, using a format-preserving parser?~~ **Answered 2026-09-01, see §9.26.** Yes, by editing the document in place rather than re-serialising it (ADR 0003). A corpus of 13 documents — comments, CRLF, no trailing newline, `#` inside strings, quoted and dotted keys, multi-line arrays and strings, inline tables, arrays of tables, literal Windows paths, date-times, radix integers — is byte-identical after an empty write list, and stays so after a managed edit elsewhere in the file. | Take a real `~/.codex/config.toml`, parse and re-emit it unchanged, byte-compare. | Was: a Codex CLI agent, and the `Codec` seam being real rather than notional. Both are now built. |
 | U8 | Does a custom `model_providers.<id>` entry with `requires_openai_auth = true` actually authenticate against a third-party endpoint using the credential in `auth.json`? | Point a Codex provider at a real Responses-API-compatible endpoint, switch to it with ccset, run one prompt. | Whether ccset's Codex provider blocks work end to end. The mechanism is read from Codex's own source (`resolve_provider_auth` in `codex-rs/model-provider/src/auth.rs`, v0.152.0) and matches its tests, but no live request has been made. |
 | U9 | When `cli_auth_credentials_store = "keyring"`, does Codex ignore `auth.json` entirely? | Set the key, log in, inspect whether `auth.json` is written or read. | Whether ccset's Status warning is a warning or must become a refusal to offer profile switching. |
@@ -54,7 +54,11 @@ nested keys — is covered by the O-series:
 | O4 | Edit the `models` list: keep one id, add one, drop one. | The kept id retains its unmanaged options, the new id appears as `{}`, the dropped id is gone. |
 | O5 | Set a managed choice to Unmanaged. | The key is deleted from the file. |
 | O6 | 13 consecutive writes. | Exactly 10 backups under `~/.config/opencode/backups/ccset/`, all `0600`; Status shows the masked key and never the whole one. |
-| O7 | An `opencode.jsonc` beside the managed file. | Status names it and warns; the file's bytes and mtime are unchanged after a save. |
+| O7 | An `opencode.jsonc` beside the managed file. | The `.jsonc` is the managed target: ccset writes it in place — comments, order and formatting survive — and the legacy `.json` is byte-identical after a save. Status names the `.jsonc` as the managed path and the `.json` as not managed. (Revised by #46; was "names it and warns, never writes".) |
+| O8 | Only `opencode.json` exists. | Target, bytes and Status are as before the change: the save lands in the `.json`, no `.jsonc` is created, and no not-managed section appears. |
+| O9 | The round trip: values seeded from a `.jsonc`, then saved. | Effective values read back correctly, and every comment written before the save survives it verbatim. |
+| O10 | A `.jsonc` that fails the syntax pass. | The same start-fresh confirm a malformed JSON target gets; the broken original survives in the backup. |
+| O11 | An empty write list over a corpus of JSONC documents; a managed edit elsewhere in each. | Byte-identical empty round trip; the managed edit leaves every other byte identical. Runs inside `verify:opencode` (verify-opencode-jsonc.ts), the way C1's corpus runs inside `verify:codex`. |
 
 The third agent adds two shapes neither of the others has: a document that is
 not JSON, and a credential that lives outside it. Those are the C-series:
@@ -1483,3 +1487,131 @@ reads stricter than the parent's "unknown live credential" rule the code
 implements — both belong on the tracker, not in this register. Evidence:
 `npm run typecheck` and all eight command gates green on Linux x64, Node
 20.19.5.
+---
+
+### 9.34 The JSONC codec: `opencode.jsonc` becomes the managed target (2026-09-02)
+
+Issue #46, resolving the decision issue #39 carried. The evidence chain: #39
+(revised body) → the U6 research note it links (opencode v1.18.25 loads both
+configs, merges per key, `.jsonc` last, and seeds a `.jsonc` on fresh
+installs) → the #46 spec. The runtime experiment stays open in the U6 row.
+
+**The user-visible change.** When `~/.config/opencode/opencode.jsonc` exists
+it is the one file ccset reads and writes — the managed target — and it is
+edited in place: comments, key order and formatting survive every save, the
+same promise the TOML codec makes for Codex. When only `opencode.json`
+exists, nothing changes. The always-on `.jsonc` warning is gone; Status
+instead shows a not-managed section only when a legacy `opencode.json` sits
+beside a managed `.jsonc`, saying it still loads but loses conflicting keys.
+ccset never creates a `.jsonc`, never rewrites a legacy `.json`, and ignores
+`config.json`. Reads follow the write target — form seeding, the Providers
+list, provider forms and Status read the managed file only; no migration of
+legacy content. Backups, atomic writes and masking are unchanged: below the
+seam already.
+
+**The codec.** `Codec` was `'json' | 'toml'` and is now `'json' | 'jsonc' |
+'toml'`. The parser and the strict syntax pass are npm's `jsonc-parser`
+3.3.1 — the parser behind VS Code's settings editor, and the one opencode
+itself parses with — the contrast case ADR 0003 anticipated: on maintenance,
+provenance and adoption it is everything the TOML patch package was not. Its
+patch engine is **not** used, on evidence rather than taste: with formatting
+options, `withFormatting` reflows the edited line with `keepLines` forced
+false, so an insert reprints a compact sibling array across five lines —
+bytes ccset does not own — and without formatting options inserts degrade to
+`, "key": value` jammed inline. ADR 0004 records the split: npm supplies the
+parse tree and its spans, `src/core/jsonc/` (check, parse, text, format,
+edit) supplies the splices under ADR 0003's construction — replace the
+value's span, insert or remove one line, one separator comma, containers
+emptied along a deleted path collapse exactly as `merge.ts` does for JSON, so
+a `.jsonc` target behaves like the `.json` one. Duplicate keys read last-wins
+and the last occurrence is the one edited, matching `JSON.parse`.
+
+**Where the code moved.** The opencode module was the only agent bypassing
+the codec seam (`readJsonFile`/`writeJsonFileAtomic` directly); its reads and
+writes now go through `readConfigFile`/`writeConfigFile` with the selected
+target, and target selection exists in exactly one place
+(`opencodeTarget` in the agent's `paths.ts`). `config-file.ts` gained the
+`jsonc` branch in both directions. The declared managed key set is
+unchanged; agent-owned strings were updated with the Status inversion
+(`opencode.status.legacyJsonTitle`/`Note` replace the `.jsonc` pair), and the
+shell catalog gained nothing — a JSONC file that fails the pass reports
+through the existing `error.invalidJson` wording, which is true: it is not
+valid JSON either.
+
+**`verify:opencode` covers it** — O1-O6 unchanged, then the codec corpus and
+the scenario gates (O7 revised, O8-O10) from `verify-opencode-jsonc.ts` and
+`verify-opencode-jsonc-scenarios.ts`, split out of the main fixture the way
+`verify-toml-codec.ts` runs inside `verify:codex`. The corpus: leading,
+attached and dangling comments; trailing commas; CRLF and no trailing
+newline; nested objects; arrays; empty containers; escaped strings; the
+seeded `$schema` shape; every key ccset manages. Each document must survive
+an empty write list byte for byte, and a managed replace must leave every
+other byte identical — asserted byte-exactly against a span computed from
+the parse tree, not a hand-written expectation. Idempotence is asserted per
+document: a second identical save changes nothing.
+
+**It was then mutation-tested**, as the third-agent entry was:
+
+| Deliberate bug | Gate result |
+| --- | --- |
+| Target selection ignores the `.jsonc` | CAUGHT (O7 — the block landed in the `.json`) |
+| Codec re-serialises from the parse instead of splicing | CAUGHT (U6 corpus — comments lost) |
+| Strict pass disabled (`findJsoncProblem` returns null) | CAUGHT (corpus malformed battery) |
+| Delete leaves its separator comma | CAUGHT (corpus delete — dangling comma, invalid JSONC) |
+
+**All thirteen verify gates pass** on Linux x64, Node 20.19.5 — the eleven in
+the `npm test` chain plus `verify:error-recovery` and `verify:i18n-zh` —
+together with typecheck and build. Every touched file is inside the 300-line
+limit, and `providerForm` was re-shaped to an options object rather than
+breach the three-positional-parameters gate.
+
+One drive-by beyond the issue's scope, recorded because the gate exposed it:
+`verify:i18n-zh` was already failing on master — §9.32 added
+`status.partials`, `status.partialsNote`, `error.screenTitle` and
+`error.screenHint` to the English catalog without their zh-Hans counterparts,
+and the gate is not in the `npm test` chain, so nothing caught it. The four
+translations were added here (confirmed by stashing this change and re-running
+the gate against master).
+
+**Not verified, and not claimed:** the U6 runtime experiment — launching
+opencode with distinguishing keys in each file — has not been run; the
+research is source-level evidence, and the U6 row stays open until it is.
+`tui.json`/`tui.jsonc`, project-level `.opencode` directories, and remote
+config are untouched, per the spec's out-of-scope list.
+
+### 9.35 Post-review fix: duplicate keys in the JSONC codec (2026-09-04)
+
+A review pass executed the codec on documents the §9.34 corpus never held and
+found the rule stated there — duplicate keys read last-wins and the last
+occurrence is the one edited — only half-true in the code: the leaf lookup
+took the last duplicate, but the intermediate walk used
+`findNodeAtLocation`, which stops at the first. On
+`{"a":{"x":1},"a":{"y":2}}` a set of `a.b` landed in the first `a` while
+reads resolved the last, so the save silently missed; and a delete of `a.x`
+emptied the first `a`, then removed the last one — the live `{"y":2}` was
+destroyed. Two smaller probes: an insert spliced in front of a trailing
+comment on the last property, relocating the comment onto the new key's
+line; and `detectEol` returned CRLF when a single `\r\n` appeared anywhere,
+while its comment claimed a majority.
+
+**The fix.** Path resolution now takes the last duplicate at every level
+(`lastNodeAtPath` over property nodes; `findNodeAtLocation` is gone from the
+editor), so an edit touches exactly the document a read sees. Delete walks
+the live chain repeatedly until no occurrence of the key remains — a
+shadowed duplicate cannot resurrect the deleted value — and collapses only
+containers the delete actually emptied. Insert puts the separator in front
+of a trailing comment (reusing the document's own comma when one follows the
+comment) and places the new property after it, so the comment never changes
+lines. `detectEol` counts line breaks and follows the majority, tie to LF,
+which is what its comment now says.
+
+**Coverage.** The corpus gained a duplicate-key document (a shadowed
+`model`, duplicate `provider` objects) driven by a tweak path through the
+duplicated intermediate, with the replace expectation resolved last-match
+like the codec's walk; the read, insert and delete gates gained the probe
+cases above with byte-exact expectations — including the byte-faithful
+spacing an inline delete leaves behind. Mutation check: reverting the walk
+to first-match turns the corpus gate red (CAUGHT — "a replacement in
+duplicateKeys disturbed bytes it does not own"). The full `npm test` chain
+and typecheck pass on Node 20.19.5, and every touched file stays inside the
+300-line limit.

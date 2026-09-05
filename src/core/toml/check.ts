@@ -1,3 +1,4 @@
+import { describePosition } from '../position.js'
 import { endOfLine, scanKeyPath, scanValue, skipSpace } from './scan.js'
 
 /**
@@ -29,14 +30,6 @@ function isWellFormedBare(raw: string): boolean {
   return SPACED_DATE_TIME.test(raw)
 }
 
-/** Human line and column for an offset, matching the JSON reader's wording. */
-function describe(text: string, offset: number): string {
-  const before = text.slice(0, offset)
-  const line = before.split('\n').length
-  const column = offset - before.lastIndexOf('\n')
-  return `line ${line}, column ${column}`
-}
-
 /** A quoted or bracketed value has to actually close. */
 function isClosed(text: string, start: number, end: number): boolean {
   const closer = CLOSERS[text.charAt(start)]
@@ -48,26 +41,26 @@ function isClosed(text: string, start: number, end: number): boolean {
 function checkHeader(text: string, start: number): string | null {
   const isArray = text.startsWith('[[', start)
   const key = scanKeyPath(text, start + (isArray ? 2 : 1))
-  if (key === null) return describe(text, start)
+  if (key === null) return describePosition(text, start)
   const closer = isArray ? ']]' : ']'
-  if (!text.startsWith(closer, key.end)) return describe(text, key.end)
+  if (!text.startsWith(closer, key.end)) return describePosition(text, key.end)
   const rest = skipSpace(text, key.end + closer.length)
-  return isLineEnd(text, rest) ? null : describe(text, rest)
+  return isLineEnd(text, rest) ? null : describePosition(text, rest)
 }
 
 function checkAssignment(text: string, start: number): string | null {
   const key = scanKeyPath(text, start)
-  if (key === null) return describe(text, start)
-  if (text.charAt(key.end) !== '=') return describe(text, key.end)
+  if (key === null) return describePosition(text, start)
+  if (text.charAt(key.end) !== '=') return describePosition(text, key.end)
   const valueStart = skipSpace(text, key.end + 1)
-  if (isLineEnd(text, valueStart)) return describe(text, valueStart)
+  if (isLineEnd(text, valueStart)) return describePosition(text, valueStart)
   const valueEnd = scanValue(text, valueStart)
-  if (!isClosed(text, valueStart, valueEnd)) return describe(text, valueStart)
+  if (!isClosed(text, valueStart, valueEnd)) return describePosition(text, valueStart)
   if (CLOSERS[text.charAt(valueStart)] === undefined) {
-    if (!isWellFormedBare(text.slice(valueStart, valueEnd))) return describe(text, valueStart)
+    if (!isWellFormedBare(text.slice(valueStart, valueEnd))) return describePosition(text, valueStart)
   }
   const rest = skipSpace(text, valueEnd)
-  return isLineEnd(text, rest) ? null : describe(text, rest)
+  return isLineEnd(text, rest) ? null : describePosition(text, rest)
 }
 
 /** Position of the first syntax problem, or null when the document is sound. */
