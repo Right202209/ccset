@@ -111,7 +111,7 @@ async function promptLanguage(terminal: Terminal): Promise<Locale | undefined> {
 type Settled = { status: 'cancelled' } | { status: 'done'; persistFailed: boolean }
 
 /**
- * ADR 0004's resolution order: the override beats the saved choice, the saved
+ * ADR 0005's resolution order: the override beats the saved choice, the saved
  * choice beats the first-run prompt. Presence of CCSET_LOCALE is decided here
  * separately from its normalized value -- empty or unknown, it is still an
  * explicit English override, so it suppresses both the prompt and persistence.
@@ -153,7 +153,7 @@ async function launchTui(): Promise<void> {
   const home = resolveHome()
   const terminal = resolveTerminal()
   // --help and --version returned during argument parsing, and commands exited
-  // at the mode split, so only a TTY run reaches the settings file (ADR 0004).
+  // at the mode split, so only a TTY run reaches the settings file (ADR 0005).
   // The prompt runs regardless of --agent: it skips agent selection, which has
   // no bearing on language.
   const settled = await settleLocale(home, terminal)

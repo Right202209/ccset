@@ -29,7 +29,7 @@ function startSession(home: string): CliSession {
 
 /**
  * These homes are fresh, so without a saved choice the first-run language
- * prompt (ADR 0004) is the first screen. This gate walks the agent's flows,
+ * prompt (ADR 0005) is the first screen. This gate walks the agent's flows,
  * not that prompt -- the prompt has its own gate -- so each home picks
  * English once through the shipped writer before the session starts.
  */

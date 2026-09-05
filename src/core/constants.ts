@@ -22,7 +22,7 @@ export const BACKUPS_DIR_SEGMENTS = ['backups', 'ccset']
 
 /* --------------------------------------------------------------- settings */
 
-/** ccset's own settings directory, under the home it is pointed at (ADR 0004). */
+/** ccset's own settings directory, under the home it is pointed at (ADR 0005). */
 export const SETTINGS_DIR_SEGMENTS = ['.ccset']
 export const SETTINGS_FILE_NAME = 'settings.json'
 /** Schema version of the settings file; a file carrying another is unchosen. */

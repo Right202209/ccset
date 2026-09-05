@@ -20,7 +20,7 @@ export function backupsDirFor(configDir: string): string {
 }
 
 /**
- * ccset's first owned settings file (ADR 0004): under the home this run was
+ * ccset's first owned settings file (ADR 0005): under the home this run was
  * given, the way every other path is, so a fixture run cannot touch a real
  * preference and an agent directory is never involved.
  */

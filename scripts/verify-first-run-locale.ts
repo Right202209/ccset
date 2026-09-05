@@ -7,7 +7,7 @@ import { settingsFilePath } from '../src/core/paths.js'
 import { CliSession, CTRL_C, ESC, KEY_DELAY_MS, terminalEnv } from './pty-session.js'
 
 /**
- * ADR 0004, the first-run language prompt. The override beats the saved
+ * ADR 0005, the first-run language prompt. The override beats the saved
  * choice, the saved choice beats the prompt; presence of CCSET_LOCALE -- even
  * empty or unknown -- is an explicit English override that suppresses the
  * prompt and is never persisted. Argument parsing and the TTY guard run

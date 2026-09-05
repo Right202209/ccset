@@ -1615,9 +1615,9 @@ to first-match turns the corpus gate red (CAUGHT — "a replacement in
 duplicateKeys disturbed bytes it does not own"). The full `npm test` chain
 and typecheck pass on Node 20.19.5, and every touched file stays inside the
 300-line limit.
-### 9.34 First-run language choice (2026-09-05)
+### 9.36 First-run language choice (2026-09-05)
 
-ADR 0004 proposed asking once, interactively, and remembering the answer;
+ADR 0005 proposed asking once, interactively, and remembering the answer;
 this entry is its implementation. The resolution order lives at the cli.tsx
 boundary: `CCSET_LOCALE` when present — empty or unknown included, an explicit
 English override that suppresses prompting and persistence, because reading a
@@ -1644,7 +1644,7 @@ a warn painted before the clear is wiped with the prompt screen it belongs to,
 as the gate's ordering assertion now pins — and keeps the choice for this
 session.
 
-**Verified by a new gate**, `npm run verify:first-run-locale` (ADR 0004),
+**Verified by a new gate**, `npm run verify:first-run-locale` (ADR 0005),
 which drives the built CLI through the PTY bridge: a fresh home sees the
 bilingual prompt, chooses zh-Hans by number key, and lands in the localized
 agent menu with the file written at 0600 in a 0700 directory; a second run on
@@ -1680,5 +1680,5 @@ README.zh-CN environment table were amended as the ADR assigned to the
 implementation PR; master had already absorbed the README and CONTEXT.md
 amendments, so the rebase keeps those as-is.
 
-**All twenty-one gates pass** on Linux x64, Node 20.19.5, together with
+**All twenty-two gates pass** on Linux x64, Node 20.19.5, together with
 typecheck and build. Every touched file is inside the 300-line limit.

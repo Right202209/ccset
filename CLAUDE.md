@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is twenty-one
+There is no lint script and no unit-test framework. The test suite is twenty-two
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -30,7 +30,7 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:header-path` | The header's navigation path: segments accumulate on push, drop on back, and elide from the front when they outrun the terminal width |
 | `npm run verify:review-form` | The review form's row treatment: focus, changed markers, hints, Advanced toggle, `ctrl+s` |
 | `npm run verify:malformed-dirty` | T6, T9: malformed-target confirm flow and unsaved-edits prompt, driven through a real PTY |
-| `npm run verify:first-run-locale` | ADR 0004: the first-run language prompt through the built CLI — a pick persists and is remembered, `CCSET_LOCALE` suppresses and never persists, `--help`/`--version`/non-TTY never prompt, cancellation leaves no file, unchosen files re-ask |
+| `npm run verify:first-run-locale` | ADR 0005: the first-run language prompt through the built CLI — a pick persists and is remembered, `CCSET_LOCALE` suppresses and never persists, `--help`/`--version`/non-TTY never prompt, cancellation leaves no file, unchosen files re-ask |
 | `npm run verify:status-terminal` | Status listing/refresh, narrow-terminal layout, `--version` and non-TTY exit `2` |
 | `npm run verify:commands` | M3.1: the Non-interactive seam — parser/exit codes, preservation, deletion, dry-run, no-op, recovery, output, through `dist/cli.js` |
 | `npm run verify:commands-status` | M3.2: status DTOs over the seam — secret-free payloads, findings, parse failures holding exit 4 with readable sections shipping |
@@ -54,8 +54,6 @@ first, so they exercise `dist/cli.js`, not `src/`. `verify:i18n-zh` does both:
 its catalog-parity half imports `src/` directly, and its boundary half spawns
 the built `dist/cli.js`. The rest import `src/` directly.
 
-Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends keys, reads
-Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
 Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends keys, reads
 Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
 `verify-toml-codec.ts`, `verify-codex-auth.ts`, `verify-opencode-jsonc.ts`,
@@ -287,7 +285,7 @@ are also referenced indirectly (`FieldSpec.labelKey`/`helpKey`, `Action.detailKe
 `CcsetError.messageKey`, and template-built families like `prompt.${kind}Line`), so a
 mechanical grep for `t('…')` will under-report usage. A new catalog is a new file plus
 one line in `index.ts`, and a `messages` entry per agent. Which catalog is active is
-settled at the cli.tsx boundary before App mounts (ADR 0004): `CCSET_LOCALE`, then the
+settled at the cli.tsx boundary before App mounts (ADR 0005): `CCSET_LOCALE`, then the
 saved choice in `<home>/.ccset/settings.json`, then the bilingual first-run prompt —
 the one screen whose copy does not go through the catalogs.
 

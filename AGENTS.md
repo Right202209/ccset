@@ -31,7 +31,7 @@ not be edited by hand.
 Run `npm install` to install dependencies (Node.js 18+ is required). Use
 `npm run typecheck` for a no-emit TypeScript check and `npm run build` to bundle
 the executable to `dist/cli.js` with tsup. There is no unit-test framework; the
-suite is twenty-one executable `npm run verify:*` fixtures in `scripts/`, listed with
+suite is twenty-two executable `npm run verify:*` fixtures in `scripts/`, listed with
 what each covers in `CLAUDE.md`. Run the ones your change touches, and verify
 remaining interactive scenarios manually against `Important Documentation.md`.
 

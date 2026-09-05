@@ -96,7 +96,7 @@ interface LanguageSelectProps {
 }
 
 /**
- * ADR 0004's first-run prompt, rendered by cli.tsx outside App and before any
+ * ADR 0005's first-run prompt, rendered by cli.tsx outside App and before any
  * locale is active. It is the one screen whose copy does not go through the
  * catalogs: with nothing to translate into, it is bilingual by construction.
  * It supplies its own providers because it mounts without App around it.

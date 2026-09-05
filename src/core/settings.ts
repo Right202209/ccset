@@ -5,7 +5,7 @@ import { jsonFile, readJsonFile, writeJsonFileAtomic } from './json-file.js'
 import { settingsFilePath } from './paths.js'
 
 /**
- * The locale preference in `<home>/.ccset/settings.json` (ADR 0004) -- ccset's
+ * The locale preference in `<home>/.ccset/settings.json` (ADR 0005) -- ccset's
  * first owned settings file; until now everything it wrote belonged to an agent
  * or was a backup. It is written through the same atomic machinery as agent
  * configs: temp file, rename, 0600, into a 0700 directory.
