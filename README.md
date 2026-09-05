@@ -210,7 +210,7 @@ tree itself crashes.
 
 | Variable | Effect |
 | --- | --- |
-| `CCSET_LOCALE` | Interface language. `zh-Hans` selects the Simplified Chinese catalog; unset or any other value gives English. Selection is an explicit opt-in — ccset never detects your environment's locale. |
+| `CCSET_LOCALE` | Interface language override. `zh-Hans` selects Simplified Chinese; unset or any other value gives English. When set, including empty or unknown values, it suppresses the first-use prompt and is never persisted. With no override, an interactive first run asks once and saves the choice; ccset never detects your environment's locale. |
 | `CCSET_ASCII=1` | Use a seven-bit interface: decorative glyphs, help punctuation, prose punctuation, and masked values are folded to printable ASCII. Leave it unset for the Unicode glyphs. Chinese text is not transliterated; a seven-bit terminal cannot draw it. |
 | `CCSET_HOME` | Overrides the home directory ccset reads and writes under. Intended for isolated test runs, not daily use. |
 
