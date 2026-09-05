@@ -50,7 +50,9 @@ path.
 
 `verify:malformed-dirty`, `verify:first-run-locale`, `verify:status-terminal`,
 and `verify:release-artifact` build
-first, so they exercise `dist/cli.js`, not `src/`. The rest import `src/` directly.
+first, so they exercise `dist/cli.js`, not `src/`. `verify:i18n-zh` does both:
+its catalog-parity half imports `src/` directly, and its boundary half spawns
+the built `dist/cli.js`. The rest import `src/` directly.
 
 Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends keys, reads
 Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
