@@ -1669,14 +1669,16 @@ built-CLI gates share one harness, and `verify:malformed-dirty` now seeds a
 saved English choice through the shipped `saveLocale` — a fresh home has a
 first screen of its own, and that gate walks agent flows, not the prompt.
 
-Incidental, and fixed in passing: the zh-Hans catalog had drifted —
-`status.partials`, `status.partialsNote`, `error.screenTitle` and
-`error.screenHint` had carried no Chinese since the error screens landed, so
-`verify:i18n-zh` was red before this change. The four keys are translated and
-the gate is green. `warn.localePersistFailed` is the one new key pair,
-resolved in the chosen locale when the warning is written. The PRD §5.5
-bullet (still claiming English-only v1) and the README.zh-CN environment
-table were amended as the ADR assigned to the implementation PR.
+Superseded by the rebase onto master, and recorded for the record: the
+zh-Hans drift this branch fixed in passing — `status.partials`,
+`status.partialsNote`, `error.screenTitle`, `error.screenHint` — had already
+been fixed on master while the branch ran, so the rebased branch carries
+master's translations and adds no duplicates. `warn.localePersistFailed` is
+the one new key pair, resolved in the chosen locale when the warning is
+written. The PRD §5.5 bullet (still claiming English-only v1) and the
+README.zh-CN environment table were amended as the ADR assigned to the
+implementation PR; master had already absorbed the README and CONTEXT.md
+amendments, so the rebase keeps those as-is.
 
 **All twenty-one gates pass** on Linux x64, Node 20.19.5, together with
 typecheck and build. Every touched file is inside the 300-line limit.

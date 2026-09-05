@@ -89,8 +89,6 @@ export const zhHans: Record<string, string> = {
   'status.partials': '未完成的副本',
   'status.partialsNote': '{count} 个未完成的备份副本中含有凭据；"清除 ccset 备份"会一并移除。',
   'status.backupsNote': '备份中可能仍含有你已轮换的令牌。',
-  'status.partials': '不完整副本',
-  'status.partialsNote': '{count} 个不完整副本中存有凭据；“清除 ccset 备份”会将其删除。',
   'status.help': '↑↓ 移动 · enter 选择 · esc 返回',
 
   /* ----------------------------------------------------------------- notes */
