@@ -107,18 +107,8 @@ async function promptLanguage(terminal: Terminal): Promise<Locale | undefined> {
   })
 }
 
-/**
- * The warn lands after the prompt render has exited and before the app mounts,
- * so it is legible stderr rather than a scratch across a live TUI. The choice
- * stays active for this session either way; nothing is lost to the failure.
- */
-async function persistLocale(home: string, locale: Locale): Promise<void> {
-  try {
-    await saveLocale(home, locale)
-  } catch {
-    process.stderr.write(`${t('warn.localePersistFailed', { path: settingsFilePath(home) })}\n`)
-  }
-}
+/** How settling the locale ended: cancelled, or done and whether the choice saved. */
+type Settled = { status: 'cancelled' } | { status: 'done'; persistFailed: boolean }
 
 /**
  * ADR 0004's resolution order: the override beats the saved choice, the saved
@@ -128,18 +118,25 @@ async function persistLocale(home: string, locale: Locale): Promise<void> {
  * Reading a durable preference out of the variable would turn one scripted run
  * into a silent permanent switch, so when it is set ccset never persists.
  */
-async function settleLocale(home: string, terminal: Terminal): Promise<'done' | 'cancelled'> {
-  if (process.env[LOCALE_ENV] !== undefined) return 'done'
+async function settleLocale(home: string, terminal: Terminal): Promise<Settled> {
+  if (process.env[LOCALE_ENV] !== undefined) return { status: 'done', persistFailed: false }
   const saved = await readSavedLocale(home)
   if (saved !== null) {
     setLocale(saved)
-    return 'done'
+    return { status: 'done', persistFailed: false }
   }
   const picked = await promptLanguage(terminal)
-  if (picked === undefined) return 'cancelled'
+  if (picked === undefined) return { status: 'cancelled' }
   setLocale(picked)
-  await persistLocale(home, picked)
-  return 'done'
+  try {
+    await saveLocale(home, picked)
+    return { status: 'done', persistFailed: false }
+  } catch {
+    // The choice stays active for this session either way; nothing is lost to
+    // the failure. main() owns the warning, which only survives if it lands
+    // after clearScreen().
+    return { status: 'done', persistFailed: true }
+  }
 }
 
 async function launchTui(): Promise<void> {
@@ -159,8 +156,15 @@ async function launchTui(): Promise<void> {
   // at the mode split, so only a TTY run reaches the settings file (ADR 0004).
   // The prompt runs regardless of --agent: it skips agent selection, which has
   // no bearing on language.
-  if ((await settleLocale(home, terminal)) === 'cancelled') return
+  const settled = await settleLocale(home, terminal)
+  if (settled.status === 'cancelled') return
   clearScreen()
+  // Held until after clearScreen(): painted earlier, the warn is wiped with
+  // the prompt screen it belongs to. Still before the app mounts, so it reads
+  // in the locale the user just chose.
+  if (settled.persistFailed) {
+    process.stderr.write(`${t('warn.localePersistFailed', { path: settingsFilePath(home) })}\n`)
+  }
   const agentId = resolveAgentId(options.agent)
   const ctx = { home }
   // Task errors recover inside the app as a Screen on the stack; what still

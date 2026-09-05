@@ -1639,8 +1639,10 @@ following `CCSET_HOME` like every other path. Anything the file could be
 besides a carried locale — missing, malformed, non-object, a non-`1` version,
 a missing or unknown tag — is *unchosen*, not an error, and the next
 successful choice replaces it. A persist failure after a successful choice is
-warned on stderr after the prompt render exits (before the app mounts, so it
-is legible) and keeps the choice for this session.
+warned on stderr after the prompt screen is cleared and before the app mounts —
+a warn painted before the clear is wiped with the prompt screen it belongs to,
+as the gate's ordering assertion now pins — and keeps the choice for this
+session.
 
 **Verified by a new gate**, `npm run verify:first-run-locale` (ADR 0004),
 which drives the built CLI through the PTY bridge: a fresh home sees the
@@ -1650,13 +1652,17 @@ the same home is never asked; `CCSET_LOCALE` set, including empty, neither
 asks nor persists and beats a conflicting saved value in both directions;
 `--help`, `--version` and a piped stdin never prompt; Esc and Ctrl+C each
 leave no settings file and exit 0; a read-only settings directory forces the
-persist warn — resolved in the locale just chosen — while the choice stays
+persist warn — resolved in the locale just chosen, and asserted to land after
+the clear sequence in the raw byte stream, since scrollback accumulates output
+a real terminal would have wiped — while the choice stays
 for the session (skipped under root, like E3); a corrupt, wrong-version and
 unknown-locale file each re-ask and are replaced by the next choice.
-Mutation-checked per the standing procedure with three representative
+Mutation-checked per the standing procedure with four representative
 mutations — dropping the override-presence guard, accepting any schema
-version, and never returning the saved locale — each of which made a distinct
-scenario of the gate fail.
+version, never returning the saved locale, and writing the persist warn
+before the screen is cleared — each of which made a distinct scenario of the
+gate fail; the fourth was caught by the ordering assertion, which was written
+first and failed against the pre-fix ordering.
 
 The PTY bridge and its `CliSession` moved to `scripts/pty-session.ts` so both
 built-CLI gates share one harness, and `verify:malformed-dirty` now seeds a

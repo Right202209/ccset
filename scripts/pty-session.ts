@@ -137,6 +137,16 @@ export class CliSession {
     return plain(this.output)
   }
 
+  /**
+   * The untouched byte stream, escape codes included -- for assertions about
+   * the sequences themselves rather than the text they paint. Offsets in here
+   * are the only honest coordinates for ordering questions: plain() shifts
+   * every index, so a "before/after" measured on snapshot() is fiction.
+   */
+  raw(): string {
+    return this.output
+  }
+
   async stop(): Promise<void> {
     if (this.child.exitCode === null) this.child.kill('SIGTERM')
     await new Promise<void>((resolve) => {

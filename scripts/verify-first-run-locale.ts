@@ -192,6 +192,15 @@ async function verifyPersistFailureKeepsChoice(): Promise<void> {
       session.send(ZH_OPTION_KEY)
       await session.waitFor(ZH_AGENT_MENU)
       assert.match(session.snapshot(), /无法将语言选择保存到/, 'the persist warn never appeared')
+      // The warn only helps if it survives the prompt screen being cleared: in
+      // the raw byte stream it must land after the clear sequence. Scrollback
+      // accumulates wiped output, so snapshot() alone would pass either way.
+      const raw = session.raw()
+      const clear = raw.lastIndexOf('\x1b[2J\x1b[H')
+      const warn = raw.indexOf('无法将语言选择保存到')
+      assert.notEqual(warn, -1, 'the persist warn never appeared in the raw stream')
+      assert.notEqual(clear, -1, 'the prompt screen was never cleared')
+      assert.ok(warn > clear, 'the persist warn was painted before the screen was cleared')
       await assertNoSettings(home)
     } finally {
       await fs.chmod(settingsDir, 0o700)
