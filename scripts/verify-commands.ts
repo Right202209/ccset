@@ -1,14 +1,13 @@
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
 import { executeOperation } from '../src/operations/index.js'
 import type { OperationRequest } from '../src/operations/types.js'
 import { findAgent } from '../src/registry.js'
-import { ConfigParseError, EXIT_USAGE, EXIT_UNKNOWN_AGENT } from '../src/core/errors.js'
+import { ConfigParseError, EXIT_UNSUPPORTED_COMMAND, EXIT_USAGE, EXIT_UNKNOWN_AGENT } from '../src/core/errors.js'
 import { backupsDir, claudeDir, globalSettingsPath } from '../src/agents/claude-code/paths.js'
 import type { Agent } from '../src/types.js'
+import { runCli, withHome, type RunResult } from './cli-harness.js'
 import '../src/registry.js'
 
 /**
@@ -127,32 +126,6 @@ async function checkSeamRecovery(home: string): Promise<void> {
 
 /* ------------------------------------------------- the process seam */
 
-interface RunResult {
-  code: number | null
-  stdout: string
-  stderr: string
-}
-
-function runCli(args: string[], env: Record<string, string> = {}, input = ''): Promise<RunResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(process.cwd(), 'dist/cli.js'), ...args], {
-      env: { ...process.env, ...env },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    let stdout = ''
-    let stderr = ''
-    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
-      stdout += chunk
-    })
-    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
-      stderr += chunk
-    })
-    child.once('error', reject)
-    child.once('close', (code) => resolve({ code, stdout, stderr }))
-    child.stdin.end(input)
-  })
-}
-
 async function expectUsage(args: string[], code: string): Promise<void> {
   const result = await runCli(args)
   assert.equal(result.code, EXIT_USAGE, `${args.join(' ')} did not exit 64: ${result.stderr}`)
@@ -208,6 +181,31 @@ async function checkCliExitCodes(home: string): Promise<void> {
   assert.equal(unknownAgent.code, EXIT_UNKNOWN_AGENT, 'an unknown agent did not exit 65')
   const unknownVerb = await runCli(['--agent', 'claude-code', 'frobnicate'], { CCSET_HOME: home })
   assert.equal(unknownVerb.code, EXIT_USAGE, 'an unknown verb did not exit 64')
+
+  // A verb another agent serves is a distinct failure from one no agent does:
+  // provider use is Codex-only, so claude-code must refuse it with 66.
+  const unsupported = await runCli(['--agent', 'claude-code', 'provider', 'use', 'x'], {
+    CCSET_HOME: home,
+  })
+  assert.equal(unsupported.code, EXIT_UNSUPPORTED_COMMAND, 'an unsupported command did not exit 66')
+  assert.ok(
+    unsupported.stderr.includes('does not serve'),
+    `the refusal does not name the capability: ${unsupported.stderr}`,
+  )
+  const unsupportedJson = await runCli(['--agent', 'claude-code', 'provider', 'use', 'x', '--json'], {
+    CCSET_HOME: home,
+  })
+  assert.equal(unsupportedJson.code, EXIT_UNSUPPORTED_COMMAND)
+  const unsupportedEnvelope = JSON.parse(unsupportedJson.stdout) as {
+    agent: string | null
+    operation: string | null
+    exitCode: number
+    error: { code: string }
+  }
+  assert.equal(unsupportedEnvelope.agent, 'claude-code')
+  assert.equal(unsupportedEnvelope.operation, null, 'an unmatched declaration was named anyway')
+  assert.equal(unsupportedEnvelope.exitCode, EXIT_UNSUPPORTED_COMMAND)
+  assert.equal(unsupportedEnvelope.error?.code, 'error.unsupportedCommand')
 }
 
 /**
@@ -274,15 +272,6 @@ async function checkProxyToggle(home: string): Promise<void> {
   const after = JSON.parse(await fs.readFile(target, 'utf8')) as { env?: Record<string, string> }
   assert.equal('HTTPS_PROXY' in (after.env ?? {}), false, 'proxy off did not delete both keys')
   await expectUsage(['--agent', 'claude-code', 'global', 'set', '--proxy', 'true'], 'expects one of')
-}
-
-async function withHome(label: string, run: (home: string) => Promise<void>): Promise<void> {
-  const home = await fs.mkdtemp(path.join(os.tmpdir(), `ccset-cmd-${label}-`))
-  try {
-    await run(home)
-  } finally {
-    await fs.rm(home, { recursive: true, force: true })
-  }
 }
 
 async function main(): Promise<void> {

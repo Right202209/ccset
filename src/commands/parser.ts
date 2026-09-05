@@ -34,6 +34,18 @@ interface ParseState {
   tokenStdin: boolean
 }
 
+/**
+ * The option readers' one argument: everything they need travels together --
+ * the token stream, the walk's position, the matched declaration, and the
+ * patch under construction -- so no reader takes a parameter list.
+ */
+interface ReaderContext {
+  tokens: string[]
+  index: number
+  declaration: CommandDeclaration
+  state: ParseState
+}
+
 function usage(messageKey: string, params: Record<string, string> = {}): CcsetError {
   return new CcsetError(messageKey, EXIT_USAGE, params)
 }
@@ -87,24 +99,18 @@ function matchDeclaration(
 }
 
 function optionValue(
-  tokens: string[],
-  index: number,
+  ctx: ReaderContext,
   option: string,
   inline: string | undefined,
 ): { value: string; next: number } {
-  if (inline !== undefined) return { value: inline, next: index + 1 }
-  const value = tokens[index + 1]
+  if (inline !== undefined) return { value: inline, next: ctx.index + 1 }
+  const value = ctx.tokens[ctx.index + 1]
   if (value === undefined) throw usage('cli.usage.missingValue', { option })
-  return { value, next: index + 2 }
+  return { value, next: ctx.index + 2 }
 }
 
-function normalizedValue(field: CommandFieldSpec, option: string, raw: string): string | number | boolean {
+function normalizedValue(field: CommandFieldSpec, option: string, raw: string): string | number {
   if (raw.length === 0) throw usage('cli.usage.emptyValue', { option })
-  if (field.type === 'boolean') {
-    if (raw === 'true') return true
-    if (raw === 'false') return false
-    throw usage('cli.usage.invalidBoolean', { option, value: raw })
-  }
   if (field.type === 'choice') {
     if (!(field.choices ?? []).includes(raw)) {
       throw usage('cli.usage.invalidChoice', { option, value: raw, choices: (field.choices ?? []).join(', ') })
@@ -140,86 +146,75 @@ function checkUnsetConflicts(
   }
 }
 
-function readUnset(
-  token: string,
-  tokens: string[],
-  index: number,
-  declaration: CommandDeclaration,
-  state: ParseState,
-): number {
+function readUnset(ctx: ReaderContext): void {
+  const token = ctx.tokens[ctx.index] ?? ''
   const inline = token.startsWith('--unset=') ? token.slice('--unset='.length) : undefined
-  const { value, next } = optionValue(tokens, index, '--unset', inline)
-  const field = declaration.fields.find((candidate) => candidate.id === value)
+  const { value, next } = optionValue(ctx, '--unset', inline)
+  const field = ctx.declaration.fields.find((candidate) => candidate.id === value)
   if (field === undefined) throw usage('cli.usage.unknownField', { field: value })
   if (field.unsettable !== true) throw usage('cli.usage.notUnsettable', { field: value })
-  if (!state.unsets.includes(value)) state.unsets.push(value)
-  return next
+  if (!ctx.state.unsets.includes(value)) ctx.state.unsets.push(value)
+  ctx.index = next
 }
 
-function readFieldOption(
-  field: CommandFieldSpec,
-  tokens: string[],
-  index: number,
-  state: ParseState,
-): number {
+function readFieldOption(field: CommandFieldSpec, ctx: ReaderContext): void {
   if (field.type === 'flag') {
-    if (tokens[index] !== field.option) throw usage('cli.usage.flagValue', { option: field.option })
-    if (state.patch[field.id] === true) throw usage('cli.usage.duplicateOption', { option: field.option })
-    state.patch[field.id] = true
-    return index + 1
+    if (ctx.tokens[ctx.index] !== field.option) throw usage('cli.usage.flagValue', { option: field.option })
+    if (ctx.state.patch[field.id] === true) throw usage('cli.usage.duplicateOption', { option: field.option })
+    ctx.state.patch[field.id] = true
+    ctx.index += 1
+    return
   }
-  if (field.type !== 'list' && Object.prototype.hasOwnProperty.call(state.patch, field.id)) {
+  if (field.type !== 'list' && Object.prototype.hasOwnProperty.call(ctx.state.patch, field.id)) {
     throw usage('cli.usage.duplicateOption', { option: field.option })
   }
-  const inline = tokens[index]?.startsWith(`${field.option}=`)
-    ? tokens[index]?.slice(field.option.length + 1)
-    : undefined
-  const { value, next } = optionValue(tokens, index, field.option, inline)
+  const raw = ctx.tokens[ctx.index]
+  const inline = raw?.startsWith(`${field.option}=`) ? raw.slice(field.option.length + 1) : undefined
+  const { value, next } = optionValue(ctx, field.option, inline)
   if (field.type === 'list') {
     const trimmed = value.trim()
     if (trimmed.length === 0) throw usage('cli.usage.emptyValue', { option: field.option })
-    const current = state.patch[field.id]
-    state.patch[field.id] = [...(Array.isArray(current) ? current : []), trimmed]
-    return next
+    const current = ctx.state.patch[field.id]
+    ctx.state.patch[field.id] = [...(Array.isArray(current) ? current : []), trimmed]
+    ctx.index = next
+    return
   }
-  state.patch[field.id] = normalizedValue(field, field.option, value)
-  return next
+  ctx.state.patch[field.id] = normalizedValue(field, field.option, value)
+  ctx.index = next
 }
 
-function readOption(
-  token: string,
-  tokens: string[],
-  index: number,
-  declaration: CommandDeclaration,
-  state: ParseState,
-): number {
+function readOption(ctx: ReaderContext): void {
+  const token = ctx.tokens[ctx.index] ?? ''
   const option = token.split('=')[0] ?? token
   const bare = token === option
-  if (option === '--unset') return readUnset(token, tokens, index, declaration, state)
+  if (option === '--unset') return readUnset(ctx)
   if (option === '--dry-run') {
     if (!bare) throw usage('cli.usage.flagValue', { option })
-    if (declaration.dryRunnable !== true) throw usage('cli.usage.dryRunUnsupported')
-    if (state.dryRun) throw usage('cli.usage.duplicateOption', { option })
-    state.dryRun = true
-    return index + 1
+    if (ctx.declaration.dryRunnable !== true) throw usage('cli.usage.dryRunUnsupported')
+    if (ctx.state.dryRun) throw usage('cli.usage.duplicateOption', { option })
+    ctx.state.dryRun = true
+    ctx.index += 1
+    return
   }
   if (option === '--replace-invalid') {
     if (!bare) throw usage('cli.usage.flagValue', { option })
-    if (declaration.replaceable !== true) throw usage('cli.usage.replaceInvalidUnsupported')
-    if (state.replaceInvalid) throw usage('cli.usage.duplicateOption', { option })
-    state.replaceInvalid = true
-    return index + 1
+    if (ctx.declaration.replaceable !== true) throw usage('cli.usage.replaceInvalidUnsupported')
+    if (ctx.state.replaceInvalid) throw usage('cli.usage.duplicateOption', { option })
+    ctx.state.replaceInvalid = true
+    ctx.index += 1
+    return
   }
   if (option === '--token-stdin') {
     if (!bare) throw usage('cli.usage.flagValue', { option })
-    if (declaration.takesSecret !== true) throw usage('cli.usage.noSecretAccepted')
-    if (state.tokenStdin) throw usage('cli.usage.duplicateOption', { option })
-    state.tokenStdin = true
-    return index + 1
+    if (ctx.declaration.takesSecret !== true) throw usage('cli.usage.noSecretAccepted')
+    if (ctx.state.tokenStdin) throw usage('cli.usage.duplicateOption', { option })
+    ctx.state.tokenStdin = true
+    ctx.index += 1
+    return
   }
-  const field = declaration.fields.find((candidate) => candidate.option === option)
+  const field = ctx.declaration.fields.find((candidate) => candidate.option === option)
   if (field === undefined) throw usage('cli.usage.unknownOption', { option })
-  return readFieldOption(field, tokens, index, state)
+  readFieldOption(field, ctx)
 }
 
 function readPositional(token: string, declaration: CommandDeclaration, state: ParseState): void {
@@ -240,12 +235,13 @@ function finishParse(
   tokenEnv: string | undefined,
 ): { request: OperationRequest; secretSource: 'env' | 'stdin' | null } {
   const state: ParseState = { patch: {}, unsets: [], replaceInvalid: false, dryRun: false, tokenStdin: false }
-  for (let index = 0; index < tokens.length; ) {
-    const token = tokens[index] ?? ''
-    if (token.startsWith('-')) index = readOption(token, tokens, index, declaration, state)
+  const ctx: ReaderContext = { tokens, index: 0, declaration, state }
+  while (ctx.index < ctx.tokens.length) {
+    const token = ctx.tokens[ctx.index] ?? ''
+    if (token.startsWith('-')) readOption(ctx)
     else {
       readPositional(token, declaration, state)
-      index += 1
+      ctx.index += 1
     }
   }
   if (declaration.argument === 'providerId' && state.providerId === undefined) {

@@ -194,7 +194,6 @@ export const zhHans: Record<string, string> = {
   'cli.usage.flagValue': '选项 {option} 不接受值。',
   'cli.usage.duplicateOption': '选项 {option} 被给了多次。',
   'cli.usage.emptyValue': '选项 {option} 不能为空。要移除设置请改用 --unset。',
-  'cli.usage.invalidBoolean': '选项 {option} 只接受 true 或 false（得到 {value}）。',
   'cli.usage.invalidChoice': '选项 {option} 只接受：{choices}（得到 {value}）。',
   'cli.usage.unexpectedArgument': '多余的参数：{value}。',
   'cli.usage.missingProviderId': '此命令需要一个 provider id。',

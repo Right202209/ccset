@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
 import { authProfilePath, backupsDir, codexAuthPath, codexConfigPath } from '../src/agents/codex/paths.js'
 import { EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
+import type { TargetRecord } from '../src/core/target.js'
+import { runCli as spawnCli, type RunResult } from './cli-harness.js'
 
 /**
  * M3.8: Codex provider use across the process seam. Routing first, then the
@@ -46,18 +47,6 @@ const KEYRING_CORPUS = CORPUS.replace(
   'model_provider = "old"\ncli_auth_credentials_store = "keyring"',
 )
 
-interface RunResult {
-  code: number | null
-  stdout: string
-  stderr: string
-}
-
-interface TargetRecord {
-  path: string
-  backupPath: string | null
-  changed: boolean
-}
-
 interface Envelope {
   ok: boolean
   changed?: boolean
@@ -69,26 +58,9 @@ interface Envelope {
 
 type Env = Record<string, string | undefined>
 
-function runCli(args: string[], home: string, env: Env = {}): Promise<RunResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(process.cwd(), 'dist/cli.js'), ...args], {
-      // CODEX_HOME is stripped unless a case sets it on purpose.
-      env: { ...process.env, CODEX_HOME: undefined, CCSET_HOME: home, ...env },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    let stdout = ''
-    let stderr = ''
-    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
-      stdout += chunk
-    })
-    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
-      stderr += chunk
-    })
-    child.once('error', reject)
-    child.once('close', (code) => resolve({ code, stdout, stderr }))
-    child.stdin.end()
-  })
-}
+/** CODEX_HOME is stripped unless a case sets it on purpose. */
+const runCli = (args: string[], home: string, env: Env = {}): Promise<RunResult> =>
+  spawnCli(args, { CODEX_HOME: undefined, CCSET_HOME: home, ...env })
 
 interface Seed {
   home: string

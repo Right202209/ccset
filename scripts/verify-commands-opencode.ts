@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
 import { backupsDir, opencodeConfigPath, opencodeJsoncPath } from '../src/agents/opencode/paths.js'
 import { EXIT_INVALID_CONFIG, EXIT_USAGE } from '../src/core/errors.js'
+import { runCli as spawnCli, type RunResult } from './cli-harness.js'
 
 /**
  * M3.4: opencode status and global set, across the process seam. The one
@@ -27,31 +27,9 @@ const ORIGINAL = `{
 }
 `
 
-interface RunResult {
-  code: number | null
-  stdout: string
-  stderr: string
-}
-
-function runCli(args: string[], home: string, input = ''): Promise<RunResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(process.cwd(), 'dist/cli.js'), ...args], {
-      env: { ...process.env, CCSET_HOME: home },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    let stdout = ''
-    let stderr = ''
-    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
-      stdout += chunk
-    })
-    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
-      stderr += chunk
-    })
-    child.once('error', reject)
-    child.once('close', (code) => resolve({ code, stdout, stderr }))
-    child.stdin.end(input)
-  })
-}
+/** The gate's only spawn need: every case runs against one scratch home. */
+const runCli = (args: string[], home: string, input: string | Buffer = ''): Promise<RunResult> =>
+  spawnCli(args, { CCSET_HOME: home }, input)
 
 async function seed(home: string): Promise<string> {
   const target = opencodeConfigPath(home)

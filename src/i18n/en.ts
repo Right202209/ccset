@@ -195,7 +195,6 @@ export const en: Record<string, string> = {
   'cli.usage.duplicateOption': 'Option {option} was given more than once.',
   'cli.usage.emptyValue':
     'Option {option} cannot be empty. To remove a setting, use --unset instead.',
-  'cli.usage.invalidBoolean': 'Option {option} expects true or false (got {value}).',
   'cli.usage.invalidChoice': 'Option {option} expects one of: {choices} (got {value}).',
   'cli.usage.unexpectedArgument': 'Unexpected argument: {value}.',
   'cli.usage.missingProviderId': 'This command needs a provider id.',

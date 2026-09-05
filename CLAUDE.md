@@ -48,7 +48,9 @@ Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends key
 Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
 `verify-toml-codec.ts` and `verify-codex-auth.ts` are modules the gates import —
 `verify-viewport.ts` runs inside `verify:ui-render`, `kill-harness.ts` inside
-`verify:write-safety`, and the last two inside `verify:codex`. They are split out to
+`verify:write-safety`, and the last two inside `verify:codex`. `cli-harness.ts` is the
+process-seam spawn (run the built CLI, scratch home, collect code/stdout/stderr) that
+the eight `verify:commands-*` gates share. They are split out to
 keep each file inside the 300-line limit.
 
 `verify:write-safety` is the one gate that forks itself: its bundle re-enters through
@@ -105,6 +107,21 @@ reserved is the agent's business), `errors.ts` (the `CcsetError` taxonomy carryi
 i18n key and an exit code), and `paths.ts`, which after the second agent holds only
 `resolveHome`, `backupsDirFor`, and `listNamedFiles` — the last taking the agent's
 naming rule as a callback.
+
+**`src/operations/`** is the Non-interactive seam: one `executeOperation` entry point
+takes a normalized `OperationRequest` and returns a structured `OperationResult` or a
+typed error — no Screen, translated text, or `ManagedWrite[]` crosses it. Its commit
+core runs `read → overlay → validate → plan → apply`: every target is rendered and
+preflighted before the first write, a no-op skips backups and reports `changed: false`,
+dry-run stops after planning, and an unexpected failure after a multi-target commit
+reports the paths already written as partial. The TUI save paths run on the same commit
+core; only value mapping and presentation stay theirs.
+
+**`src/commands/`** is the CLI Adapter over that seam: a pure parser that normalizes
+argv against the command declarations each agent module owns (a usage error is exit 64
+before any read), the secret readers (`CCSET_TOKEN` / `--token-stdin` only), and the
+two presenters — localized lines and the schemaVersion 1 JSON envelope. Command mode
+never loads Ink, and the process exit status always matches what was printed.
 
 **The codec seam is real, not notional.** `src/core/config-file.ts` dispatches on
 `ConfigFile.codec`: `readConfigFile` returns a `LoadedConfig` carrying `raw` as well as
@@ -302,12 +319,19 @@ Module resolution is `Bundler`, but source imports still carry the `.js` extensi
 
 ## Current state
 
-Milestone 2, mostly done. Three agents (`claude-code`, `opencode`, `codex`), one catalog
-(`en`), interactive-only. `--agent <id>` has three legal values.
+Milestone 3, code complete — the remainder is its conformance closeout (issue #56).
+Three agents (`claude-code`, `opencode`, `codex`), one catalog (`en`), two surfaces:
+the TUI behind its TTY guard, and the Non-interactive commands
+(`ccset --agent <id> <command>`) over `src/operations/`. `--agent <id>` has three
+legal values.
 
 Done in M2: the second agent, the seam work that made criterion 5 literally true,
 `docs/adding-an-agent.md`, and the third agent together with the TOML codec that U7
 blocked. U7 is answered (ADR 0003, `Important Documentation.md` §9.26).
+
+Done in M3 (`Important Documentation.md` §9.33): the operation seam, the command parser,
+the secure secret sources, per-agent status and patch commands, Codex `provider use`
+with explicit conflict resolution, and the eight command gates that cross both seams.
 
 Not built, and deliberately not stubbed:
 - **`apiKeyHelper` support** — still blocked on U1, which needs a real third-party
@@ -316,7 +340,7 @@ Not built, and deliberately not stubbed:
   of Codex's own source and matches its tests, but no request has been made through a
   ccset-written provider. U9 (whether a keyring credential store bypasses `auth.json`
   entirely) is why Status warns rather than refusing.
-- **Non-interactive mode** (M3), and any additional i18n catalog.
+- **Any additional i18n catalog.**
 
 ADR 0002's flow-scrolling output with windowed long regions is implemented — see
 `src/ui/Viewport.tsx` above. Several external gates in `Important Documentation.md` §9.8

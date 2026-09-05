@@ -1,6 +1,6 @@
 /** Error taxonomy and the exit codes from PRD 4.4, plus the command codes. */
 
-import type { TargetRecord } from '../operations/types.js'
+import type { TargetRecord } from './target.js'
 
 export const EXIT_OK = 0
 export const EXIT_RUNTIME = 1

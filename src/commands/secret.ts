@@ -4,8 +4,9 @@ import { asSecret, type Secret } from '../operations/types.js'
 /**
  * The only two doors a credential may enter through: the CCSET_TOKEN
  * environment variable, or stdin when --token-stdin said so. A secret never
- * appears in process arguments, logs, result objects, or error parameters --
- * these readers return the value and say nothing else about it.
+ * appears in process arguments, output, result objects, or error parameters,
+ * and ccset writes no logs a value could leak into -- these readers return
+ * the value and say nothing else about it.
  */
 
 const MAX_SECRET_BYTES = 64 * 1024

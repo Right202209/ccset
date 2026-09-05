@@ -1,4 +1,7 @@
 import type { Ctx } from '../types.js'
+import type { TargetRecord } from '../core/target.js'
+
+export type { TargetRecord }
 
 /**
  * The Non-interactive vocabulary. Everything here crosses the operation seam:
@@ -27,9 +30,10 @@ export type PatchMap = Record<string, CommandValue>
 declare const secretMarker: unique symbol
 
 /**
- * A secret that has already passed the source rules. Opaque on purpose: it is
- * never logged, never placed in process arguments, and never copied into
- * result or error data. Construction is only through `asSecret`.
+ * A secret that has already passed the source rules. Opaque on purpose: no
+ * code path places it in process arguments or copies it into result or error
+ * data, and ccset writes no logs a value could leak into. Construction is
+ * only through `asSecret`.
  */
 export type Secret = string & { readonly [secretMarker]: 'ccset-secret' }
 
@@ -51,14 +55,6 @@ export interface OperationRequest {
   replaceInvalid: boolean
   /** Reads, validation, and planning without backups or writes. */
   dryRun: boolean
-}
-
-/** One file the operation committed, or would have committed. */
-export interface TargetRecord {
-  path: string
-  mode: string
-  backupPath: string | null
-  changed: boolean
 }
 
 /** A warning or error keyed by a stable code. Parameters are non-sensitive. */
@@ -96,7 +92,7 @@ export interface OperationResult {
 
 /* ------------------------------------------------------- declarations */
 
-export type CommandFieldType = 'text' | 'int' | 'choice' | 'boolean' | 'list' | 'flag'
+export type CommandFieldType = 'text' | 'int' | 'choice' | 'list' | 'flag'
 
 export interface CommandFieldSpec {
   /** Stable id: the request's patch key, the --unset spelling, and the JSON name. */

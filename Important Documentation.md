@@ -1398,8 +1398,8 @@ non-TTY smoke and packs, which follows the standing policy recorded in §9.27 �
 the PTY-driven interactive gates have no Windows leg, and the command gates
 ride the same suite gate rather than a separate one. POSIX modes are asserted
 on every write target (`0600`) by the command gates. Windows Terminal /
-PowerShell interactive scenarios and a Windows run of the command suite remain
-explicit best-effort gaps, unchanged from §9.28.
+PowerShell and WSL interactive scenarios, and a Windows run of the command
+suite, remain explicit best-effort gaps, unchanged from §9.28.
 
 **Residual release blockers:** none recorded as of this date.
 
@@ -1455,3 +1455,31 @@ and the three identical backup sections collapsed into one builder
 for an absent target reports `mode: '?'` — the honest placeholder `readMode`
 documents — rather than a mode nothing will ever have. Evidence: full
 `npm test` green on Linux x64 plus `npm run typecheck`.
+
+**Third review round (2026-09-05).** Both review axes ran again over the
+updated diff; the findings and their closures: the capability exit code 66 was
+documented but never asserted — `verify:commands` now proves at the process
+seam that `--agent claude-code provider use` refuses with it, in human output
+and in a `--json` envelope that names the agent with `operation: null`. The
+two gates over the 300-line file limit (`verify:commands`,
+`verify:commands-codex-use`) are back under it, and the CLI spawn harness all
+eight command gates each carried now lives once, in `scripts/cli-harness.ts`.
+The parser's option readers pass one context object instead of four to five
+same-family parameters, closing the positional-parameter debt recorded above
+(the ≤ 3 gate is met), and the unused `boolean` command field type left the
+parser with its two catalog keys — no declaration used it. `core/errors.ts` no
+longer imports the seam: `TargetRecord` moved to `src/core/target.ts` and is
+re-exported by `operations/types.ts`, so core→seam is not a direction the
+dependency graph has. The secret-absence wording in `src/commands/secret.ts`
+and `operations/types.ts` now names only surfaces that exist and are asserted
+(argv, output, result objects, error parameters) — ccset writes no logs. The
+WSL gap joined the recorded platform best-effort list above, CLAUDE.md's
+"Current state" no longer describes the shell as interactive-only, and
+AGENTS.md/CLAUDE.md name the two new layers. Still open from the round, by
+decision rather than omission: the spec's referenced ADRs 0004–0012 do not
+exist as files (the parent issue restates every constraint they would carry),
+and the `--adopt-current-as`/`--replace-current-auth` wording in child #55
+reads stricter than the parent's "unknown live credential" rule the code
+implements — both belong on the tracker, not in this register. Evidence:
+`npm run typecheck` and all eight command gates green on Linux x64, Node
+20.19.5.

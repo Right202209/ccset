@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
 import { claudeDir, providerSettingsPath } from '../src/agents/claude-code/paths.js'
 import { EXIT_INVALID_CONFIG, EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
+import { runCli as spawnCli, type RunResult } from './cli-harness.js'
 
 /**
  * M3.3: secure Secret sources and Claude Code provider set, across the
@@ -18,36 +18,13 @@ import { EXIT_INVALID_CONFIG, EXIT_RUNTIME, EXIT_USAGE } from '../src/core/error
 const TOKEN = 'M3-SECRET-TOKEN-0123456789'
 const OTHER_TOKEN = 'M3-OTHER-TOKEN-0987654321'
 
-interface RunResult {
-  code: number | null
-  stdout: string
-  stderr: string
-}
-
-function runCli(
+/** Every case runs against one scratch home; stdin carries the token cases. */
+const runCli = (
   args: string[],
   home: string,
   input: string | Buffer = '',
   env: Record<string, string> = {},
-): Promise<RunResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(process.cwd(), 'dist/cli.js'), ...args], {
-      env: { ...process.env, CCSET_HOME: home, ...env },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    let stdout = ''
-    let stderr = ''
-    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
-      stdout += chunk
-    })
-    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
-      stderr += chunk
-    })
-    child.once('error', reject)
-    child.once('close', (code) => resolve({ code, stdout, stderr }))
-    child.stdin.end(input)
-  })
-}
+): Promise<RunResult> => spawnCli(args, { CCSET_HOME: home, ...env }, input)
 
 const SET = ['--agent', 'claude-code', 'provider', 'set', 'acme', '--base-url', 'https://acme.example']
 

@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
 import { authProfilePath, codexAuthPath, codexConfigPath } from '../src/agents/codex/paths.js'
 import { EXIT_INVALID_CONFIG, EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
+import { runCli as spawnCli, type RunResult } from './cli-harness.js'
 
 /**
  * M3.7: Codex provider set with auth profiles, across the process seam. A
@@ -46,12 +46,6 @@ const LIVE_AUTH = `{
 }
 `
 
-interface RunResult {
-  code: number | null
-  stdout: string
-  stderr: string
-}
-
 interface Envelope {
   ok: boolean
   changed?: boolean
@@ -62,26 +56,13 @@ interface Envelope {
 
 type Env = Record<string, string | undefined>
 
-function runCli(args: string[], home: string, input = '', env: Env = {}): Promise<RunResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(process.cwd(), 'dist/cli.js'), ...args], {
-      // CODEX_HOME is stripped unless a case sets it on purpose.
-      env: { ...process.env, CODEX_HOME: undefined, CCSET_HOME: home, ...env },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    let stdout = ''
-    let stderr = ''
-    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
-      stdout += chunk
-    })
-    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
-      stderr += chunk
-    })
-    child.once('error', reject)
-    child.once('close', (code) => resolve({ code, stdout, stderr }))
-    child.stdin.end(input)
-  })
-}
+/** CODEX_HOME is stripped unless a case sets it on purpose. */
+const runCli = (
+  args: string[],
+  home: string,
+  input: string | Buffer = '',
+  env: Env = {},
+): Promise<RunResult> => spawnCli(args, { CODEX_HOME: undefined, CCSET_HOME: home, ...env }, input)
 
 interface Seed {
   home: string
