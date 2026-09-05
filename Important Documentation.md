@@ -1615,3 +1615,70 @@ to first-match turns the corpus gate red (CAUGHT — "a replacement in
 duplicateKeys disturbed bytes it does not own"). The full `npm test` chain
 and typecheck pass on Node 20.19.5, and every touched file stays inside the
 300-line limit.
+### 9.36 First-run language choice (2026-09-05)
+
+ADR 0005 proposed asking once, interactively, and remembering the answer;
+this entry is its implementation. The resolution order lives at the cli.tsx
+boundary: `CCSET_LOCALE` when present — empty or unknown included, an explicit
+English override that suppresses prompting and persistence, because reading a
+durable preference out of a per-invocation statement would turn one scripted
+run into a silent permanent switch; otherwise the locale saved by a previous
+run; otherwise the first-run prompt; otherwise English. Argument parsing and
+the TTY guard run first, so `--help`, `--version` and piped stdin never reach
+the settings file. The prompt is a standalone Ink render before App mounts —
+`t()` resolves through a module-global locale with no reactive seam, so the
+choice must be settled before the app — and it is the one screen whose copy
+does not go through the catalogs: bilingual by construction. It runs
+regardless of `--agent`. Esc and Ctrl+C take the normal cancel exit (0) and
+leave no settings file behind.
+
+The choice lives in `<home>/.ccset/settings.json` (`{"version": 1,
+"locale": "..."}`), written by `core/settings.ts` through the same atomic
+machinery as agent configs — temp file, rename, 0600, 0700 directory — and
+following `CCSET_HOME` like every other path. Anything the file could be
+besides a carried locale — missing, malformed, non-object, a non-`1` version,
+a missing or unknown tag — is *unchosen*, not an error, and the next
+successful choice replaces it. A persist failure after a successful choice is
+warned on stderr after the prompt screen is cleared and before the app mounts —
+a warn painted before the clear is wiped with the prompt screen it belongs to,
+as the gate's ordering assertion now pins — and keeps the choice for this
+session.
+
+**Verified by a new gate**, `npm run verify:first-run-locale` (ADR 0005),
+which drives the built CLI through the PTY bridge: a fresh home sees the
+bilingual prompt, chooses zh-Hans by number key, and lands in the localized
+agent menu with the file written at 0600 in a 0700 directory; a second run on
+the same home is never asked; `CCSET_LOCALE` set, including empty, neither
+asks nor persists and beats a conflicting saved value in both directions;
+`--help`, `--version` and a piped stdin never prompt; Esc and Ctrl+C each
+leave no settings file and exit 0; a read-only settings directory forces the
+persist warn — resolved in the locale just chosen, and asserted to land after
+the clear sequence in the raw byte stream, since scrollback accumulates output
+a real terminal would have wiped — while the choice stays
+for the session (skipped under root, like E3); a corrupt, wrong-version and
+unknown-locale file each re-ask and are replaced by the next choice.
+Mutation-checked per the standing procedure with four representative
+mutations — dropping the override-presence guard, accepting any schema
+version, never returning the saved locale, and writing the persist warn
+before the screen is cleared — each of which made a distinct scenario of the
+gate fail; the fourth was caught by the ordering assertion, which was written
+first and failed against the pre-fix ordering.
+
+The PTY bridge and its `CliSession` moved to `scripts/pty-session.ts` so both
+built-CLI gates share one harness, and `verify:malformed-dirty` now seeds a
+saved English choice through the shipped `saveLocale` — a fresh home has a
+first screen of its own, and that gate walks agent flows, not the prompt.
+
+Superseded by the rebase onto master, and recorded for the record: the
+zh-Hans drift this branch fixed in passing — `status.partials`,
+`status.partialsNote`, `error.screenTitle`, `error.screenHint` — had already
+been fixed on master while the branch ran, so the rebased branch carries
+master's translations and adds no duplicates. `warn.localePersistFailed` is
+the one new key pair, resolved in the chosen locale when the warning is
+written. The PRD §5.5 bullet (still claiming English-only v1) and the
+README.zh-CN environment table were amended as the ADR assigned to the
+implementation PR; master had already absorbed the README and CONTEXT.md
+amendments, so the rebase keeps those as-is.
+
+**All twenty-two gates pass** on Linux x64, Node 20.19.5, together with
+typecheck and build. Every touched file is inside the 300-line limit.

@@ -1,117 +1,10 @@
 import assert from 'node:assert/strict'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { backupsDir, globalSettingsPath } from '../src/agents/claude-code/paths.js'
-
-const ANSI = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g
-const DOWN = '\x1b[B'
-const UP = '\x1b[A'
-const ENTER = '\r'
-const ESC = '\x1b'
-
-const PTY_BRIDGE = `
-import os, pty, select, sys
-pid, fd = pty.fork()
-if pid == 0:
-    os.execvpe(sys.argv[1], sys.argv[1:], os.environ)
-while True:
-    readable, _, _ = select.select([fd, sys.stdin.buffer], [], [])
-    if sys.stdin.buffer in readable:
-        data = os.read(sys.stdin.fileno(), 4096)
-        if not data:
-            break
-        os.write(fd, data)
-    if fd in readable:
-        try:
-            data = os.read(fd, 4096)
-        except OSError:
-            break
-        if not data:
-            break
-        os.write(sys.stdout.fileno(), data)
-`
-
-function plain(text: string): string {
-  return text.replace(ANSI, '').replace(/\r/g, '')
-}
-
-/**
- * Ink refuses to paint interactive frames once `is-in-ci` fires, so a session
- * driven through a real PTY has to look like a user terminal, not a CI job.
- * `CI` itself and every `CI_` relative are dropped; GITHUB_ACTIONS survives,
- * because supports-color reads it to keep color on.
- */
-function terminalEnv(home: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env, HOME: home, LANG: 'C', LC_ALL: 'C', TERM: 'xterm-256color' }
-  for (const key of Object.keys(env)) {
-    if (key === 'CI' || key === 'CONTINUOUS_INTEGRATION' || key.startsWith('CI_')) delete env[key]
-  }
-  return env
-}
-
-class CliSession {
-  private readonly child: ChildProcessWithoutNullStreams
-  private output = ''
-
-  constructor(home: string) {
-    // --agent names the agent under test rather than letting the run stop on
-    // the selection Screen, which exists now that a second agent is registered.
-    // It is also the only coverage the flag has against more than one legal id.
-    this.child = spawn('python3', [
-      '-c',
-      PTY_BRIDGE,
-      'node',
-      'dist/cli.js',
-      '--agent',
-      'claude-code',
-    ], {
-      cwd: process.cwd(),
-      env: terminalEnv(home),
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    this.child.stdout.on('data', (chunk: Buffer) => {
-      this.output += chunk.toString('utf8')
-    })
-    this.child.stderr.on('data', (chunk: Buffer) => {
-      this.output += chunk.toString('utf8')
-    })
-  }
-
-  send(input: string): void {
-    this.child.stdin.write(input)
-  }
-
-  async sendEach(input: string, count: number): Promise<void> {
-    for (let index = 0; index < count; index += 1) {
-      this.send(input)
-      await new Promise((resolve) => setTimeout(resolve, 150))
-    }
-  }
-
-  async waitFor(text: string, from = 0): Promise<number> {
-    const deadline = Date.now() + 5_000
-    while (Date.now() < deadline) {
-      const index = plain(this.output).indexOf(text, from)
-      if (index >= 0) return index
-      await new Promise((resolve) => setTimeout(resolve, 20))
-    }
-    throw new Error(`Timed out waiting for ${JSON.stringify(text)}. Output:\n${plain(this.output)}`)
-  }
-
-  snapshot(): string {
-    return plain(this.output)
-  }
-
-  async stop(): Promise<void> {
-    if (this.child.exitCode === null) this.child.kill('SIGTERM')
-    await new Promise<void>((resolve) => {
-      if (this.child.exitCode !== null) resolve()
-      else this.child.once('exit', () => resolve())
-    })
-  }
-}
+import { saveLocale } from '../src/core/settings.js'
+import { CliSession, DOWN, ENTER, ESC, terminalEnv, UP } from './pty-session.js'
 
 async function backupFiles(home: string): Promise<string[]> {
   try {
@@ -122,6 +15,28 @@ async function backupFiles(home: string): Promise<string[]> {
   }
 }
 
+/**
+ * --agent names the agent under test rather than letting the run stop on the
+ * selection Screen, which exists now that a second agent is registered. It is
+ * also the only coverage the flag has against more than one legal id.
+ */
+function startSession(home: string): CliSession {
+  return new CliSession({
+    args: ['node', 'dist/cli.js', '--agent', 'claude-code'],
+    env: terminalEnv(home),
+  })
+}
+
+/**
+ * These homes are fresh, so without a saved choice the first-run language
+ * prompt (ADR 0005) is the first screen. This gate walks the agent's flows,
+ * not that prompt -- the prompt has its own gate -- so each home picks
+ * English once through the shipped writer before the session starts.
+ */
+async function chooseEnglishOnce(home: string): Promise<void> {
+  await saveLocale(home, 'en')
+}
+
 async function openGlobal(session: CliSession, from = 0): Promise<number> {
   await session.waitFor('Global settings', from)
   await new Promise((resolve) => setTimeout(resolve, 100))
@@ -130,10 +45,11 @@ async function openGlobal(session: CliSession, from = 0): Promise<number> {
 }
 
 async function verifyMalformedRecovery(home: string): Promise<void> {
+  await chooseEnglishOnce(home)
   const target = globalSettingsPath(home)
   await fs.mkdir(path.dirname(target), { recursive: true })
   await fs.writeFile(target, '{"unmanaged":"original"}\n', { mode: 0o600 })
-  const session = new CliSession(home)
+  const session = startSession(home)
   try {
     let cursor = await openGlobal(session)
     session.send(' ')
@@ -173,7 +89,8 @@ async function verifyMalformedRecovery(home: string): Promise<void> {
 }
 
 async function verifyDirtyExit(home: string): Promise<void> {
-  const session = new CliSession(home)
+  await chooseEnglishOnce(home)
+  const session = startSession(home)
   try {
     let cursor = await openGlobal(session)
     session.send(ESC)

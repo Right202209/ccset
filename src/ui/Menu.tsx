@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react'
-import { Box, Text } from 'ink'
+import { Box, Text, useApp, useInput } from 'ink'
 import type { Action, Agent } from '../types.js'
-import { hasKey, t } from '../i18n/index.js'
+import { hasKey, localeOptions, t, type Locale } from '../i18n/index.js'
 import { SelectList, type SelectOption } from './SelectList.js'
-import { useTerminal } from './terminal.js'
+import type { Terminal } from './terminal.js'
+import { TerminalContext, useTerminal } from './terminal.js'
+import { useTerminalViewport, ViewportProvider } from './Viewport.js'
 import { helpFor } from './keymap.js'
 
 const EXIT_ID = '__exit__'
@@ -80,6 +82,65 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
       />
       <Box marginTop={1}>
         <Text dimColor>{fold(helpFor('list'))}</Text>
+      </Box>
+    </Box>
+  )
+}
+
+/** Derived from the i18n registry, so a new catalog needs no edit here. */
+const LANGUAGE_OPTIONS: Array<SelectOption & { id: Locale }> = localeOptions()
+
+interface LanguageSelectProps {
+  terminal: Terminal
+  onPick: (locale: Locale) => void
+}
+
+/**
+ * ADR 0005's first-run prompt, rendered by cli.tsx outside App and before any
+ * locale is active. It is the one screen whose copy does not go through the
+ * catalogs: with nothing to translate into, it is bilingual by construction.
+ * It supplies its own providers because it mounts without App around it.
+ */
+export function LanguageSelect({ terminal, onPick }: LanguageSelectProps): React.ReactElement {
+  const viewport = useTerminalViewport()
+  return (
+    <TerminalContext.Provider value={terminal}>
+      <ViewportProvider viewport={viewport}>
+        <LanguagePrompt onPick={onPick} />
+      </ViewportProvider>
+    </TerminalContext.Provider>
+  )
+}
+
+interface LanguagePromptProps {
+  onPick: (locale: Locale) => void
+}
+
+function LanguagePrompt({ onPick }: LanguagePromptProps): React.ReactElement {
+  const { exit } = useApp()
+  const { fold } = useTerminal()
+  useInput((_input, key) => {
+    if (key.escape) exit()
+  })
+  return (
+    <Box flexDirection="column">
+      <Text bold>{fold('Language / 语言')}</Text>
+      <SelectList
+        options={LANGUAGE_OPTIONS}
+        onSelect={(_option, index) => {
+          // By index, like the other lists in this file: SelectList widens
+          // option.id back to string.
+          const picked = LANGUAGE_OPTIONS[index]?.id
+          if (picked !== undefined) onPick(picked)
+          exit()
+        }}
+      />
+      <Box marginTop={1}>
+        <Text dimColor>
+          {fold(
+            '↑↓ move · 1-9 jump · enter select · esc quit    ↑↓ 移动 · 1-9 跳转 · enter 选择 · esc 退出',
+          )}
+        </Text>
       </Box>
     </Box>
   )

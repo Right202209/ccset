@@ -160,6 +160,9 @@ export const zhHans: Record<string, string> = {
   'validate.notPositive': '必须大于零。',
   'validate.tooLarge': '超出了 ccset 接受的范围。',
 
+  /* ----------------------------------------------------------------- warn */
+  'warn.localePersistFailed': '无法将语言选择保存到 {path} — ccset 下次会再次询问。',
+
   /* ----------------------------------------------------------------- error */
   'error.permission': '权限被拒绝：{path}（需要 {mode}）。',
   'error.invalidJson': '不是有效的 JSON：{path}（{position}）。',

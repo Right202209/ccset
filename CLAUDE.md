@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is twenty
+There is no lint script and no unit-test framework. The test suite is twenty-two
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -30,6 +30,7 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:header-path` | The header's navigation path: segments accumulate on push, drop on back, and elide from the front when they outrun the terminal width |
 | `npm run verify:review-form` | The review form's row treatment: focus, changed markers, hints, Advanced toggle, `ctrl+s` |
 | `npm run verify:malformed-dirty` | T6, T9: malformed-target confirm flow and unsaved-edits prompt, driven through a real PTY |
+| `npm run verify:first-run-locale` | ADR 0005: the first-run language prompt through the built CLI — a pick persists and is remembered, `CCSET_LOCALE` suppresses and never persists, `--help`/`--version`/non-TTY never prompt, cancellation leaves no file, unchosen files re-ask |
 | `npm run verify:status-terminal` | Status listing/refresh, narrow-terminal layout, `--version` and non-TTY exit `2` |
 | `npm run verify:commands` | M3.1: the Non-interactive seam — parser/exit codes, preservation, deletion, dry-run, no-op, recovery, output, through `dist/cli.js` |
 | `npm run verify:commands-status` | M3.2: status DTOs over the seam — secret-free payloads, findings, parse failures holding exit 4 with readable sections shipping |
@@ -40,16 +41,27 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:commands-codex-provider` | M3.7: codex provider set — invariant re-assertion, sidecar preservation, live `auth.json` untouched, preflighted refusals |
 | `npm run verify:commands-codex-use` | M3.8: codex provider use — commit order, adoption/replacement choice, idempotence, unsupported environments, partial report |
 | `npm run verify:release-artifact` | Packs a tarball, installs it into a temp project, checks contents/bin/shebang/mode |
+| `npm run verify:i18n-zh` | zh-Hans catalog parity with English (keys, placeholders, non-identity), locale resolution and normalization, and the non-TTY refusal rendered in each locale |
+| `npm run verify:error-recovery` | F11, F12: a failed save returns an error Screen keeping every typed value, and Status surfaces and clears partial backups |
 
-`verify:malformed-dirty`, `verify:status-terminal`, and `verify:release-artifact` build
-first, so they exercise `dist/cli.js`, not `src/`. The rest import `src/` directly.
+Two of these (`verify:i18n-zh`, `verify:error-recovery`) sit outside the
+`npm test` chain; run them by name after touching the catalogs or an error
+path.
+
+`verify:malformed-dirty`, `verify:first-run-locale`, `verify:status-terminal`,
+and `verify:release-artifact` build
+first, so they exercise `dist/cli.js`, not `src/`. `verify:i18n-zh` does both:
+its catalog-parity half imports `src/` directly, and its boundary half spawns
+the built `dist/cli.js`. The rest import `src/` directly.
 
 Not every file in `scripts/` is a gate. `ui-session.ts` (mounts `App`, sends keys, reads
 Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.ts`,
-`verify-toml-codec.ts`, `verify-codex-auth.ts`, `verify-opencode-jsonc.ts` and
-`verify-opencode-jsonc-scenarios.ts` are modules the gates import —
+`verify-toml-codec.ts`, `verify-codex-auth.ts`, `verify-opencode-jsonc.ts`,
+`verify-opencode-jsonc-scenarios.ts` and `pty-session.ts` (drives the built CLI through a
+real PTY) are modules the gates import —
 `verify-viewport.ts` runs inside `verify:ui-render`, `kill-harness.ts` inside
-`verify:write-safety`, the TOML pair inside `verify:codex`, and the JSONC pair inside
+`verify:write-safety`, `pty-session.ts` inside `verify:malformed-dirty` and
+`verify:first-run-locale`, the TOML pair inside `verify:codex`, and the JSONC pair inside
 `verify:opencode`. `cli-harness.ts` is the process-seam spawn (run the built CLI, scratch
 home, collect code/stdout/stderr) that the eight `verify:commands-*` gates share. They
 are split out to keep each file inside the 300-line limit.
@@ -262,16 +274,20 @@ Three more UI modules each own one thing, and owning it in one place is the poin
 `useReviewForm.ts` holds the form's whole state machine — rows, the Advanced toggle,
 validation, the row window, and `ctrl+s` — leaving `ReviewForm.tsx` as paint only.
 
-**`src/i18n/`** — every user-facing string resolves through `t()`. The catalog is
-`src/i18n/en.ts` (shell vocabulary only — nothing there names an agent) plus each agent's
+**`src/i18n/`** — every user-facing string resolves through `t()`. The shell catalogs
+are `src/i18n/en.ts` and `src/i18n/zh-Hans.ts` (shell vocabulary only — nothing there
+names an agent) plus each agent's
 `messages.ts`, merged by the registry under an agent-id namespace. `t()` returns the key
 itself on a miss rather than throwing, so a renamed key degrades to a visible literal
 rather than a crash — which is exactly how two fixtures caught the rename in #33. Keys
 are also referenced indirectly (`FieldSpec.labelKey`/`helpKey`, `Action.detailKey`,
 `WriteReport.activateKey`, `validate.ts` return values, `ProbeResult.key`,
 `CcsetError.messageKey`, and template-built families like `prompt.${kind}Line`), so a
-mechanical grep for `t('…')` will under-report usage. English is the only catalog; a
-second one is a new file plus one line in `index.ts`, and a `messages` entry per agent.
+mechanical grep for `t('…')` will under-report usage. A new catalog is a new file plus
+one line in `index.ts`, and a `messages` entry per agent. Which catalog is active is
+settled at the cli.tsx boundary before App mounts (ADR 0005): `CCSET_LOCALE`, then the
+saved choice in `<home>/.ccset/settings.json`, then the bilingual first-run prompt —
+the one screen whose copy does not go through the catalogs.
 
 ## Invariants
 
@@ -329,7 +345,8 @@ Module resolution is `Bundler`, but source imports still carry the `.js` extensi
 ## Current state
 
 Milestone 3, code complete — the remainder is its conformance closeout (issue #56).
-Three agents (`claude-code`, `opencode`, `codex`), one catalog (`en`), two surfaces:
+Three agents (`claude-code`, `opencode`, `codex`), two catalogs
+(`en`, `zh-Hans`), two surfaces:
 the TUI behind its TTY guard, and the Non-interactive commands
 (`ccset --agent <id> <command>`) over `src/operations/`. `--agent <id>` has three
 legal values.
