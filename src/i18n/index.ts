@@ -43,6 +43,15 @@ function normalizeLocale(requested: string | undefined): string | undefined {
   return [...catalogs.keys()].find((locale) => locale.toLowerCase() === tag.toLowerCase())
 }
 
+/**
+ * True when the tag names a catalog ccset carries. The saved preference is
+ * validated with this before it reaches setLocale, so a hand-edited settings
+ * file degrades to unchosen instead of throwing at startup.
+ */
+export function isLocale(locale: string): boolean {
+  return catalogs.has(locale)
+}
+
 /** Switches the catalog t() resolves through. An unknown locale is refused. */
 export function setLocale(locale: string): void {
   if (!catalogs.has(locale)) {

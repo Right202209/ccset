@@ -7,8 +7,10 @@ import {
   EXIT_RUNTIME,
   toCcsetError,
 } from './core/errors.js'
-import { resolveHome } from './core/paths.js'
+import { resolveHome, settingsFilePath } from './core/paths.js'
+import { readSavedLocale, saveLocale } from './core/settings.js'
 import { resolveLocale, setLocale, t } from './i18n/index.js'
+import type { Terminal } from './ui/terminal.js'
 import { runCommand } from './commands/run.js'
 
 const BIN_NAME = 'ccset'
@@ -84,12 +86,65 @@ function isCommandMode(argv: string[]): boolean {
   return false
 }
 
+/** One standalone render; undefined means the user left without choosing. */
+async function promptLanguage(terminal: Terminal): Promise<string | undefined> {
+  // Imported here, not at the top, like the app below: command mode must never
+  // load Ink, and the prompt is the one screen mounted before it.
+  const [{ render }, { LanguageSelect }] = await Promise.all([
+    import('ink'),
+    import('./ui/Menu.js'),
+  ])
+  const React = (await import('react')).default
+  return new Promise((resolve) => {
+    let picked: string | undefined
+    const instance = render(
+      React.createElement(LanguageSelect, {
+        terminal,
+        onPick: (locale: string) => (picked = locale),
+      }),
+    )
+    void instance.waitUntilExit().then(() => resolve(picked))
+  })
+}
+
+/**
+ * The warn lands after the prompt render has exited and before the app mounts,
+ * so it is legible stderr rather than a scratch across a live TUI. The choice
+ * stays active for this session either way; nothing is lost to the failure.
+ */
+async function persistLocale(home: string, locale: string): Promise<void> {
+  try {
+    await saveLocale(home, locale)
+  } catch {
+    process.stderr.write(`${t('warn.localePersistFailed', { path: settingsFilePath(home) })}\n`)
+  }
+}
+
+/**
+ * ADR 0004's resolution order: the override beats the saved choice, the saved
+ * choice beats the first-run prompt. Presence of CCSET_LOCALE is decided here
+ * separately from its normalized value -- empty or unknown, it is still an
+ * explicit English override, so it suppresses both the prompt and persistence.
+ * Reading a durable preference out of the variable would turn one scripted run
+ * into a silent permanent switch, so when it is set ccset never persists.
+ */
+async function settleLocale(home: string, terminal: Terminal): Promise<'done' | 'cancelled'> {
+  if (process.env.CCSET_LOCALE !== undefined) return 'done'
+  const saved = await readSavedLocale(home)
+  if (saved !== null) {
+    setLocale(saved)
+    return 'done'
+  }
+  const picked = await promptLanguage(terminal)
+  if (picked === undefined) return 'cancelled'
+  setLocale(picked)
+  await persistLocale(home, picked)
+  return 'done'
+}
+
 async function launchTui(): Promise<void> {
   const options = buildProgram().parse(process.argv).opts<CliOptions>()
   requireTty()
-  clearScreen()
-  const agentId = resolveAgentId(options.agent)
-  const ctx = { home: resolveHome() }
   // Imported here, not at the top: command mode must never load Ink, so a
   // scripted run cannot trip over it or paint an escape sequence by accident.
   const [{ render }, { App }, { resolveTerminal }] = await Promise.all([
@@ -98,16 +153,19 @@ async function launchTui(): Promise<void> {
     import('./ui/terminal.js'),
   ])
   const React = (await import('react')).default
+  const home = resolveHome()
+  const terminal = resolveTerminal()
+  // --help and --version returned during argument parsing, and commands exited
+  // at the mode split, so only a TTY run reaches the settings file (ADR 0004).
+  // The prompt runs regardless of --agent: it skips agent selection, which has
+  // no bearing on language.
+  if ((await settleLocale(home, terminal)) === 'cancelled') return
+  clearScreen()
+  const agentId = resolveAgentId(options.agent)
+  const ctx = { home }
   // Task errors recover inside the app as a Screen on the stack; what still
   // escapes the render tree reaches main().catch, which restores nothing.
-  const app = render(
-    React.createElement(App, {
-      ctx,
-      agents: AGENTS,
-      agentId,
-      terminal: resolveTerminal(),
-    }),
-  )
+  const app = render(React.createElement(App, { ctx, agents: AGENTS, agentId, terminal }))
   await app.waitUntilExit()
 }
 
