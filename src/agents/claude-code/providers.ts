@@ -1,13 +1,8 @@
 import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
-import { backupFile } from '../../core/backup.js'
 import { ValidationError, JsonParseError } from '../../core/errors.js'
-import {
-  jsonFile,
-  readJsonFile,
-  readMode,
-  writeJsonFileAtomic,
-} from '../../core/json-file.js'
-import { applyManagedWrites, countUnmanagedKeys, getPath, type ManagedWrite } from '../../core/merge.js'
+import { jsonFile, readJsonFile } from '../../core/json-file.js'
+import { countUnmanagedKeys, getPath, type ManagedWrite } from '../../core/merge.js'
+import { commitOne, readPatchBase } from '../../operations/commit.js'
 import {
   activationCommand,
   backupsDir,
@@ -73,15 +68,14 @@ export async function saveProvider(
   const problem = validateProviderName(name)
   if (problem !== null) throw new ValidationError(problem, { name })
   const target = providerSettingsPath(ctx.home, name)
-  const base = startFresh ? {} : (await readJsonFile(target)).data
-  const backupPath = await backupFile(backupsDir(ctx.home), target)
-  await writeJsonFileAtomic(jsonFile(target), applyManagedWrites(base, emitProvider(values)))
-  return {
-    path: target,
-    mode: await readMode(target),
-    backupPath,
-    command: activationCommand(target),
-  }
+  const file = jsonFile(target)
+  const report = await commitOne({
+    file,
+    base: await readPatchBase(file, startFresh),
+    writes: emitProvider(values),
+    backupsDir: backupsDir(ctx.home),
+  })
+  return { ...report, command: activationCommand(target) }
 }
 
 function emptyRecord(name: string, filePath: string): ProviderRecord {

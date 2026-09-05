@@ -50,6 +50,12 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     /* ---------------------------------------------------------------- status */
     'opencode.status.noProviders': 'No provider blocks in this file.',
     'opencode.status.noBaseUrl': 'No options.baseURL in this block.',
+    'opencode.warning.jsoncPresent':
+      'An opencode.jsonc sits beside the managed config; the save may not be the file opencode reads.',
+    'opencode.warning.noBaseUrl': 'Provider {name} has no options.baseURL.',
+    'opencode.validate.providerBaseUrlRequired': 'A new provider needs --base-url.',
+    'opencode.validate.providerTokenRequired':
+      'A new provider needs a key from CCSET_TOKEN or --token-stdin.',
     'opencode.status.jsoncTitle': 'opencode.jsonc (not managed)',
     'opencode.status.jsoncNote':
       'opencode also loads this file. ccset never writes it, because a comment cannot survive a JSON rewrite — so a save here may not be the config opencode reads.',
@@ -106,6 +112,10 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     /* ---------------------------------------------------------------- status */
     'opencode.status.noProviders': '此文件中没有提供商配置块。',
     'opencode.status.noBaseUrl': '此配置块中没有 options.baseURL。',
+    'opencode.warning.jsoncPresent': '受管配置旁存在 opencode.jsonc；写入的文件可能不是 opencode 实际读取的。',
+    'opencode.warning.noBaseUrl': 'Provider {name} 没有设置 options.baseURL。',
+    'opencode.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
+    'opencode.validate.providerTokenRequired': '新建 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',
     'opencode.status.jsoncTitle': 'opencode.jsonc（不受管理）',
     'opencode.status.jsoncNote':
       'opencode 也会读取此文件。ccset 绝不写入它，因为注释无法在 JSON 重写后保留 — 因此这里保存的内容可能不是 opencode 实际读取的配置。',

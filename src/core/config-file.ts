@@ -62,6 +62,19 @@ function render(file: ConfigFile, base: LoadedConfig, writes: ManagedWrite[]): s
 }
 
 /**
+ * The plan half of a save: the exact bytes the writes would put on disk,
+ * without touching anything. The operation layer compares this against the
+ * disk text to detect a no-op; the apply half commits it after a backup.
+ */
+export function renderConfigFile(
+  file: ConfigFile,
+  base: LoadedConfig,
+  writes: ManagedWrite[],
+): string {
+  return render(file, base, writes)
+}
+
+/**
  * Applies the manifest to whatever the base holds and writes the result
  * atomically at 0600. The base is passed in rather than re-read here so the
  * caller controls when the read happens -- every save re-reads immediately
