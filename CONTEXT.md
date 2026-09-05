@@ -115,3 +115,14 @@ _Avoid_: Screen size, full screen
 What the terminal in front of the core user can render: the glyph set and the color
 set. It is a property of the environment, not a user preference.
 _Avoid_: Theme, style
+
+**Locale preference**:
+The catalog choice ccset uses for its interface. It is either an explicit
+`CCSET_LOCALE` invocation override or a saved choice in ccset's own settings
+file; ccset never infers it from `LANG` or other environment locale variables.
+_Avoid_: Terminal capability, detected locale
+
+**Settings file**:
+The ccset-owned `<home>/.ccset/settings.json` document containing the versioned
+locale preference. It is separate from every Agent configuration and backup.
+_Avoid_: Agent config, backup
