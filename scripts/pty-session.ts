@@ -12,6 +12,10 @@ export const DOWN = '\x1b[B'
 export const UP = '\x1b[A'
 export const ENTER = '\r'
 export const ESC = '\x1b'
+export const CTRL_C = '\x03'
+
+/** Pause between keypresses so the PTY delivers them as separate reads. */
+export const KEY_DELAY_MS = 150
 
 const ANSI = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g
 
@@ -103,7 +107,7 @@ export class CliSession {
   async sendEach(input: string, count: number): Promise<void> {
     for (let index = 0; index < count; index += 1) {
       this.send(input)
-      await new Promise((resolve) => setTimeout(resolve, 150))
+      await new Promise((resolve) => setTimeout(resolve, KEY_DELAY_MS))
     }
   }
 

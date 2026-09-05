@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { settingsFilePath } from '../src/core/paths.js'
-import { CliSession, ESC, terminalEnv } from './pty-session.js'
+import { CliSession, CTRL_C, ESC, KEY_DELAY_MS, terminalEnv } from './pty-session.js'
 
 /**
  * ADR 0004, the first-run language prompt. The override beats the saved
@@ -20,8 +20,8 @@ const CLI = 'dist/cli.js'
 const PROMPT_TITLE = 'Language / 语言'
 const ZH_AGENT_MENU = '选择 Agent'
 const EN_AGENT_MENU = 'Select an agent'
-const KEY_DELAY_MS = 150
-const CTRL_C = '\x03'
+/** 简体中文 is the prompt's second option; SelectList's 1-9 jump takes a digit. */
+const ZH_OPTION_KEY = '2'
 /** Like E3: a mode-based permission drive says nothing under root. */
 const ROOT = typeof process.getuid === 'function' && process.getuid() === 0
 
@@ -31,6 +31,16 @@ function sleep(ms: number): Promise<void> {
 
 function scratchHome(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), 'ccset-first-run-'))
+}
+
+/** Scratch home that removes itself, so a failed assertion cannot leak state. */
+async function withHome(run: (home: string) => Promise<void>): Promise<void> {
+  const home = await scratchHome()
+  try {
+    await run(home)
+  } finally {
+    await fs.rm(home, { recursive: true, force: true })
+  }
 }
 
 function startSession(home: string, extraEnv: NodeJS.ProcessEnv = {}): CliSession {
@@ -70,8 +80,7 @@ async function assertModes(home: string): Promise<void> {
  * on the same home is never asked.
  */
 async function verifyPickThenRemember(): Promise<void> {
-  const home = await scratchHome()
-  try {
+  await withHome(async (home) => {
     const first = startSession(home)
     try {
       const title = await first.waitFor(PROMPT_TITLE)
@@ -79,7 +88,7 @@ async function verifyPickThenRemember(): Promise<void> {
       assert.ok(prompt.includes('English'), prompt)
       assert.ok(prompt.includes('简体中文'), prompt)
       await sleep(KEY_DELAY_MS)
-      first.send('2')
+      first.send(ZH_OPTION_KEY)
       await first.waitFor(ZH_AGENT_MENU)
       assert.deepEqual(await readSettings(home), { version: 1, locale: 'zh-Hans' })
       await assertModes(home)
@@ -94,15 +103,12 @@ async function verifyPickThenRemember(): Promise<void> {
     } finally {
       await first.stop()
     }
-  } finally {
-    await fs.rm(home, { recursive: true, force: true })
-  }
+  })
 }
 
 /** CCSET_LOCALE set -- including empty -- is neither asked nor persisted. */
 async function verifyOverrideNeverPersists(): Promise<void> {
-  const home = await scratchHome()
-  try {
+  await withHome(async (home) => {
     const zh = startSession(home, { CCSET_LOCALE: 'zh-Hans' })
     try {
       await zh.waitFor(ZH_AGENT_MENU)
@@ -120,9 +126,7 @@ async function verifyOverrideNeverPersists(): Promise<void> {
     } finally {
       await empty.stop()
     }
-  } finally {
-    await fs.rm(home, { recursive: true, force: true })
-  }
+  })
 }
 
 /**
@@ -130,8 +134,7 @@ async function verifyOverrideNeverPersists(): Promise<void> {
  * run under it never persists: the file reads exactly as it did before.
  */
 async function verifyOverrideBeatsSaved(): Promise<void> {
-  const home = await scratchHome()
-  try {
+  await withHome(async (home) => {
     await writeSettings(home, `${JSON.stringify({ version: 1, locale: 'en' })}\n`)
     const zh = startSession(home, { CCSET_LOCALE: 'zh-Hans' })
     try {
@@ -150,15 +153,12 @@ async function verifyOverrideBeatsSaved(): Promise<void> {
     } finally {
       await en.stop()
     }
-  } finally {
-    await fs.rm(home, { recursive: true, force: true })
-  }
+  })
 }
 
 /** Esc and Ctrl+C at the prompt are the normal user-cancel exit: 0, no file, no app. */
 async function verifyCancelLeavesNoFile(key: string): Promise<void> {
-  const home = await scratchHome()
-  try {
+  await withHome(async (home) => {
     const session = startSession(home)
     try {
       await session.waitFor(PROMPT_TITLE)
@@ -169,9 +169,7 @@ async function verifyCancelLeavesNoFile(key: string): Promise<void> {
     } finally {
       await session.stop()
     }
-  } finally {
-    await fs.rm(home, { recursive: true, force: true })
-  }
+  })
 }
 
 /**
@@ -183,8 +181,7 @@ async function verifyCancelLeavesNoFile(key: string): Promise<void> {
  */
 async function verifyPersistFailureKeepsChoice(): Promise<void> {
   if (ROOT) return
-  const home = await scratchHome()
-  try {
+  await withHome(async (home) => {
     const settingsDir = path.join(home, '.ccset')
     await fs.mkdir(settingsDir, { mode: 0o700 })
     await fs.chmod(settingsDir, 0o500)
@@ -192,7 +189,7 @@ async function verifyPersistFailureKeepsChoice(): Promise<void> {
     try {
       await session.waitFor(PROMPT_TITLE)
       await sleep(KEY_DELAY_MS)
-      session.send('2')
+      session.send(ZH_OPTION_KEY)
       await session.waitFor(ZH_AGENT_MENU)
       assert.match(session.snapshot(), /无法将语言选择保存到/, 'the persist warn never appeared')
       await assertNoSettings(home)
@@ -200,9 +197,7 @@ async function verifyPersistFailureKeepsChoice(): Promise<void> {
       await fs.chmod(settingsDir, 0o700)
       await session.stop()
     }
-  } finally {
-    await fs.rm(home, { recursive: true, force: true })
-  }
+  })
 }
 
 /**
@@ -211,8 +206,7 @@ async function verifyPersistFailureKeepsChoice(): Promise<void> {
  * next successful choice replaces the file.
  */
 async function verifyUnchosenReasks(): Promise<void> {
-  const home = await scratchHome()
-  try {
+  await withHome(async (home) => {
     const unchosen = [
       '{ broken',
       JSON.stringify({ version: 2, locale: 'zh-Hans' }),
@@ -224,16 +218,14 @@ async function verifyUnchosenReasks(): Promise<void> {
       try {
         await session.waitFor(PROMPT_TITLE)
         await sleep(KEY_DELAY_MS)
-        session.send('2')
+        session.send(ZH_OPTION_KEY)
         await session.waitFor(ZH_AGENT_MENU)
         assert.deepEqual(await readSettings(home), { version: 1, locale: 'zh-Hans' })
       } finally {
         await session.stop()
       }
     }
-  } finally {
-    await fs.rm(home, { recursive: true, force: true })
-  }
+  })
 }
 
 /**
@@ -241,8 +233,7 @@ async function verifyUnchosenReasks(): Promise<void> {
  * the TTY guard: none of them prompts, reads settings, or writes settings.
  */
 async function verifyBoundaryNeverPrompts(): Promise<void> {
-  const home = await scratchHome()
-  try {
+  await withHome(async (home) => {
     const boundaryEnv = terminalEnv(home, { CCSET_HOME: home })
     const version = spawnSync(process.execPath, [CLI, '--version'], {
       env: boundaryEnv,
@@ -255,9 +246,7 @@ async function verifyBoundaryNeverPrompts(): Promise<void> {
     assert.equal(piped.status, 2)
     assert.match(piped.stderr, /terminal/i)
     await assertNoSettings(home)
-  } finally {
-    await fs.rm(home, { recursive: true, force: true })
-  }
+  })
 }
 
 async function main(): Promise<void> {
