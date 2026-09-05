@@ -61,6 +61,19 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* ----------------------------------------------------------------- write */
     'claudeCode.write.stateCreated': 'Created with hasCompletedOnboarding set.',
     'claudeCode.write.stateExists': 'Already present — left untouched.',
+
+    /* -------------------------------------------------------------- commands */
+    'claudeCode.validate.proxyNeedsUrl':
+      'The proxy is on, but no proxy URL was supplied and none is on disk.',
+    'claudeCode.validate.proxyConflict':
+      'The proxy toggle and the proxy URL in this command contradict each other.',
+
+    /* --------------------------------------------------------- status warns */
+    'claudeCode.warning.stateAbsent': '~/.claude.json is absent; state init can create it.',
+    'claudeCode.warning.noBaseUrl': 'Provider {name} has no ANTHROPIC_BASE_URL.',
+    'claudeCode.validate.providerBaseUrlRequired': 'A new provider needs --base-url.',
+    'claudeCode.validate.providerTokenRequired':
+      'A new provider needs a token from CCSET_TOKEN or --token-stdin.',
   },
 
   'zh-Hans': {
@@ -108,5 +121,16 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* ----------------------------------------------------------------- write */
     'claudeCode.write.stateCreated': '已创建，并写入 hasCompletedOnboarding。',
     'claudeCode.write.stateExists': '已存在 — 未做改动。',
+
+    /* -------------------------------------------------------------- commands */
+    'claudeCode.validate.proxyNeedsUrl': '代理已开启，但未提供代理 URL，磁盘上也没有。',
+    'claudeCode.validate.proxyConflict': '此命令中的代理开关与代理 URL 相互矛盾。',
+
+    /* --------------------------------------------------------- status warns */
+    'claudeCode.warning.stateAbsent': '~/.claude.json 不存在；state init 可以创建它。',
+    'claudeCode.warning.noBaseUrl': 'Provider {name} 没有设置 ANTHROPIC_BASE_URL。',
+    'claudeCode.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
+    'claudeCode.validate.providerTokenRequired':
+      '新建 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',
   },
 }

@@ -54,6 +54,10 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     'opencode.status.legacyJsonTitle': 'opencode.json (not managed)',
     'opencode.status.legacyJsonNote':
       'opencode loads this file first, then the managed opencode.jsonc — a key set in both takes the .jsonc value. ccset does not edit this file.',
+    'opencode.warning.noBaseUrl': 'Provider {name} has no options.baseURL.',
+    'opencode.validate.providerBaseUrlRequired': 'A new provider needs --base-url.',
+    'opencode.validate.providerTokenRequired':
+      'A new provider needs a key from CCSET_TOKEN or --token-stdin.',
 
     /* ----------------------------------------------------------------- notes */
     'opencode.note.configPath': 'File: {path} — created on save.',
@@ -111,6 +115,9 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     'opencode.status.legacyJsonTitle': 'opencode.json（不受管理）',
     'opencode.status.legacyJsonNote':
       'opencode 先读取此文件，再读取受管理的 opencode.jsonc — 两边都设置的键以 .jsonc 为准。ccset 不会编辑此文件。',
+    'opencode.warning.noBaseUrl': 'Provider {name} 没有设置 options.baseURL。',
+    'opencode.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
+    'opencode.validate.providerTokenRequired': '新建 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',
 
     /* ----------------------------------------------------------------- notes */
     'opencode.note.configPath': '文件：{path} — 保存时创建。',

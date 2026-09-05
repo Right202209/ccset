@@ -69,6 +69,16 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.status.noBaseUrl': 'No base_url in this table.',
     'codex.status.noAmbientAuth':
       'requires_openai_auth is not set, so Codex will not read auth.json for this provider.',
+    'codex.warning.noBaseUrl': 'Provider {name} has no base_url.',
+    'codex.warning.noAmbientAuth':
+      'Provider {name} does not set requires_openai_auth, so Codex will not read auth.json for it.',
+    'codex.warning.keyringStore':
+      'Codex keeps credentials in the OS keyring, so it does not read auth.json; saved profiles have no effect.',
+    'codex.warning.homeOverride':
+      'CODEX_HOME is set to {path}; Codex reads its config from there, while ccset writes under the home this run was given.',
+    'codex.validate.providerBaseUrlRequired': 'A new provider needs --base-url.',
+    'codex.validate.providerTokenRequired':
+      'A provider without a saved credential needs a key from CCSET_TOKEN or --token-stdin.',
     'codex.status.noProfileFor':
       'No saved credential for {id}. Edit the provider and enter its API key first.',
     'codex.status.authTitle': 'Live credential',
@@ -101,6 +111,7 @@ export const codexMessages: Record<string, Record<string, string>> = {
 
     /* ----------------------------------------------------------------- write */
     'codex.write.activate': 'Codex reads both files on start. Run it with:',
+    'codex.write.providerSaved': 'Provider saved',
     'codex.write.authProfile': 'Key:    {path}',
     'codex.write.switched': 'Provider switched',
     'codex.write.authSwitched': 'Auth:   {path}',
@@ -117,6 +128,16 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.confirm.removeProfile':
       'This deletes the saved credential for {id}. The provider block in config.toml is left alone.',
     'codex.confirm.remove': 'Delete the credential',
+
+    /* --------------------------------------------------------------- errors */
+    'codex.error.keyringUnsupported':
+      'Codex keeps credentials in the OS keyring, so it does not read auth.json; switching a profile would change nothing.',
+    'codex.error.homeOverrideUnsupported':
+      'CODEX_HOME points Codex at {path}; switching here would not be the switch Codex sees.',
+    'codex.validate.conflictNeedsChoice':
+      'auth.json holds a credential that is not one of the saved profiles; pass --adopt-current-as or --replace-current-auth to keep or discard it.',
+    'codex.validate.adoptOrReplace':
+      'Pass only one of --adopt-current-as and --replace-current-auth.',
 
     /* ------------------------------------------------------------------ busy */
     'codex.busy.switching': 'Switching to {id}…',
@@ -181,6 +202,14 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.status.noProviders': '此文件中没有 [model_providers] 表。',
     'codex.status.noBaseUrl': '此表中没有 base_url。',
     'codex.status.noAmbientAuth': '未设置 requires_openai_auth，因此 Codex 不会为该提供商读取 auth.json。',
+    'codex.warning.noBaseUrl': 'Provider {name} 没有设置 base_url。',
+    'codex.warning.noAmbientAuth': 'Provider {name} 未设置 requires_openai_auth，因此 Codex 不会为它读取 auth.json。',
+    'codex.warning.keyringStore':
+      'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；已保存的凭据配置不会生效。',
+    'codex.warning.homeOverride':
+      '已设置 CODEX_HOME 为 {path}；Codex 从那里读取配置，而 ccset 写入的是本次运行指定的主目录。',
+    'codex.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
+    'codex.validate.providerTokenRequired': '没有已保存凭据的 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',
     'codex.status.noProfileFor': '{id} 没有已保存的凭据。请先编辑该提供商并填入它的 API 密钥。',
     'codex.status.authTitle': '当前凭据',
     'codex.status.authMode': '认证方式',
@@ -208,6 +237,7 @@ export const codexMessages: Record<string, Record<string, string>> = {
 
     /* ----------------------------------------------------------------- write */
     'codex.write.activate': 'Codex 启动时会读取这两个文件。运行：',
+    'codex.write.providerSaved': '提供商已保存',
     'codex.write.authProfile': '密钥：{path}',
     'codex.write.switched': '提供商已切换',
     'codex.write.authSwitched': '凭据：{path}',
@@ -223,6 +253,16 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.confirm.switch': '切换到它',
     'codex.confirm.removeProfile': '这将删除 {id} 的已保存凭据。config.toml 中的提供商配置块不受影响。',
     'codex.confirm.remove': '删除凭据',
+
+    /* --------------------------------------------------------------- errors */
+    'codex.error.keyringUnsupported':
+      'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；在这里切换凭据配置不会产生任何效果。',
+    'codex.error.homeOverrideUnsupported':
+      'CODEX_HOME 指向 {path}；在这里切换并不是 Codex 实际看到的切换。',
+    'codex.validate.conflictNeedsChoice':
+      'auth.json 中的凭据不属于任何已保存的凭据配置；请传 --adopt-current-as 保留，或 --replace-current-auth 丢弃。',
+    'codex.validate.adoptOrReplace':
+      '--adopt-current-as 与 --replace-current-auth 只能传一个。',
 
     /* ------------------------------------------------------------------ busy */
     'codex.busy.switching': '正在切换到 {id}…',

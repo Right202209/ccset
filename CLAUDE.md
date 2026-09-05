@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is eleven
+There is no lint script and no unit-test framework. The test suite is twenty
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -31,6 +31,14 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:review-form` | The review form's row treatment: focus, changed markers, hints, Advanced toggle, `ctrl+s` |
 | `npm run verify:malformed-dirty` | T6, T9: malformed-target confirm flow and unsaved-edits prompt, driven through a real PTY |
 | `npm run verify:status-terminal` | Status listing/refresh, narrow-terminal layout, `--version` and non-TTY exit `2` |
+| `npm run verify:commands` | M3.1: the Non-interactive seam — parser/exit codes, preservation, deletion, dry-run, no-op, recovery, output, through `dist/cli.js` |
+| `npm run verify:commands-status` | M3.2: status DTOs over the seam — secret-free payloads, findings, parse failures holding exit 4 with readable sections shipping |
+| `npm run verify:commands-secret` | M3.3: every Secret source and rejection (argv/file are refusals), omission preserving disk values, masking on every output surface |
+| `npm run verify:commands-opencode` | M3.4: opencode status + global set — four-level preservation, boolean/list semantics, the JSONC finding |
+| `npm run verify:commands-opencode-provider` | M3.5: opencode provider set — per-key `models` merge, secret landing in the named block only, new-provider refusals, malformed recovery |
+| `npm run verify:commands-codex` | M3.6: codex status + global set over the TOML codec — byte preservation, integer typing, keyring/CODEX_HOME findings, backed-up replacement |
+| `npm run verify:commands-codex-provider` | M3.7: codex provider set — invariant re-assertion, sidecar preservation, live `auth.json` untouched, preflighted refusals |
+| `npm run verify:commands-codex-use` | M3.8: codex provider use — commit order, adoption/replacement choice, idempotence, unsupported environments, partial report |
 | `npm run verify:release-artifact` | Packs a tarball, installs it into a temp project, checks contents/bin/shebang/mode |
 
 `verify:malformed-dirty`, `verify:status-terminal`, and `verify:release-artifact` build
@@ -41,8 +49,10 @@ Rendered paints back), `ui-assertions.ts`, `verify-viewport.ts`, `kill-harness.t
 `verify-toml-codec.ts`, `verify-codex-auth.ts`, `verify-opencode-jsonc.ts` and
 `verify-opencode-jsonc-scenarios.ts` are modules the gates import —
 `verify-viewport.ts` runs inside `verify:ui-render`, `kill-harness.ts` inside
-`verify:write-safety`, and the last four inside `verify:codex` and `verify:opencode`
-respectively. They are split out to keep each file inside the 300-line limit.
+`verify:write-safety`, the TOML pair inside `verify:codex`, and the JSONC pair inside
+`verify:opencode`. `cli-harness.ts` is the process-seam spawn (run the built CLI, scratch
+home, collect code/stdout/stderr) that the eight `verify:commands-*` gates share. They
+are split out to keep each file inside the 300-line limit.
 
 `verify:write-safety` is the one gate that forks itself: its bundle re-enters through
 `--kill-child` so the child running under SIGKILL is the shipped `saveGlobal`, not a
@@ -54,9 +64,11 @@ for the sweep fails loudly instead of passing vacuously.
 agent's `messages.ts` alone: `registerMessages` is a load-time side effect of
 `src/registry.ts`, so a fixture that skips that import sees every agent key unresolved.
 
-`CCSET_HOME` overrides the home directory (`core/paths.ts:resolveHome`), and
-`CCSET_ASCII=1` selects the seven-bit terminal capability (`ui/terminal.ts:resolveTerminal`).
-Both are read at the boundary, by `cli.tsx`, and nowhere else. Every fixture
+`CCSET_HOME` overrides the home directory (`core/paths.ts:resolveHome`),
+`CCSET_ASCII=1` selects the seven-bit terminal capability (`ui/terminal.ts:resolveTerminal`),
+and `CCSET_TOKEN` carries a provider secret to the command layer (the parser
+sees only its presence; the value never enters argv, output, or errors). All
+are read at the boundary, by `cli.tsx`, and nowhere else. Every fixture
 that goes through the CLI points it at a `mkdtemp` directory; use it for any manual run so
 you never write into a real `~/.claude`. The gates that mount `App` directly bypass
 `cli.tsx`, so they pass the scratch home in through `ctx`, the glyph set through
@@ -96,6 +108,21 @@ reserved is the agent's business), `errors.ts` (the `CcsetError` taxonomy carryi
 i18n key and an exit code), and `paths.ts`, which after the second agent holds only
 `resolveHome`, `backupsDirFor`, and `listNamedFiles` — the last taking the agent's
 naming rule as a callback.
+
+**`src/operations/`** is the Non-interactive seam: one `executeOperation` entry point
+takes a normalized `OperationRequest` and returns a structured `OperationResult` or a
+typed error — no Screen, translated text, or `ManagedWrite[]` crosses it. Its commit
+core runs `read → overlay → validate → plan → apply`: every target is rendered and
+preflighted before the first write, a no-op skips backups and reports `changed: false`,
+dry-run stops after planning, and an unexpected failure after a multi-target commit
+reports the paths already written as partial. The TUI save paths run on the same commit
+core; only value mapping and presentation stay theirs.
+
+**`src/commands/`** is the CLI Adapter over that seam: a pure parser that normalizes
+argv against the command declarations each agent module owns (a usage error is exit 64
+before any read), the secret readers (`CCSET_TOKEN` / `--token-stdin` only), and the
+two presenters — localized lines and the schemaVersion 1 JSON envelope. Command mode
+never loads Ink, and the process exit status always matches what was printed.
 
 **The codec seam is real, not notional.** `src/core/config-file.ts` dispatches on
 `ConfigFile.codec`: `readConfigFile` returns a `LoadedConfig` carrying `raw` as well as
@@ -301,12 +328,19 @@ Module resolution is `Bundler`, but source imports still carry the `.js` extensi
 
 ## Current state
 
-Milestone 2, mostly done. Three agents (`claude-code`, `opencode`, `codex`), one catalog
-(`en`), interactive-only. `--agent <id>` has three legal values.
+Milestone 3, code complete — the remainder is its conformance closeout (issue #56).
+Three agents (`claude-code`, `opencode`, `codex`), one catalog (`en`), two surfaces:
+the TUI behind its TTY guard, and the Non-interactive commands
+(`ccset --agent <id> <command>`) over `src/operations/`. `--agent <id>` has three
+legal values.
 
 Done in M2: the second agent, the seam work that made criterion 5 literally true,
 `docs/adding-an-agent.md`, and the third agent together with the TOML codec that U7
 blocked. U7 is answered (ADR 0003, `Important Documentation.md` §9.26).
+
+Done in M3 (`Important Documentation.md` §9.33): the operation seam, the command parser,
+the secure secret sources, per-agent status and patch commands, Codex `provider use`
+with explicit conflict resolution, and the eight command gates that cross both seams.
 
 Not built, and deliberately not stubbed:
 - **`apiKeyHelper` support** — still blocked on U1, which needs a real third-party
@@ -315,7 +349,7 @@ Not built, and deliberately not stubbed:
   of Codex's own source and matches its tests, but no request has been made through a
   ccset-written provider. U9 (whether a keyring credential store bypasses `auth.json`
   entirely) is why Status warns rather than refusing.
-- **Non-interactive mode** (M3), and any additional i18n catalog.
+- **Any additional i18n catalog.**
 
 ADR 0002's flow-scrolling output with windowed long regions is implemented — see
 `src/ui/Viewport.tsx` above. Several external gates in `Important Documentation.md` §9.8

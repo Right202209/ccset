@@ -1,6 +1,7 @@
 import type { Agent, Ctx } from '../../types.js'
 import { fileExists } from '../../core/json-file.js'
 import { opencodeActions } from './actions.js'
+import { opencodeCommands } from './commands.js'
 import { opencodeMessages } from './messages.js'
 import { opencodeConfigPath, opencodeDir, opencodeJsoncPath } from './paths.js'
 
@@ -27,4 +28,5 @@ export const opencode: Agent = {
   messages: opencodeMessages,
   detect,
   getActions: opencodeActions,
+  commands: { operations: opencodeCommands },
 }

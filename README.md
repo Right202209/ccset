@@ -2,7 +2,8 @@
 
 [中文说明](README.zh-CN.md) | English
 
-A terminal UI that writes coding-agent settings files correctly.
+A terminal UI — and a scriptable command line — that write coding-agent
+settings files correctly.
 
 Pointing a coding agent at a third-party API endpoint means hand-editing JSON
 whose field names are undocumented in aggregate, where a typo produces a config
@@ -10,7 +11,8 @@ that looks right and silently fails. ccset generates and edits those files, and
 shows you what is already on disk.
 
 Three agents are supported: **Claude Code**, **opencode** and **Codex CLI**.
-ccset asks which one you are configuring, or takes `--agent <id>`.
+ccset asks which one you are configuring, takes `--agent <id>`, or runs one
+command headlessly — see [CLI](#cli).
 
 **ccset generates configuration; it does not activate it.** For Claude Code,
 activation is you running `claude --settings <path>`, and ccset prints that
@@ -188,24 +190,70 @@ you.
 ## CLI
 
 ```
-ccset [--agent <id>]
-  -v, --version
-  -h, --help
+ccset [--agent <id>]             # the interactive interface
+ccset --agent <id> <command> …   # one operation, no interface
+ccset -v | --version | -h | --help
 ```
 
-`--agent` takes `claude-code`, `opencode` or `codex` and skips the selection
-screen.
+`--agent` takes `claude-code`, `opencode` or `codex`. With no command, ccset
+starts the interactive interface; run through a pipe or in CI, that prints a
+message and exits `2` rather than emitting control sequences into a log. With a
+command, ccset runs it headlessly: a line-oriented report by default, or one
+JSON envelope on stdout with `--json`.
 
-ccset is interactive only. Run through a pipe or in CI it prints a message and
-exits `2` rather than emitting control sequences into a log.
+### Commands
+
+| Agent | Commands |
+| --- | --- |
+| `claude-code` | `status` · `global set` · `provider set <id>` · `state init` |
+| `opencode` | `status` · `global set` · `provider set <id>` |
+| `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
+
+`status` reads everything and writes nothing. The `set` commands patch only the
+fields you name: omitted fields keep their disk values, `--unset <field>`
+deletes one explicitly, and the unmanaged keys around the managed ones survive
+byte for byte — in Codex's `config.toml` down to the comments, blank lines and
+key order. Nothing ccset writes activates a provider: Claude Code waits for
+`claude --settings`, Codex waits for `provider use`, and opencode reads its
+config on start. `state init` creates Claude Code's `~/.claude.json` when it is
+absent and otherwise leaves the file alone.
+
+Options the commands share:
+
+| Option | Effect |
+| --- | --- |
+| `--json` | One JSON envelope on stdout instead of human lines |
+| `--dry-run` | Read, validate and plan; no backup, no write. State-changing commands only — `status` refuses it |
+| `--unset <field>` | Remove one field explicitly; removal is never inferred |
+| `--replace-invalid` | Confirmed replacement of a target that no longer parses; the unreadable original is backed up first |
+| `--token-stdin` | Read the API key from stdin |
+
+A key reaches ccset only through `CCSET_TOKEN` or `--token-stdin` — never an
+option, a positional or a file, all of which are usage refusals — and is then
+written only to that provider's own target: the provider file for Claude Code,
+`options.apiKey` in the named block for opencode, the `auth.<id>.json` sidecar
+for Codex. It is never printed — not in human output, not in the JSON envelope,
+not in an error, warning or backup.
+
+Codex details worth knowing: `provider set` re-asserts `wire_api = "responses"`
+and `requires_openai_auth = true` on every save, and lands the key in
+`auth.<id>.json` — never in `config.toml`, never in the live `auth.json`.
+`provider use` copies the named profile into `auth.json` and moves
+`model_provider` in the same operation, routing first. If `auth.json` holds
+something that is none of the saved profiles, the switch refuses until you pass
+exactly one of `--adopt-current-as <name>` (keep it as a new, switchable
+profile) or `--replace-current-auth` (discard it — backed up either way).
 
 | Exit code | Meaning |
 | --- | --- |
 | 0 | Success |
-| 1 | Runtime error |
-| 2 | Not a TTY |
+| 1 | Runtime error — a refused operation, or an environment the operation cannot be honest in |
+| 2 | Not a TTY (interactive mode only) |
 | 3 | Permission denied on a target path (the path and required mode are named) |
 | 4 | An existing file could not be parsed (JSON or TOML) |
+| 64 | Usage error — unknown field or option, invalid value, empty patch |
+| 65 | Unknown agent id |
+| 66 | A command this agent does not serve |
 
 In the interactive app a failed action does not end the session: the error is a
 screen of its own, everything you typed is kept, and `esc` returns to the form

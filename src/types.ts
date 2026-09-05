@@ -3,6 +3,10 @@
  * only in these types, and the UI renders only these types.
  */
 
+import type { AgentCommands } from './operations/types.js'
+
+export type { AgentCommands } from './operations/types.js'
+
 export type JsonValue =
   | string
   | number
@@ -168,6 +172,12 @@ export interface Agent {
   messages?: Record<string, Record<string, string>>
   detect: (ctx: Ctx) => Promise<boolean>
   getActions: () => Action[]
+  /**
+   * The agent's Non-interactive command surface, declared here so the parser
+   * and dispatcher need no hard-coded list of agents or commands. Absent: the
+   * agent serves no commands.
+   */
+  commands?: AgentCommands
 }
 
 /** Result of a successful write, rendered as the success message. */

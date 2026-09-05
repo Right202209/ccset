@@ -7,9 +7,14 @@ under `src/`:
 
 - `src/core/` contains agent-independent file I/O, validation, merging,
   masking, backups, paths, and error handling.
+- `src/operations/` defines the Non-interactive operation seam: a normalized
+  request in, a structured result or typed error out, over the shared
+  plan/apply commit core.
+- `src/commands/` is the CLI adapter for that seam: the pure parser, the
+  secret sources, and the human/JSON presenters.
 - `src/agents/<id>/` contains integrations for a supported coding agent
-  (`claude-code` and `opencode`), including that agent's own paths, constants,
-  and user-facing strings.
+  (`claude-code`, `opencode`, and `codex`), including that agent's own paths,
+  constants, and user-facing strings.
 - `src/ui/` contains Ink screens and reusable form/list components.
 - `src/i18n/` contains the shell's message catalogs (`en`, `zh-Hans`) and the
   translation helper. Agent-specific strings live with the agent and are merged
@@ -26,7 +31,7 @@ not be edited by hand.
 Run `npm install` to install dependencies (Node.js 18+ is required). Use
 `npm run typecheck` for a no-emit TypeScript check and `npm run build` to bundle
 the executable to `dist/cli.js` with tsup. There is no unit-test framework; the
-suite is twelve executable `npm run verify:*` fixtures in `scripts/`, listed with
+suite is twenty executable `npm run verify:*` fixtures in `scripts/`, listed with
 what each covers in `CLAUDE.md`. Run the ones your change touches, and verify
 remaining interactive scenarios manually against `Important Documentation.md`.
 

@@ -20,7 +20,7 @@ the dependent part.
 | U3 | Is `fallbackModel` in settings JSON a `string[]` or a comma-joined string? | Write each form, launch, observe whether it is honoured or rejected. | §4.2.3 Advanced field type. |
 | U4 | Does Claude Code prune `~/.claude/backups/` by filename pattern or across the whole directory? | Place a foreign file there, use Claude Code until rotation occurs, check survival. | Confirms §6.5's subdirectory choice. Low risk — the subdirectory is safe either way. |
 | U5 | Is the `droite` npm scope owned/creatable by the publisher? | `npm whoami`, then `npm org ls droite` while authenticated. | Publishing at Milestone 1. |
-| U6 | When both `~/.config/opencode/opencode.json` and `opencode.jsonc` exist, which does opencode load — and does it merge them or pick one? | Write a distinguishing key into each, launch opencode, inspect the effective value. | Answered from source at v1.18.25 (issue #39): both load, merged per key, `.jsonc` last, so the `.jsonc` wins conflicts. The decision that follows — ccset writes the `.jsonc` (issue #46, §9.33) — is implemented; the runtime experiment itself has not been run, so the row stays open. |
+| U6 | When both `~/.config/opencode/opencode.json` and `opencode.jsonc` exist, which does opencode load — and does it merge them or pick one? | Write a distinguishing key into each, launch opencode, inspect the effective value. | Answered from source at v1.18.25 (issue #39): both load, merged per key, `.jsonc` last, so the `.jsonc` wins conflicts. The decision that follows — ccset writes the `.jsonc` (issue #46, §9.34) — is implemented; the runtime experiment itself has not been run, so the row stays open. |
 | U7 | ~~Can a TOML config be round-tripped without losing comments, key order, and formatting, using a format-preserving parser?~~ **Answered 2026-09-01, see §9.26.** Yes, by editing the document in place rather than re-serialising it (ADR 0003). A corpus of 13 documents — comments, CRLF, no trailing newline, `#` inside strings, quoted and dotted keys, multi-line arrays and strings, inline tables, arrays of tables, literal Windows paths, date-times, radix integers — is byte-identical after an empty write list, and stays so after a managed edit elsewhere in the file. | Take a real `~/.codex/config.toml`, parse and re-emit it unchanged, byte-compare. | Was: a Codex CLI agent, and the `Codec` seam being real rather than notional. Both are now built. |
 | U8 | Does a custom `model_providers.<id>` entry with `requires_openai_auth = true` actually authenticate against a third-party endpoint using the credential in `auth.json`? | Point a Codex provider at a real Responses-API-compatible endpoint, switch to it with ccset, run one prompt. | Whether ccset's Codex provider blocks work end to end. The mechanism is read from Codex's own source (`resolve_provider_auth` in `codex-rs/model-provider/src/auth.rs`, v0.152.0) and matches its tests, but no live request has been made. |
 | U9 | When `cli_auth_credentials_store = "keyring"`, does Codex ignore `auth.json` entirely? | Set the key, log in, inspect whether `auth.json` is written or read. | Whether ccset's Status warning is a warning or must become a refusal to offer profile switching. |
@@ -1340,9 +1340,156 @@ question retryable rather than one-shot.
 build and the release-artifact gate. Every touched file is inside the
 300-line limit.
 
+### 9.33 Milestone 3: Non-interactive execution (2026-09-04)
+
+Shipped on `feat/m3-non-interactive` (commits `8e93b11`, `6c2b642`, `b9034a0`,
+`d893def`, `4262ab6`, `6ac92c8`+`34e09e4`, `1c97578`, `9e738b0`) against issue
+#47 and its tracer-bullet children #48–#56. The milestone adds a headless
+command mode, `ccset --agent <id> <command>`, over a shared operation seam
+(`src/operations/`): a pure parser that normalizes argv against declarations
+each agent module owns, opaque `Secret` handling sourced only from
+`CCSET_TOKEN` or `--token-stdin`, a plan/apply commit core with per-target
+backup, atomic `0600` writes, no-op detection and partial reporting, and a
+single-schema JSON envelope (`--json`).
+
+**The command surface.** claude-code: `status`, `global set`, `provider set`,
+`state init`. opencode: `status`, `global set`, `provider set` with per-key
+`models` merge. codex: `status`, `global set` over the format-preserving TOML
+codec, `provider set` asserting the `wire_api`/`requires_openai_auth`
+invariants and writing the `auth.<id>.json` sidecar, and `provider use` with
+explicit credential-conflict resolution (`--adopt-current-as` /
+`--replace-current-auth`), routing-before-auth ordering, and a partial report
+naming what already landed. The interactive screens keep their own flows; both
+surfaces call the same load, merge, backup and activation primitives.
+
+**Eight gates cover the seam** — `verify:commands`, `verify:commands-status`,
+`verify:commands-secret`, `verify:commands-opencode`,
+`verify:commands-opencode-provider`, `verify:commands-codex`,
+`verify:commands-codex-provider`, `verify:commands-codex-use` — all bundled and
+run through `dist/cli.js` with a scratch `CCSET_HOME` (the process seam, not a
+reimplementation). Each was shown to fail under deliberate mutations before its
+sub-ticket was committed:
+
+| Gate | Mutation evidence |
+| --- | --- |
+| `verify:commands` | dry-run records, backups, preservation, exit-code mapping |
+| `verify:commands-status` | secret-leak, exit-code mapping |
+| `verify:commands-secret` | padded-rule acceptance, dropped secret |
+| `verify:commands-opencode` | boolean conversion, two-layer secret leak |
+| `verify:commands-opencode-provider` | wholesale model-map write, secret leak, unmanaged-sibling loss |
+| `verify:commands-codex` | empty-base rebuild (comment loss), string-typed integer, wrong warning code |
+| `verify:commands-codex-provider` | live-auth touch, dropped invariant |
+| `verify:commands-codex-use` | order swap, conflict bypass, idempotence churn, partial-report loss, dropped adoption |
+
+**Secret absence is asserted, not claimed.** The secret fixtures prove the key
+never appears in argv (options that would carry it are usage refusals before
+any read), stdout, stderr, the JSON envelope, error findings, or warnings — for
+human and `--json` runs alike, on success and refusal paths
+(`verify:commands-secret`, `verify:commands-opencode-provider`,
+`verify:commands-codex-provider`, `verify:commands-codex-use`). A dry run
+creates no backup, so no copy of a secret can hide in the backups directory
+either.
+
+**Interactive gates stay green.** The no-subcommand TUI guard still exits `2`
+with no ANSI through a pipe (asserted by `verify:status-terminal` and by the
+CI runtime smoke on every leg), and the form, malformed-config, viewport and
+release-artifact gates are unchanged and passing.
+
+**Platform evidence.** The full suite passes on Linux x64, Node 20.19.5
+(2026-09-04, this register). CI (`ci.yml`) runs `npm test` on `ubuntu-latest`
+and `macos-latest`; the `windows-latest` leg builds, runs the `--version` /
+non-TTY smoke and packs, which follows the standing policy recorded in §9.27 —
+the PTY-driven interactive gates have no Windows leg, and the command gates
+ride the same suite gate rather than a separate one. POSIX modes are asserted
+on every write target (`0600`) by the command gates. Windows Terminal /
+PowerShell and WSL interactive scenarios, and a Windows run of the command
+suite, remain explicit best-effort gaps, unchanged from §9.28.
+
+**Residual release blockers:** none recorded as of this date.
+
+**Post-review pass (same date).** The two-axis review of the milestone diff
+(standards + spec, against master) was run at completion; findings and their
+resolution: the launch command is now part of every write result's human
+output and JSON envelope (`launchCommand` on `OperationResult`), `--json`
+produces its envelope on parse-stage usage and unknown-agent failures too, the
+opencode JSONC warning rides on write results and not only on status, the
+adopt/replace mutual exclusion is decided before any filesystem read, and a
+partial report now names an adoption profile that committed before the failed
+live-auth copy. The file- and function-size limits flagged by the standards
+axis were restored by splitting the per-agent command and status modules
+(`provider-commands.ts`, `provider-use.ts`, `status-present.ts` per agent) and
+by deriving the one `MODE_AFTER_WRITE` from `core/constants.ts` everywhere.
+Accepted judgement-call debt, recorded rather than silently dropped: the
+parser's internal helpers pass four to five same-family parameters, and the
+per-field unset/patch coercion loop appears in a small variation per agent
+module because each agent owns its own field-to-key mapping.
+
+**Second review round (same date).** A re-review of the completed milestone
+against #47 confirmed the contract with four remaining findings, each closed
+red-green (the extended fixture was shown failing before the fix): a partial
+report now names only paths the commit actually wrote, so a no-op target the
+command skipped is never listed as possibly changed (the Codex `provider use`
+partial fixture asserts the adopted profile and the absence of the skipped
+`config.toml`); a failure envelope names the operation once the parser had
+matched a declaration (`CcsetError.command`, attached in `parseCommand`, read
+by the failure presenter — `global set --json` with nothing to change reports
+`global.set`); `--dry-run` is a declared capability (`dryRunnable`) refused by
+commands that do not change state, `status` included, with a distinct usage
+message and exit 64; and `--agent` never reads its value from a following
+flag, so `--agent --json status` is a usage error 64 with an envelope rather
+than unknown-agent 65 (the walk lives once, in `src/commands/globals.ts`,
+shared by the parser and the failure fallback, keeping `parser.ts` within the
+size standard). Evidence: full `npm test` plus `verify:i18n-zh` and
+`npm run typecheck` green on Linux x64; both README option tables updated.
+
+**Standards round (same date).** The remaining findings from the re-review
+were closed. The Codex `runProviderSet` was split behind a `preflightProviderSet`
+helper, back under the function-size limit; `authMoveRecords` lost its
+five-parameter debt (the provider id joined the preflight result and the
+dry-run record moved to the caller). `CCSET_TOKEN` is now read once at the
+`cli.tsx` boundary like `CCSET_HOME`, `CCSET_ASCII`, and `CCSET_LOCALE`: only
+its presence reaches the parser, which is pure against the environment again,
+and CLAUDE.md's boundary rule says so. `--proxy` spells its toggle `on|off`
+like every other switch — a choice field, with `true`/`false` refused — proven
+red-green in `verify:commands` at both the process seam and the operation seam.
+The dead `excludeSecrets` branch left the Claude status DTO, the shared
+`SWITCH_ON`/`SWITCH_OFF` constants replaced the magic `'1'`/`'0'` comparisons,
+and the three identical backup sections collapsed into one builder
+(`src/operations/status-sections.ts`). Recorded as accepted: a no-op record
+for an absent target reports `mode: '?'` — the honest placeholder `readMode`
+documents — rather than a mode nothing will ever have. Evidence: full
+`npm test` green on Linux x64 plus `npm run typecheck`.
+
+**Third review round (2026-09-05).** Both review axes ran again over the
+updated diff; the findings and their closures: the capability exit code 66 was
+documented but never asserted — `verify:commands` now proves at the process
+seam that `--agent claude-code provider use` refuses with it, in human output
+and in a `--json` envelope that names the agent with `operation: null`. The
+two gates over the 300-line file limit (`verify:commands`,
+`verify:commands-codex-use`) are back under it, and the CLI spawn harness all
+eight command gates each carried now lives once, in `scripts/cli-harness.ts`.
+The parser's option readers pass one context object instead of four to five
+same-family parameters, closing the positional-parameter debt recorded above
+(the ≤ 3 gate is met), and the unused `boolean` command field type left the
+parser with its two catalog keys — no declaration used it. `core/errors.ts` no
+longer imports the seam: `TargetRecord` moved to `src/core/target.ts` and is
+re-exported by `operations/types.ts`, so core→seam is not a direction the
+dependency graph has. The secret-absence wording in `src/commands/secret.ts`
+and `operations/types.ts` now names only surfaces that exist and are asserted
+(argv, output, result objects, error parameters) — ccset writes no logs. The
+WSL gap joined the recorded platform best-effort list above, CLAUDE.md's
+"Current state" no longer describes the shell as interactive-only, and
+AGENTS.md/CLAUDE.md name the two new layers. Still open from the round, by
+decision rather than omission: the spec's referenced ADRs 0004–0012 do not
+exist as files (the parent issue restates every constraint they would carry),
+and the `--adopt-current-as`/`--replace-current-auth` wording in child #55
+reads stricter than the parent's "unknown live credential" rule the code
+implements — both belong on the tracker, not in this register. Evidence:
+`npm run typecheck` and all eight command gates green on Linux x64, Node
+20.19.5.
 ---
 
-### 9.33 The JSONC codec: `opencode.jsonc` becomes the managed target (2026-09-02)
+### 9.34 The JSONC codec: `opencode.jsonc` becomes the managed target (2026-09-02)
 
 Issue #46, resolving the decision issue #39 carried. The evidence chain: #39
 (revised body) → the U6 research note it links (opencode v1.18.25 loads both
@@ -1432,9 +1579,9 @@ research is source-level evidence, and the U6 row stays open until it is.
 `tui.json`/`tui.jsonc`, project-level `.opencode` directories, and remote
 config are untouched, per the spec's out-of-scope list.
 
-### 9.34 Post-review fix: duplicate keys in the JSONC codec (2026-09-04)
+### 9.35 Post-review fix: duplicate keys in the JSONC codec (2026-09-04)
 
-A review pass executed the codec on documents the §9.33 corpus never held and
+A review pass executed the codec on documents the §9.34 corpus never held and
 found the rule stated there — duplicate keys read last-wins and the last
 occurrence is the one edited — only half-true in the code: the leaf lookup
 took the last duplicate, but the intermediate walk used

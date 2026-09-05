@@ -2,6 +2,7 @@ import type { Agent, Ctx } from '../../types.js'
 import { fileExists } from '../../core/json-file.js'
 import { claudeDir, claudeStatePath } from './paths.js'
 import { claudeCodeActions } from './actions.js'
+import { claudeCodeCommands } from './commands.js'
 import { claudeCodeMessages } from './messages.js'
 
 /**
@@ -23,4 +24,5 @@ export const claudeCode: Agent = {
   messages: claudeCodeMessages,
   detect,
   getActions: claudeCodeActions,
+  commands: { operations: claudeCodeCommands },
 }

@@ -1,12 +1,12 @@
 import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
-import { backupFile } from '../../core/backup.js'
-import { emptyConfig, readConfigFile, writeConfigFile } from '../../core/config-file.js'
-import { isPlainObject, readMode } from '../../core/json-file.js'
+import { readConfigFile } from '../../core/config-file.js'
+import { isPlainObject } from '../../core/json-file.js'
 import {
   countUnmanagedKeys,
   getPath,
   type ManagedWrite,
 } from '../../core/merge.js'
+import { commitOne, readPatchBase } from '../../operations/commit.js'
 import {
   csvOrUndefined,
   intOrUndefined,
@@ -135,16 +135,14 @@ export async function saveProvider(
   const problem = validateProviderId(id)
   if (problem !== null) throw new ValidationError(problem, { name: id })
   const file = await opencodeTarget(ctx.home)
-  const base = startFresh ? emptyConfig(file.path) : await readConfigFile(file)
-  const backupPath = await backupFile(backupsDir(ctx.home), file.path)
-  await writeConfigFile(file, base, emitProvider(values, base.data))
-  return {
-    path: file.path,
-    mode: await readMode(file.path),
-    backupPath,
-    command: launchCommand(),
-    activateKey: 'opencode.write.activate',
-  }
+  const base = await readPatchBase(file, startFresh)
+  const report = await commitOne({
+    file,
+    base,
+    writes: emitProvider(values, base.data),
+    backupsDir: backupsDir(ctx.home),
+  })
+  return { ...report, command: launchCommand(), activateKey: 'opencode.write.activate' }
 }
 
 function describeRecord(data: JsonObject, id: string): ProviderRecord {
