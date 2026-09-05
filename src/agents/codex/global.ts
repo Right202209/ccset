@@ -1,8 +1,7 @@
 import type { Ctx, FormValues, JsonObject, JsonValue, WriteReport } from '../../types.js'
-import { backupFile } from '../../core/backup.js'
-import { configFile, emptyConfig, readConfigFile, writeConfigFile } from '../../core/config-file.js'
-import { readMode } from '../../core/json-file.js'
+import { configFile } from '../../core/config-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
+import { commitOne, readPatchBase } from '../../operations/commit.js'
 import { intOrUndefined, jsonToText, textOrUndefined, withDefaults } from '../../core/values.js'
 import {
   GLOBAL_DEFAULTS,
@@ -56,16 +55,13 @@ async function applyGlobal(
   startFresh: boolean,
 ): Promise<WriteReport> {
   const file = codexConfigFile(ctx.home)
-  const base = startFresh ? emptyConfig(file.path) : await readConfigFile(file)
-  const backupPath = await backupFile(backupsDir(ctx.home), file.path)
-  await writeConfigFile(file, base, writes)
-  return {
-    path: file.path,
-    mode: await readMode(file.path),
-    backupPath,
-    command: launchCommand(),
-    activateKey: 'codex.write.activate',
-  }
+  const report = await commitOne({
+    file,
+    base: await readPatchBase(file, startFresh),
+    writes,
+    backupsDir: backupsDir(ctx.home),
+  })
+  return { ...report, command: launchCommand(), activateKey: 'codex.write.activate' }
 }
 
 /**

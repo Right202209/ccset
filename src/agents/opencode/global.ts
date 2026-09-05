@@ -1,7 +1,7 @@
 import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
-import { backupFile } from '../../core/backup.js'
-import { jsonFile, readJsonFile, readMode, writeJsonFileAtomic } from '../../core/json-file.js'
-import { applyManagedWrites, getPath, type ManagedWrite } from '../../core/merge.js'
+import { jsonFile } from '../../core/json-file.js'
+import { getPath, type ManagedWrite } from '../../core/merge.js'
+import { commitOne, readPatchBase } from '../../operations/commit.js'
 import { csvOrUndefined, jsonToText, textOrUndefined, withDefaults } from '../../core/values.js'
 import { GLOBAL_DEFAULTS, GLOBAL_FIELDS } from './manifest.js'
 import { backupsDir, launchCommand, opencodeConfigPath } from './paths.js'
@@ -63,14 +63,12 @@ export async function saveGlobal(
   startFresh = false,
 ): Promise<WriteReport> {
   const target = opencodeConfigPath(ctx.home)
-  const base = startFresh ? {} : (await readJsonFile(target)).data
-  const backupPath = await backupFile(backupsDir(ctx.home), target)
-  await writeJsonFileAtomic(jsonFile(target), applyManagedWrites(base, emitGlobal(values)))
-  return {
-    path: target,
-    mode: await readMode(target),
-    backupPath,
-    command: launchCommand(),
-    activateKey: 'opencode.write.activate',
-  }
+  const file = jsonFile(target)
+  const report = await commitOne({
+    file,
+    base: await readPatchBase(file, startFresh),
+    writes: emitGlobal(values),
+    backupsDir: backupsDir(ctx.home),
+  })
+  return { ...report, command: launchCommand(), activateKey: 'opencode.write.activate' }
 }

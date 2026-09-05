@@ -179,4 +179,41 @@ export const en: Record<string, string> = {
   'cli.agentOption': 'agent to configure',
   'cli.notTty':
     'ccset is interactive and needs a terminal. Run it directly rather than through a pipe or a CI job.',
+  'cli.changed': 'Changed: {changed}',
+  'cli.dryRunTitle': 'Dry run — nothing was written',
+  'cli.warning': 'Warning: {message}',
+  'cli.parseFailure': 'Could not parse {path} ({detail}).',
+  'cli.partialCommit':
+    'The operation stopped partway. These paths were already written: {paths}',
+
+  /* ------------------------------------------------------- cli usage rules */
+  'cli.usage.missingAgent': 'A command needs an explicit agent: ccset --agent <id> <command>.',
+  'cli.usage.unknownCommand': 'Unknown command: {command}.',
+  'cli.usage.unknownOption': 'Unknown option: {option}.',
+  'cli.usage.missingValue': 'Option {option} needs a value.',
+  'cli.usage.flagValue': 'Option {option} takes no value.',
+  'cli.usage.duplicateOption': 'Option {option} was given more than once.',
+  'cli.usage.emptyValue':
+    'Option {option} cannot be empty. To remove a setting, use --unset instead.',
+  'cli.usage.invalidChoice': 'Option {option} expects one of: {choices} (got {value}).',
+  'cli.usage.unexpectedArgument': 'Unexpected argument: {value}.',
+  'cli.usage.missingProviderId': 'This command needs a provider id.',
+  'cli.usage.unknownField': 'Unknown field for --unset: {field}.',
+  'cli.usage.notUnsettable': 'Field {field} does not support --unset.',
+  'cli.usage.unsetConflict': 'Field {field} cannot be both set and unset.',
+  'cli.usage.emptyPatch': 'Nothing to change: supply at least one field.',
+  'cli.usage.replaceInvalidUnsupported': '--replace-invalid is not accepted by this command.',
+  'cli.usage.dryRunUnsupported': '--dry-run is not accepted by this command.',
+  'cli.usage.noSecretAccepted': 'This command does not accept a secret.',
+  'cli.usage.secretSourceConflict': 'Use either CCSET_TOKEN or --token-stdin, not both.',
+
+  /* ----------------------------------------------------------- cli secrets */
+  'cli.secret.tooLarge': 'The secret is larger than 64 KiB.',
+  'cli.secret.notUtf8': 'The secret is not valid UTF-8.',
+  'cli.secret.containsNul': 'The secret contains a NUL byte.',
+  'cli.secret.multiLine': 'The secret must be a single line.',
+  'cli.secret.empty': 'The secret is empty.',
+  'cli.secret.padded': 'The secret must not start or end with whitespace.',
+
+  'error.unsupportedCommand': 'The {agent} agent does not serve the {operation} command.',
 }

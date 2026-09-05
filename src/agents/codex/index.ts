@@ -1,6 +1,7 @@
 import type { Agent, Ctx } from '../../types.js'
 import { fileExists } from '../../core/json-file.js'
 import { codexActions } from './actions.js'
+import { codexCommands } from './commands.js'
 import { codexMessages } from './messages.js'
 import { codexAuthPath, codexConfigPath, codexDir } from './paths.js'
 
@@ -28,4 +29,5 @@ export const codex: Agent = {
   messages: codexMessages,
   detect,
   getActions: codexActions,
+  commands: { operations: codexCommands },
 }
