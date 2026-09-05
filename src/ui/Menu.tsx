@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import type { Action, Agent } from '../types.js'
-import { hasKey, t } from '../i18n/index.js'
+import { hasKey, localeOptions, t, type Locale } from '../i18n/index.js'
 import { SelectList, type SelectOption } from './SelectList.js'
 import type { Terminal } from './terminal.js'
 import { TerminalContext, useTerminal } from './terminal.js'
@@ -87,14 +87,12 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
   )
 }
 
-const LANGUAGE_OPTIONS: SelectOption[] = [
-  { id: 'en', label: 'English' },
-  { id: 'zh-Hans', label: '简体中文' },
-]
+/** Derived from the i18n registry, so a new catalog needs no edit here. */
+const LANGUAGE_OPTIONS: Array<SelectOption & { id: Locale }> = localeOptions()
 
 interface LanguageSelectProps {
   terminal: Terminal
-  onPick: (locale: string) => void
+  onPick: (locale: Locale) => void
 }
 
 /**
@@ -115,7 +113,7 @@ export function LanguageSelect({ terminal, onPick }: LanguageSelectProps): React
 }
 
 interface LanguagePromptProps {
-  onPick: (locale: string) => void
+  onPick: (locale: Locale) => void
 }
 
 function LanguagePrompt({ onPick }: LanguagePromptProps): React.ReactElement {
@@ -129,8 +127,11 @@ function LanguagePrompt({ onPick }: LanguagePromptProps): React.ReactElement {
       <Text bold>{fold('Language / 语言')}</Text>
       <SelectList
         options={LANGUAGE_OPTIONS}
-        onSelect={(option) => {
-          onPick(option.id)
+        onSelect={(_option, index) => {
+          // By index, like the other lists in this file: SelectList widens
+          // option.id back to string.
+          const picked = LANGUAGE_OPTIONS[index]?.id
+          if (picked !== undefined) onPick(picked)
           exit()
         }}
       />

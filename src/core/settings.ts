@@ -1,4 +1,4 @@
-import { isLocale } from '../i18n/index.js'
+import { isLocale, type Locale } from '../i18n/index.js'
 import { SETTINGS_VERSION } from './constants.js'
 import type { LoadedFile } from './json-file.js'
 import { jsonFile, readJsonFile, writeJsonFileAtomic } from './json-file.js'
@@ -17,7 +17,7 @@ import { settingsFilePath } from './paths.js'
  */
 
 /** The saved locale, or null when no valid preference is on disk. */
-export async function readSavedLocale(home: string): Promise<string | null> {
+export async function readSavedLocale(home: string): Promise<Locale | null> {
   let loaded: LoadedFile
   try {
     loaded = await readJsonFile(settingsFilePath(home))
@@ -35,7 +35,7 @@ export async function readSavedLocale(home: string): Promise<string | null> {
  * Persists the choice atomically, replacing whatever the file held. The caller
  * owns the warning: a failure keeps the choice for this session either way.
  */
-export async function saveLocale(home: string, locale: string): Promise<void> {
+export async function saveLocale(home: string, locale: Locale): Promise<void> {
   await writeJsonFileAtomic(jsonFile(settingsFilePath(home)), {
     version: SETTINGS_VERSION,
     locale,

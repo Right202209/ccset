@@ -9,7 +9,7 @@ import {
 } from './core/errors.js'
 import { resolveHome, settingsFilePath } from './core/paths.js'
 import { readSavedLocale, saveLocale } from './core/settings.js'
-import { resolveLocale, setLocale, t } from './i18n/index.js'
+import { LOCALE_ENV, resolveLocale, setLocale, t, type Locale } from './i18n/index.js'
 import type { Terminal } from './ui/terminal.js'
 import { runCommand } from './commands/run.js'
 
@@ -87,7 +87,7 @@ function isCommandMode(argv: string[]): boolean {
 }
 
 /** One standalone render; undefined means the user left without choosing. */
-async function promptLanguage(terminal: Terminal): Promise<string | undefined> {
+async function promptLanguage(terminal: Terminal): Promise<Locale | undefined> {
   // Imported here, not at the top, like the app below: command mode must never
   // load Ink, and the prompt is the one screen mounted before it.
   const [{ render }, { LanguageSelect }] = await Promise.all([
@@ -96,11 +96,11 @@ async function promptLanguage(terminal: Terminal): Promise<string | undefined> {
   ])
   const React = (await import('react')).default
   return new Promise((resolve) => {
-    let picked: string | undefined
+    let picked: Locale | undefined
     const instance = render(
       React.createElement(LanguageSelect, {
         terminal,
-        onPick: (locale: string) => (picked = locale),
+        onPick: (locale: Locale) => (picked = locale),
       }),
     )
     void instance.waitUntilExit().then(() => resolve(picked))
@@ -112,7 +112,7 @@ async function promptLanguage(terminal: Terminal): Promise<string | undefined> {
  * so it is legible stderr rather than a scratch across a live TUI. The choice
  * stays active for this session either way; nothing is lost to the failure.
  */
-async function persistLocale(home: string, locale: string): Promise<void> {
+async function persistLocale(home: string, locale: Locale): Promise<void> {
   try {
     await saveLocale(home, locale)
   } catch {
@@ -129,7 +129,7 @@ async function persistLocale(home: string, locale: string): Promise<void> {
  * into a silent permanent switch, so when it is set ccset never persists.
  */
 async function settleLocale(home: string, terminal: Terminal): Promise<'done' | 'cancelled'> {
-  if (process.env.CCSET_LOCALE !== undefined) return 'done'
+  if (process.env[LOCALE_ENV] !== undefined) return 'done'
   const saved = await readSavedLocale(home)
   if (saved !== null) {
     setLocale(saved)

@@ -17,6 +17,13 @@ export const CTRL_C = '\x03'
 /** Pause between keypresses so the PTY delivers them as separate reads. */
 export const KEY_DELAY_MS = 150
 
+/** How long waitFor() polls before giving up and dumping the scrollback. */
+const WAIT_TIMEOUT_MS = 5_000
+/** Pause between waitFor() polls; a frame renders within a few of these. */
+const POLL_INTERVAL_MS = 20
+/** Read chunk the bridge uses in both directions, matching typical PTY buffers. */
+const PTY_CHUNK_BYTES = 4096
+
 const ANSI = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g
 
 const PTY_BRIDGE = `
@@ -27,13 +34,13 @@ if pid == 0:
 while True:
     readable, _, _ = select.select([fd, sys.stdin.buffer], [], [])
     if sys.stdin.buffer in readable:
-        data = os.read(sys.stdin.fileno(), 4096)
+        data = os.read(sys.stdin.fileno(), ${PTY_CHUNK_BYTES})
         if not data:
             break
         os.write(fd, data)
     if fd in readable:
         try:
-            data = os.read(fd, 4096)
+            data = os.read(fd, ${PTY_CHUNK_BYTES})
         except OSError:
             break
         if not data:
@@ -66,8 +73,8 @@ export function terminalEnv(home: string, extra: NodeJS.ProcessEnv = {}): NodeJS
   for (const key of Object.keys(env)) {
     if (key === 'CI' || key === 'CONTINUOUS_INTEGRATION' || key.startsWith('CI_')) delete env[key]
   }
-  for (const key of ['CCSET_LOCALE', 'CCSET_ASCII', 'CCSET_HOME']) {
-    if (!(key in extra)) delete env[key]
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('CCSET_') && !(key in extra)) delete env[key]
   }
   return env
 }
@@ -117,11 +124,11 @@ export class CliSession {
   }
 
   async waitFor(text: string, from = 0): Promise<number> {
-    const deadline = Date.now() + 5_000
+    const deadline = Date.now() + WAIT_TIMEOUT_MS
     while (Date.now() < deadline) {
       const index = plain(this.output).indexOf(text, from)
       if (index >= 0) return index
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
     }
     throw new Error(`Timed out waiting for ${JSON.stringify(text)}. Output:\n${plain(this.output)}`)
   }
