@@ -1,7 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import { promises as fs } from 'node:fs'
-import { BACKUPS_DIR_SEGMENTS } from './constants.js'
+import { BACKUPS_DIR_SEGMENTS, SETTINGS_DIR_SEGMENTS, SETTINGS_FILE_NAME } from './constants.js'
 import { isNotFound, wrapFsError } from './errors.js'
 
 /** CCSET_HOME exists so a test run can be pointed at a scratch directory. */
@@ -17,6 +17,15 @@ export function resolveHome(): string {
  */
 export function backupsDirFor(configDir: string): string {
   return path.join(configDir, ...BACKUPS_DIR_SEGMENTS)
+}
+
+/**
+ * ccset's first owned settings file (ADR 0005): under the home this run was
+ * given, the way every other path is, so a fixture run cannot touch a real
+ * preference and an agent directory is never involved.
+ */
+export function settingsFilePath(home: string): string {
+  return path.join(home, ...SETTINGS_DIR_SEGMENTS, SETTINGS_FILE_NAME)
 }
 
 /** One discovered configuration file and the name ccset shows for it. */

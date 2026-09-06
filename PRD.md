@@ -327,8 +327,13 @@ a warning and the remaining agents still load.
 ### 5.5 Maintainability
 
 - TypeScript throughout.
-- All user-facing strings behind `t('key')` in `src/i18n/en.ts`. English only in v1;
-  a second catalog is purely additive. No locale detection in v1.
+- All user-facing strings behind `t('key')`; a second catalog is purely
+  additive. The interface language is an explicit choice, never detection
+  (ADR 0005): `CCSET_LOCALE` overrides per invocation — an empty or unknown
+  value is still an explicit English override that suppresses prompting and
+  is never persisted — otherwise an interactive first run asks once and
+  saves the choice in `<home>/.ccset/settings.json`. `LANG`/`LC_ALL` are
+  never read.
 - File I/O, merge semantics, backups, and path resolution are agent-agnostic
   utilities under `src/core/`, reusable by any future agent module.
 

@@ -159,6 +159,10 @@ export const en: Record<string, string> = {
   'validate.notPositive': 'Must be greater than zero.',
   'validate.tooLarge': 'That is larger than ccset accepts.',
 
+  /* ----------------------------------------------------------------- warn */
+  'warn.localePersistFailed':
+    'Could not save your language choice to {path} — ccset will ask again next time.',
+
   /* ----------------------------------------------------------------- error */
   'error.permission': 'Permission denied: {path} (needs {mode}).',
   'error.invalidJson': 'Not valid JSON: {path} ({position}).',

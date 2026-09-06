@@ -20,6 +20,14 @@ export const BACKUP_TEMP_PREFIX = '.ccset-partial.'
 /** Every agent puts its backups under a directory of its own ending here. */
 export const BACKUPS_DIR_SEGMENTS = ['backups', 'ccset']
 
+/* --------------------------------------------------------------- settings */
+
+/** ccset's own settings directory, under the home it is pointed at (ADR 0005). */
+export const SETTINGS_DIR_SEGMENTS = ['.ccset']
+export const SETTINGS_FILE_NAME = 'settings.json'
+/** Schema version of the settings file; a file carrying another is unchosen. */
+export const SETTINGS_VERSION = 1
+
 /** A name that becomes a filename is constrained to what is safe on both
  *  POSIX and Windows; which names are additionally *reserved* is the agent's
  *  business, so that list is supplied per agent. */
