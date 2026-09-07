@@ -1,3 +1,4 @@
+import os from 'node:os'
 import path from 'node:path'
 import type { ConfigFile } from '../../types.js'
 import { backupsDirFor } from '../../core/paths.js'
@@ -8,9 +9,11 @@ import { fileExists } from '../../core/json-file.js'
  * one document, so there is no per-provider file and no glob discovery: the
  * provider list comes from the keys of `provider` in this single file.
  *
- * XDG_CONFIG_HOME is honoured because opencode honours it; ccset resolves it
- * against the same home the rest of the run uses, so a scratch home stays a
- * scratch home even when the variable is set.
+ * opencode honours XDG_CONFIG_HOME, and so does ccset -- but only when the run
+ * is pointed at the real home. A scratch home (CCSET_HOME, or every fixture)
+ * keeps its own `.config/opencode` regardless of what the surrounding shell
+ * exports, which is what keeps an inherited variable from taking a run's
+ * writes out of the scratch directory.
  */
 
 export const OPENCODE_DIR_SEGMENTS = ['.config', 'opencode']
@@ -24,6 +27,11 @@ export const OPENCODE_CONFIG_FILE = 'opencode.json'
 export const OPENCODE_JSONC_FILE = 'opencode.jsonc'
 
 export function opencodeDir(home: string): string {
+  if (path.resolve(home) !== path.resolve(os.homedir())) {
+    return path.join(home, ...OPENCODE_DIR_SEGMENTS)
+  }
+  const xdg = process.env['XDG_CONFIG_HOME']
+  if (xdg !== undefined && xdg.trim().length > 0) return path.join(xdg, 'opencode')
   return path.join(home, ...OPENCODE_DIR_SEGMENTS)
 }
 

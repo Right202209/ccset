@@ -1,18 +1,25 @@
 import { configFile, readConfigFile, type LoadedConfig } from '../../core/config-file.js'
+import { validateBaseUrl } from '../../core/validate.js'
 import { ValidationError } from '../../core/errors.js'
 import { isPlainObject, readMode } from '../../core/json-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
 import type { Finding, OperationRequest, OperationResult } from '../../operations/types.js'
 import type { Ctx, ConfigFile, JsonObject } from '../../types.js'
-import { validateBaseUrl, validateOptionalPositiveInt } from '../../core/validate.js'
 import { keyringInUseIn, authProfileWrites } from './auth.js'
 import {
   AUTH_API_KEY,
   REQUIRES_OPENAI_AUTH,
   WIRE_API_RESPONSES,
 } from './constants.js'
-import { INTEGER_FIELD_IDS, PROVIDER_KEYS, providerKeyPath, providerPath } from './manifest.js'
+import {
+  INTEGER_FIELD_IDS,
+  PROVIDER_KEYS,
+  providerKeyPath,
+  providerPath,
+  validateRetries,
+  validateStreamIdleTimeoutMs,
+} from './manifest.js'
 import { authProfilePath, backupsDir, codexAuthPath, codexHomeOverride, launchCommand } from './paths.js'
 import { codexConfigFile } from './global.js'
 
@@ -30,21 +37,21 @@ const PROVIDER_COMMAND_FIELDS = [
     id: 'requestMaxRetries',
     option: '--request-max-retries',
     type: 'int' as const,
-    validate: validateOptionalPositiveInt,
+    validate: validateRetries,
     unsettable: true,
   },
   {
     id: 'streamMaxRetries',
     option: '--stream-max-retries',
     type: 'int' as const,
-    validate: validateOptionalPositiveInt,
+    validate: validateRetries,
     unsettable: true,
   },
   {
     id: 'streamIdleTimeoutMs',
     option: '--stream-idle-timeout-ms',
     type: 'int' as const,
-    validate: validateOptionalPositiveInt,
+    validate: validateStreamIdleTimeoutMs,
     unsettable: true,
   },
 ]
@@ -134,6 +141,15 @@ async function preflightProviderSet(
     if (typeof request.patch['baseUrl'] !== 'string') {
       throw new ValidationError('codex.validate.providerBaseUrlRequired', { name: id })
     }
+  }
+  // Codex refuses to start with a nameless provider, so a label is required
+  // however the block is produced -- new without --display-name, or an
+  // existing one whose name is asked to be unset.
+  if (request.unsets.includes('displayName')) {
+    throw new ValidationError('codex.validate.providerDisplayNameRequired', { name: id })
+  }
+  if (!(base.exists && isPlainObject(block)) && typeof request.patch['displayName'] !== 'string') {
+    throw new ValidationError('codex.validate.providerDisplayNameRequired', { name: id })
   }
   const authFile = configFile(authProfilePath(ctx.home, id), 'json')
   // Refuses (exit 4) when the sidecar does not parse: it may carry an adopted

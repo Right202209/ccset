@@ -7,7 +7,7 @@ import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.j
 import { intOrUndefined, jsonToText, textOrUndefined, withDefaults } from '../../core/values.js'
 import { t } from '../../i18n/index.js'
 import { authProfileWrites } from './auth.js'
-import { REQUIRES_OPENAI_AUTH, WIRE_API_RESPONSES } from './constants.js'
+import { CREDENTIAL_SOURCE_KEYS, REQUIRES_OPENAI_AUTH, WIRE_API_RESPONSES } from './constants.js'
 import { codexConfigFile } from './global.js'
 import {
   INTEGER_FIELD_IDS,
@@ -105,11 +105,37 @@ export function emitProvider(values: FormValues): ManagedWrite[] {
 }
 
 /**
+ * Codex reads a provider credential from `env_key` or
+ * `experimental_bearer_token` before it ever looks at auth.json, so a block
+ * carrying either makes ccset's saved credential dead letters. Writing the
+ * block anyway would report success while Codex kept using the old source --
+ * or failed on a missing environment variable -- so the save is refused and
+ * the conflicting keys are named instead.
+ */
+function credentialSourceKeys(data: JsonObject, id: string): string[] {
+  return CREDENTIAL_SOURCE_KEYS.filter(
+    (key) => getPath(data, providerKeyPath(id, key)) !== undefined,
+  )
+}
+
+function refuseOverridingCredentialSource(data: JsonObject, id: string): void {
+  const present = credentialSourceKeys(data, id)
+  if (present.length === 0) return
+  throw new ValidationError('codex.error.credentialSourceConflict', {
+    id,
+    keys: present.join(', '),
+  })
+}
+
+/**
  * Two files, in this order. config.toml carries no credential, so a failure
  * after it leaves a provider block the user can simply save again; writing the
  * sidecar first would risk leaving a key on disk for a provider that does not
- * exist. `startFresh` is the confirmed answer to a config.toml that no longer
- * parses -- it never applies to the sidecar, which ccset owns outright.
+ * exist. `startFresh` is the confirmed answer to a target that no longer
+ * parses, and it is scoped to that target: whichever file failed is replaced
+ * from an empty base, while the file that still parses is merged into as
+ * usual -- a malformed sidecar never resets a valid config.toml, and the other
+ * way round.
  */
 export async function saveProvider(
   ctx: Ctx,
@@ -121,18 +147,21 @@ export async function saveProvider(
   if (problem !== null) throw new ValidationError(problem, { name: id })
   const file = codexConfigFile(ctx.home)
   const authFile = configFile(authProfilePath(ctx.home, id), 'json')
+  const configBase = await readPatchBase(file, startFresh)
+  refuseOverridingCredentialSource(configBase.data, id)
+  const authBase = await readPatchBase(authFile, startFresh)
   const records = (
     await applyPlan(
       planTargets([
         {
           file,
-          base: await readPatchBase(file, startFresh),
+          base: configBase,
           writes: emitProvider(values),
           backupsDir: backupsDir(ctx.home),
         },
         {
           file: authFile,
-          base: await readConfigFile(authFile),
+          base: authBase,
           writes: authProfileWrites(String(values['apiKey'] ?? '')),
           backupsDir: backupsDir(ctx.home),
         },
@@ -170,7 +199,9 @@ function describeRecord(data: JsonObject, id: string): ProviderRecord {
     ),
   }
   if (record.baseUrl.length === 0) record.problemKey = 'codex.status.noBaseUrl'
-  else if (!record.requiresOpenaiAuth) record.problemKey = 'codex.status.noAmbientAuth'
+  else if (credentialSourceKeys(data, id).length > 0) {
+    record.problemKey = 'codex.status.credentialSource'
+  } else if (!record.requiresOpenaiAuth) record.problemKey = 'codex.status.noAmbientAuth'
   return record
 }
 

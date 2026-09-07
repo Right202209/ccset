@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useInput } from 'ink'
+import wrapAnsi from 'wrap-ansi'
 import type { FieldSpec, FieldValue, FormScreen, FormValues } from '../types.js'
 import { fieldHints, type FieldHint } from './Field.js'
-import { pressed } from './keymap.js'
+import { helpFor, pressed } from './keymap.js'
+import { useTerminal } from './terminal.js'
 import { useViewport, windowAround } from './Viewport.js'
 
 export type ReviewRow =
@@ -15,7 +17,7 @@ const COMPACT_ROWS = 16
 const COMPACT_COLUMNS = 60
 const SCREEN_CHROME_ROWS = 5
 const NOTES_MARGIN_ROWS = 1
-const FORM_FOOTER_ROWS = 2
+const HELP_MARGIN_ROWS = 1
 const FORM_WINDOW_ROWS = 2
 
 export function textOf(value: FieldValue | undefined): string {
@@ -81,14 +83,27 @@ interface LayoutOptions {
   index: number
 }
 
+/**
+ * The help line is one catalog sentence that may wrap onto several rows --
+ * the zh-Hans line already does at 100 columns -- so the footer reserves what
+ * it actually renders. Reserving a fixed two rows is how the form's window
+ * once overflowed a 21-row terminal by one.
+ */
+function helpFooterRows(fold: (text: string) => string, columns: number): number {
+  const text = fold(helpFor('form'))
+  const lines = wrapAnsi(text, Math.max(1, columns - 2), { trim: false, hard: true })
+  return lines.split('\n').length + HELP_MARGIN_ROWS
+}
+
 function formLayout({ screen, rows, errors, index }: LayoutOptions) {
   const viewport = useViewport()
+  const { fold } = useTerminal()
   const row = rows[Math.min(index, rows.length - 1)]
   const compact = viewport.rows < COMPACT_ROWS || viewport.columns < COMPACT_COLUMNS
   const notesRows = compact || screen.notes?.length === undefined
     ? 0
     : screen.notes.length + NOTES_MARGIN_ROWS
-  const footerRows = compact ? 0 : FORM_FOOTER_ROWS
+  const footerRows = compact ? 0 : helpFooterRows(fold, viewport.columns)
   const contentRows = Math.max(1, viewport.rows - SCREEN_CHROME_ROWS - notesRows - footerRows)
   const hints = prioritizeHints(formHints(row, errors))
   const visibleHints = hints.slice(0, contentRows - Math.min(FORM_WINDOW_ROWS, contentRows))

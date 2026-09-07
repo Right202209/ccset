@@ -9,7 +9,7 @@ import type {
   OperationResult,
 } from '../../operations/types.js'
 import type { Ctx, JsonObject } from '../../types.js'
-import { validateBaseUrl, validateOptionalPositiveInt } from '../../core/validate.js'
+import { validateBaseUrl } from '../../core/validate.js'
 import {
   GLOBAL_FIELDS,
   providerApiKeyPath,
@@ -21,6 +21,7 @@ import {
   providerPath,
   providerTimeoutPath,
   validateProviderId,
+  validateProviderTimeoutMs,
 } from './manifest.js'
 import { backupsDir, launchCommand, opencodeTarget } from './paths.js'
 import {
@@ -137,7 +138,7 @@ const PROVIDER_COMMAND_FIELDS: CommandFieldSpec[] = [
     id: 'timeout',
     option: '--timeout',
     type: 'int',
-    validate: validateOptionalPositiveInt,
+    validate: validateProviderTimeoutMs,
     unsettable: true,
   },
 ]

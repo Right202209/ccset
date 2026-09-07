@@ -4,7 +4,8 @@
  * stated once.
  */
 
-const SHORT_ESCAPES: Record<string, string> = {
+/** Shared with the strict checker so both sides accept the same escape set. */
+export const SHORT_ESCAPES: Record<string, string> = {
   b: '\b',
   t: '\t',
   n: '\n',

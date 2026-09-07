@@ -5,6 +5,11 @@
  */
 
 export const DEFAULT_CLEANUP_DAYS = 720
+/**
+ * The cleanup horizon is Claude's own scale -- days, capped at a century --
+ * which is why the bound lives here rather than in core/validate.ts.
+ */
+export const CLEANUP_DAYS_MAX = 36_500
 export const DEFAULT_PROXY_URL = 'http://127.0.0.1:7890'
 export const DEFAULT_GLOBAL_MODEL = 'opus[1m]'
 

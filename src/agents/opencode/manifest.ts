@@ -1,8 +1,8 @@
 import type { FieldChoice, FieldSpec, FormValues } from '../../types.js'
 import {
   makeKeyNameValidator,
+  makeOptionalIntValidator,
   validateBaseUrl,
-  validateOptionalPositiveInt,
   validateRequiredText,
 } from '../../core/validate.js'
 import {
@@ -16,6 +16,7 @@ import {
   SHARE_DISABLED,
   SHARE_MANUAL,
   UNMANAGED,
+  TIMEOUT_MS_MAX,
 } from './constants.js'
 
 /**
@@ -31,6 +32,9 @@ import {
  * silently override it instead of adding one.
  */
 export const validateProviderId = makeKeyNameValidator(RESERVED_PROVIDER_IDS)
+
+/** Provider timeouts are milliseconds, not days -- one hour is the ceiling. */
+export const validateProviderTimeoutMs = makeOptionalIntValidator(1, TIMEOUT_MS_MAX)
 
 export const SHARE_CHOICES: FieldChoice[] = [
   { value: SHARE_MANUAL, labelKey: 'opencode.choice.shareManual' },
@@ -204,7 +208,7 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
     helpKey: 'opencode.help.timeout',
     type: 'text',
     advanced: true,
-    validate: validateOptionalPositiveInt,
+    validate: validateProviderTimeoutMs,
   },
 ]
 

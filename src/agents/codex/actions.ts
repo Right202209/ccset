@@ -1,10 +1,24 @@
-import type { Action, ActionResult, Ctx, FieldSpec, FormValues, ListItem } from '../../types.js'
+import type {
+  Action,
+  ActionResult,
+  Ctx,
+  FieldSpec,
+  FormValues,
+  ListItem,
+  MessageTone,
+} from '../../types.js'
 import { clearBackups } from '../../core/backup.js'
 import { readConfigFile } from '../../core/config-file.js'
 import { runSave } from '../../core/save.js'
 import { t } from '../../i18n/index.js'
-import { openActivate } from './activate.js'
-import { listAuthProfiles, removeAuthProfile } from './auth.js'
+import { openActivate, openRestore } from './activate.js'
+import {
+  listAuthProfiles,
+  loadAdoptedRouting,
+  removeAuthProfile,
+  type AdoptedRouting,
+  type AuthProfile,
+} from './auth.js'
 import { codexConfigFile, saveGlobal, seedGlobal, seedGlobalFromDisk } from './global.js'
 import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
 import { loadProviders, saveProvider, seedProvider, type ProviderRecord } from './providers.js'
@@ -124,8 +138,33 @@ function providerDetail(record: ProviderRecord): string {
   return record.baseUrl
 }
 
+/**
+ * A sidecar whose name matches no provider table is a login ccset adopted (or
+ * one copied by hand). The adopt screen calls it a switchable profile, so it
+ * is listed here with the routing it restores to -- otherwise the promise has
+ * no path anywhere in the app.
+ */
+function restoreDetail(
+  profile: AuthProfile,
+  routing: AdoptedRouting,
+): { detail: string; tone: MessageTone | undefined } {
+  if (!profile.readable) return { detail: t('status.unreadable'), tone: 'error' }
+  const recorded = routing[profile.name]
+  return {
+    detail:
+      typeof recorded === 'string' && recorded.length > 0
+        ? t('codex.detail.adoptedRouting', { route: recorded })
+        : t('codex.detail.adoptedUnset'),
+    tone: undefined,
+  }
+}
+
 async function openProviders(ctx: Ctx): Promise<ActionResult> {
-  const list = await loadProviders(ctx)
+  const [list, profiles, routing] = await Promise.all([
+    loadProviders(ctx),
+    listAuthProfiles(ctx),
+    loadAdoptedRouting(ctx),
+  ])
   if (!list.parsed) {
     return {
       kind: 'message',
@@ -138,6 +177,8 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
       tone: 'error',
     }
   }
+  const known = new Set(list.records.map((record) => record.id))
+  const adopted = profiles.filter((profile) => !known.has(profile.name))
   const items: ListItem[] = [
     {
       id: '__add__',
@@ -152,6 +193,16 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
       tone: record.problemKey === undefined ? undefined : ('warn' as const),
       run: async () => openProvider(ctx, record.id),
     })),
+    ...adopted.map((profile) => {
+      const shown = restoreDetail(profile, routing)
+      return {
+        id: profile.name,
+        label: profile.name,
+        detail: shown.detail,
+        tone: shown.tone,
+        run: async () => openRestore(ctx, profile.name),
+      }
+    }),
   ]
   return {
     kind: 'list',

@@ -69,6 +69,11 @@ beside a managed `.jsonc` is named in Status as not managed: it still loads,
 but a key set in both files takes the `.jsonc`'s value. ccset never creates a
 `.jsonc`, never rewrites or deletes a legacy `.json`, and ignores `config.json`.
 
+**`XDG_CONFIG_HOME` is honoured for the real home.** opencode reads
+`$XDG_CONFIG_HOME/opencode` when the variable is set, so that is where ccset
+reads and writes too. A run pointed at another home (`CCSET_HOME`) keeps that
+home's own `.config/opencode` no matter what the surrounding shell exports.
+
 There is no Test connection for opencode: a custom provider's wire protocol comes
 from whichever SDK package you name, so there is no single endpoint ccset could
 probe honestly.
@@ -97,9 +102,17 @@ endpoint with the new credential.
 If `auth.json` already holds something ccset did not save — a ChatGPT login, or a
 key you set by hand — you are offered a name to keep it under before it is
 replaced, so you can switch back to it later. A backup is taken either way.
+Switching back is a real action: the saved login appears in the **Providers**
+list with the routing it restores to, and choosing it restores both the
+credential and the `model_provider` that was live when it was adopted.
 
 A provider block is written with `wire_api = "responses"`, the only value Codex
 still accepts, so the endpoint has to speak the OpenAI Responses API.
+
+**A block that sets `env_key` or `experimental_bearer_token` is refused.** Codex
+reads the credential from those before it ever looks at `auth.json`, so saving a
+key into such a block would report success while Codex kept using the other
+source. Remove them from the table first.
 
 **If Codex is set to `cli_auth_credentials_store = "keyring"` it never reads
 `auth.json`**, and ccset cannot write a keyring entry. Status says so rather than

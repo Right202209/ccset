@@ -1,11 +1,20 @@
 import assert from 'node:assert/strict'
+import React from 'react'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
+import { render } from 'ink-testing-library'
 import { buildStatus } from '../src/agents/claude-code/status.js'
 import { maskSecret } from '../src/core/mask.js'
 import { activationCommand, claudeDir, providerSettingsPath } from '../src/agents/claude-code/paths.js'
+import { UNICODE_TERMINAL, TerminalContext } from '../src/ui/terminal.js'
+import { stripAnsi } from './ui-assertions.js'
+import { StatusView } from '../src/ui/Status.js'
+import { ViewportProvider } from '../src/ui/Viewport.js'
+import type { StatusScreen } from '../src/types.js'
+
+const DOWN = '\x1b[B'
 
 const token = 'STATUS-TEST-TOKEN-1234567890'
 const longBaseUrl = `https://provider.example/${'long-path-segment/'.repeat(8)}v1`
@@ -93,11 +102,55 @@ async function verifyCliBoundary(): Promise<void> {
   assert.equal(`${piped.stdout}${piped.stderr}`.includes('\x1b'), false)
 }
 
+/** lastFrame carries ANSI attributes; the text itself is what asserts read. */
+function stripAnsi(paint: string): string {
+  // eslint-disable-next-line no-control-regex
+  return paint.replace(/\u001b\[[0-9;?]*[a-zA-Z]/g, '')
+}
+
+const SCROLL_POLL_MS = 10
+
+/**
+ * A Status taller than its row budget must still reach its last section: with
+ * the window pinned at zero the later diagnostics never rendered anywhere.
+ */
+async function verifyStatusScrolls(): Promise<void> {
+  const sections = Array.from({ length: 20 }, (_, index) => ({
+    title: `Section ${index + 1}`,
+    lines: [{ label: 'Detail', value: `value-${index + 1}` }],
+  }))
+  const screen: StatusScreen = { kind: 'status', title: 'Status', sections, items: [] }
+  const instance = render(
+    <TerminalContext.Provider value={UNICODE_TERMINAL}>
+      <ViewportProvider viewport={{ rows: 12, columns: 80 }}>
+        <StatusView screen={screen} onSelect={() => undefined} />
+      </ViewportProvider>
+    </TerminalContext.Provider>,
+  )
+  try {
+    const pinned = stripAnsi(instance.lastFrame() ?? '')
+    assert.ok(pinned.includes('Section 1'), 'the first section did not render')
+    assert.equal(pinned.includes('Section 20'), false, 'the budget did not cut anything')
+    for (let press = 0; press < 60; press += 1) {
+      instance.stdin.write(DOWN)
+      await new Promise((resolve) => setTimeout(resolve, SCROLL_POLL_MS))
+    }
+    const scrolled = stripAnsi(instance.lastFrame() ?? '')
+    assert.ok(
+      scrolled.includes('Section 20'),
+      `the last section never became reachable:\n${scrolled}`,
+    )
+  } finally {
+    instance.unmount()
+  }
+}
+
 async function main(): Promise<void> {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-status-'))
   try {
     await verifyStatus(home)
     await verifyCliBoundary()
+    await verifyStatusScrolls()
     process.stdout.write('Status and terminal boundary verification passed.\n')
   } finally {
     await fs.rm(home, { recursive: true, force: true })

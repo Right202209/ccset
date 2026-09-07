@@ -160,6 +160,17 @@ async function checkNewProviderAndRefusals(): Promise<void> {
   assert.equal(noUrl.code, EXIT_RUNTIME, 'a new provider was created without a base URL')
   const noKey = await runCli(['--agent', 'codex', 'provider', 'set', 'second', '--base-url', 'https://s.example/v1'], before.home)
   assert.equal(noKey.code, EXIT_RUNTIME, 'a new provider was created without a secret')
+  const noName = await runCli(
+    ['--agent', 'codex', 'provider', 'set', 'second', '--base-url', 'https://s.example/v1', '--token-stdin'],
+    before.home,
+    `${NEW_KEY}\n`,
+  )
+  assert.equal(noName.code, EXIT_RUNTIME, 'a new provider was created without a label')
+  const unsetName = await runCli(
+    ['--agent', 'codex', 'provider', 'set', 'fresh', '--unset', 'displayName', '--base-url', 'https://f.example/v1'],
+    before.home,
+  )
+  assert.equal(unsetName.code, EXIT_RUNTIME, 'unsetting the label was allowed: Codex refuses a nameless provider')
   const emptyProfile = await runCli(['--agent', 'codex', 'provider', 'set', 'bare', '--display-name', 'Bare'], before.home)
   assert.equal(emptyProfile.code, EXIT_RUNTIME, 'a provider with an empty profile reported success')
   assert.equal((await textOf(before.home)).includes('[model_providers.second]'), false, 'a refused provider was still written')
@@ -171,7 +182,7 @@ async function checkNewProviderAndRefusals(): Promise<void> {
   assert.equal(badUrl.code, EXIT_USAGE, 'an invalid base URL was not a usage error')
 
   const dry = await runCli(
-    ['--agent', 'codex', 'provider', 'set', 'ghost', '--base-url', 'https://g.example/v1', '--token-stdin', '--dry-run', '--json'],
+    ['--agent', 'codex', 'provider', 'set', 'ghost', '--base-url', 'https://g.example/v1', '--display-name', 'Ghost', '--token-stdin', '--dry-run', '--json'],
     before.home,
     `${NEW_KEY}\n`,
   )
@@ -222,10 +233,11 @@ async function checkWarningsUnsetAndUnreadable(): Promise<void> {
   await fs.rm(home, { recursive: true, force: true })
 
   const unset = await seed()
+  // Codex refuses to start with a nameless provider, so removing the label is
+  // refused however the block would be produced.
   const removed = await runCli(['--agent', 'codex', 'provider', 'set', 'router', '--unset', 'displayName'], unset.home)
-  assert.equal(removed.code, 0, 'the unset was refused')
-  const block = (await textOf(unset.home)).slice(0, (await textOf(unset.home)).indexOf('[model_providers.bare]'))
-  assert.equal(block.includes('name ='), false, 'the unset did not delete the key')
+  assert.equal(removed.code, EXIT_RUNTIME, 'unsetting the label was allowed')
+  assert.equal((await textOf(unset.home)).includes('name ='), true, 'the refused unset still deleted the key')
   const notUnsettable = await runCli(['--agent', 'codex', 'provider', 'set', 'router', '--unset', 'baseUrl'], unset.home)
   assert.equal(notUnsettable.code, EXIT_USAGE, 'unsetting the base URL was not refused')
   await fs.rm(unset.home, { recursive: true, force: true })

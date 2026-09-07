@@ -1,5 +1,5 @@
-import React from 'react'
-import { Box, Text } from 'ink'
+import React, { useState } from 'react'
+import { Box, Text, useInput } from 'ink'
 import wrapAnsi from 'wrap-ansi'
 import type { ListItem, StatusScreen, StatusSection } from '../types.js'
 import { t } from '../i18n/index.js'
@@ -15,10 +15,20 @@ interface StatusViewProps {
   onSelect: (item: ListItem) => void
 }
 
-/** Read-only by construction: nothing here can write, only the items can. */
+/**
+ * Read-only by construction: nothing here can write, only the items can.
+ *
+ * When the rows outrun the budget the data window scrolls: with the window
+ * pinned at zero, later sections never rendered at all -- diagnostics like the
+ * `.jsonc` warning simply did not exist for a short terminal, and terminal
+ * scrollback cannot recover paint that a full-screen app redraws. The pinned
+ * action list keeps its own cursor; with the one action a Status carries,
+ * sharing ↑↓ with the scroll costs nothing.
+ */
 export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactElement {
   const viewport = useViewport()
   const { fold } = useTerminal()
+  const [offset, setOffset] = useState(0)
   const contentWidth = Math.max(1, viewport.columns - 2)
   const rows = screen.sections.flatMap((section) => statusRows(section, contentWidth, fold))
   const showHelp = viewport.rows >= 16 && viewport.columns >= 60
@@ -35,9 +45,26 @@ export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactEl
   const renderedActionRows = actionWindow.items.length + actionCountRows
   const actionMargin = screen.items.length > 0 && bodyRows > renderedActionRows + 1 ? 1 : 0
   const statusBudget = Math.max(0, bodyRows - renderedActionRows - actionMargin)
+  // Same sizing rule windowAround applies: an overflowing window keeps one row
+  // of the budget for the count line, so the region never overflows.
+  const size = rows.length <= statusBudget ? statusBudget : Math.max(1, statusBudget - 1)
+  const maxStart = Math.max(0, rows.length - size)
+  const start = Math.min(offset, maxStart)
   const window = statusBudget > 0
-    ? windowAround(rows, 0, statusBudget)
+    ? {
+        items: rows.slice(start, start + size),
+        start,
+        end: Math.min(rows.length, start + size),
+        total: rows.length,
+      }
     : { items: [], start: 0, end: 0, total: rows.length }
+
+  useInput((input, key) => {
+    if (statusBudget === 0 || maxStart === 0) return
+    if (key.upArrow || input === 'k') setOffset(Math.max(0, start - 1))
+    else if (key.downArrow || input === 'j') setOffset(Math.min(maxStart, start + 1))
+  })
+
   const countOnlyWindow = { items: [], start: 0, end: 0, total: window.total }
   const options: SelectOption[] = screen.items.map((item) => ({
     id: item.id,

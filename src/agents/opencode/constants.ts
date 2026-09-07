@@ -49,3 +49,12 @@ export const RESERVED_PROVIDER_IDS = [
   'github-copilot',
   'openrouter',
 ]
+
+/* ---------------------------------------------------------------- bounds */
+
+/**
+ * A provider timeout is a millisecond scale of its own -- one hour is the
+ * ceiling ccset accepts -- and shares nothing with Claude's day count or a
+ * retry count, so the bound lives with the agent that owns the field.
+ */
+export const TIMEOUT_MS_MAX = 3_600_000

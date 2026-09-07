@@ -1,18 +1,22 @@
 import type { FieldChoice, FieldSpec, FormValues } from '../../types.js'
 import {
   makeKeyNameValidator,
+  makeOptionalIntValidator,
   validateBaseUrl,
-  validateOptionalPositiveInt,
   validateRequiredText,
+  type Validator,
 } from '../../core/validate.js'
 import {
   APPROVAL_NEVER,
   APPROVAL_ON_REQUEST,
+  CONTEXT_WINDOW_TOKENS_MAX,
   REASONING_EFFORT_SUGGESTIONS,
   RESERVED_PROVIDER_IDS,
+  RETRIES_MAX,
   SANDBOX_DANGER_FULL_ACCESS,
   SANDBOX_READ_ONLY,
   SANDBOX_WORKSPACE_WRITE,
+  STREAM_IDLE_TIMEOUT_MS_MAX,
   UNMANAGED,
   VERBOSITY_HIGH,
   VERBOSITY_LOW,
@@ -27,6 +31,20 @@ import {
 
 /** A provider id is a TOML table key, not a filename, so separators are moot. */
 export const validateProviderId = makeKeyNameValidator(RESERVED_PROVIDER_IDS)
+
+/**
+ * Field-specific bounds (see constants.ts): a retry count may be zero, while a
+ * token budget and a timeout live on much larger scales than a day count.
+ */
+export const validateContextWindow: Validator = makeOptionalIntValidator(
+  1,
+  CONTEXT_WINDOW_TOKENS_MAX,
+)
+export const validateRetries: Validator = makeOptionalIntValidator(0, RETRIES_MAX)
+export const validateStreamIdleTimeoutMs: Validator = makeOptionalIntValidator(
+  1,
+  STREAM_IDLE_TIMEOUT_MS_MAX,
+)
 
 export const APPROVAL_CHOICES: FieldChoice[] = [
   { value: APPROVAL_ON_REQUEST, labelKey: 'codex.choice.approvalOnRequest' },
@@ -106,7 +124,7 @@ export const GLOBAL_FIELDS: FieldSpec[] = [
     helpKey: 'codex.help.contextWindow',
     type: 'text',
     advanced: true,
-    validate: validateOptionalPositiveInt,
+    validate: validateContextWindow,
     path: ['model_context_window'],
   },
 ]
@@ -173,6 +191,8 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
     labelKey: 'codex.field.displayName',
     helpKey: 'codex.help.displayName',
     type: 'text',
+    required: true,
+    validate: validateRequiredText,
   },
   {
     id: 'baseUrl',
@@ -196,7 +216,7 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
     helpKey: 'codex.help.retries',
     type: 'text',
     advanced: true,
-    validate: validateOptionalPositiveInt,
+    validate: validateRetries,
   },
   {
     id: 'streamMaxRetries',
@@ -204,7 +224,7 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
     helpKey: 'codex.help.retries',
     type: 'text',
     advanced: true,
-    validate: validateOptionalPositiveInt,
+    validate: validateRetries,
   },
   {
     id: 'streamIdleTimeoutMs',
@@ -212,7 +232,7 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
     helpKey: 'codex.help.streamIdleTimeout',
     type: 'text',
     advanced: true,
-    validate: validateOptionalPositiveInt,
+    validate: validateStreamIdleTimeoutMs,
   },
 ]
 

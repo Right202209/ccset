@@ -1682,3 +1682,113 @@ amendments, so the rebase keeps those as-is.
 
 **All twenty-two gates pass** on Linux x64, Node 20.19.5, together with
 typecheck and build. Every touched file is inside the 300-line limit.
+
+### 9.37 Post-review fix: fifteen findings across the codec, Codex recovery, and the form (2026-09-08)
+
+A review pass over the current tree found fifteen defects, four of them P1.
+This entry records what each fix is and how each is pinned. Nothing here
+changes the seam or the invariants — every fix is the invariants being made
+true where a review could show they were not.
+
+**The TOML codec (two P1s, one P2).** `check.ts` judged a value by its final
+character, so `unmanaged = [1 2]` and an unterminated multi-line string ending
+in a quote passed the strict pass — saves could rewrite a file no parser
+accepts, or silently replace malformed content without the confirm. The
+checker now parses values as whole values: strings with full escape
+validation (multi-line closers carrying up to two adjacent quotes, exactly
+like the scanner), bare values by grammar (bool/integer/float/date/time,
+including the space-separated date-time), arrays and inline tables as
+recursive structures with their real comma rules. `edit.ts` inserted a key
+without asking what already held the table it belonged to: extending an
+inline table with assignments or redeclaring a dotted-defined table with a
+`[header]` — both documents start valid and both edits end invalid. An insert
+now resolves the representation first: the deepest inline ancestor on the
+target's chain is rewritten to dotted keys in place (pair values copied
+verbatim, table context relative, trailing comment riding the last emitted
+line), and a parent defined by dotted keys receives another dotted sibling
+line instead of a header. The corpus gained inline, dotted and
+header-plus-inline provider documents driven through the resolution, and the
+malformed corpus gained the missing-comma, trailing-comma, unterminated
+multi-line, bad-escape and short-unicode cases.
+
+**Codex saves and switches (two P1s, three P2s).** `saveProvider` scoped
+`startFresh` to config.toml only, so a malformed `auth.<id>.json` looped the
+fresh-start confirm forever while the valid TOML sat beside it; both bases
+are now read up front and freshness is applied per target — whichever file
+failed parses is replaced, the file that still parses is merged into. A
+block carrying `env_key` or `experimental_bearer_token` outranks `auth.json`
+by Codex's own resolution order, so saving a key there claimed a credential
+Codex would ignore; the save is now refused naming the keys, and the record
+carries a `codex.status.credentialSource` problem. A blank provider label
+omitted `name`, which Codex rejects at startup — the field is required now.
+A switch committed routing before the credential move, so a sidecar that
+vanished while the confirmation was open left Codex pointed at the new
+endpoint with the old key: the source is now staged before anything moves
+(`stageAuthProfile` — read, parsed, bytes held), `activateAuthProfile`
+re-stages at commit time and writes the staged bytes, and a failed move
+restores the previous `model_provider` (a restore that itself fails is
+reported as the partial commit it is). And the adopt screen's "switchable
+profile" had no path anywhere: adopted logins now appear in the Providers
+list with the routing they restore to (recorded at adoption time in ccset's
+own `ccset.auth-profiles.json`), and restoring puts both the credential and
+the routing back — or removes `model_provider`, restoring Codex's default.
+Unreadable profiles are refused at the screen and revalidated at the commit.
+
+**The form and Status (three P2s).** ink-text-input received Ctrl+S and
+inserted its `s` into the focused field, where a blocked validation left the
+mutation to be persisted by a later save; ccset now ships its own single-line
+editor (`ui/TextField.tsx`) that drops control combinations and scrolls a
+long value around the cursor, so a URL past the row's width keeps its cursor
+and edits visible. Choice rows that wrapped were clipped to the one-line row
+— at 80 columns Codex's Unmanaged and Full access options could be selected
+unseen; choices now render in a window anchored on the selected choice with
+an ellipsis at each cut, so the selected option is always on screen. The
+form footer reserved two rows while the help line itself wraps onto two at
+100 columns under zh-Hans, overflowing a 21-row terminal by one; the footer
+now reserves its measured wrapped height (mirroring ink's own wrap options).
+Status pinned its data window at zero, hiding later sections — including the
+`.jsonc` diagnostic — behind no navigation; the window now scrolls with
+↑↓/k/j while the pinned action list keeps its cursor.
+
+**The rest (three P2s).** `validateOptionalPositiveInt` applied Claude's
+cleanup-days ceiling to Codex token counts, timeouts and OpenCode's timeout,
+rejecting 200,000 tokens, 300,000 ms and valid zero retries; core now ships
+a `makeOptionalIntValidator(min, max)` factory, each agent owns its bounds
+(`CLEANUP_DAYS_MAX` moved into the claude-code module, context-window,
+retry and timeout ceilings into codex and opencode), and zero retries
+validate. `makeKeyNameValidator` accepted `__proto__`, which opencode then
+handed to `applyManagedWrites`, writing name and credential options onto
+`Object.prototype` while saving `{"provider":{}}`; the id is rejected by both
+validators and the merge helpers now traverse own properties only, dropping
+any write aimed at the prototype slot. And with `XDG_CONFIG_HOME` set,
+opencode read `$XDG_CONFIG_HOME/opencode` while ccset wrote `~/.config/
+opencode`; the resolver honours the effective location for the real home and
+keeps a scratch home on its own `.config/opencode`, which is what preserves
+fixture isolation against an inherited variable. `core/merge.ts` also
+carried literal NUL bytes where `countUnmanagedKeys` joined paths — now the
+`'\u0000'` escape they were always meant to be.
+
+**Coverage.** `verify:codex` gains `verify-codex-recovery.ts` (fresh
+recovery scoped per target in both directions, credential-source refusal
+with the file untouched, unreadable-profile refusal and commit-time
+revalidation, routing restored when the credential move fails, and the
+adopted-login restore end to end); `verify-toml-codec` gains the three
+representation documents and nine malformed cases; `verify:opencode` gains
+the `__proto__` rejection and pollution probe and the XDG resolution cases;
+`verify:review-form` pins ctrl+s leaving the text alone, the long-value
+cursor, the choice window, and the wrapped-footer budget; `verify:status-terminal` scrolls a 40-row Status to its last
+section; `verify:provider-safety` reads the masking and shortcut contract
+from `TextField.tsx` now that the editor is ccset's. Mutation checks, each
+reverted after it was caught: unscoping the sidecar's freshness made the
+recovery fixture fail on the very JsonParseError the confirm exists to
+answer; deleting the routing restore made it fail with `model_provider`
+still pointing at the unswitched provider — and writing that fixture meant
+learning that staging had already moved the vanished-sidecar failure to
+before the routing write, so the injected failure is the adoption rename
+onto a directory, which lands after routing and fails for any user;
+removing the prototype rejection failed with "the key-name validator
+accepted __proto__" and removing the own-property traversal with "Object
+prototype was polluted"; removing the ctrl/meta filter failed with "ctrl+s
+inserted its s into the focused field"; and bypassing the inline/dotted
+resolution failed with "an inline table grew a header". The full `npm test` chain, typecheck and build pass on Linux
+x64, Node 20.19.5, and every touched file stays inside the 300-line limit.

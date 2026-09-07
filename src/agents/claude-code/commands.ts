@@ -9,11 +9,12 @@ import type {
   OperationResult,
 } from '../../operations/types.js'
 import type { Ctx, JsonObject } from '../../types.js'
-import { validateOptionalPositiveInt, validateOptionalUrl } from '../../core/validate.js'
+import { validateOptionalUrl } from '../../core/validate.js'
 import {
   ENV_HTTPS_PROXY,
   ENV_HTTP_PROXY,
   GLOBAL_FIELDS,
+  validateCleanupPeriodDays,
   validateProviderName,
 } from './manifest.js'
 import { SWITCH_OFF, SWITCH_ON } from './constants.js'
@@ -72,7 +73,7 @@ const GLOBAL_COMMAND_FIELDS: CommandFieldSpec[] = [
     id: 'cleanupPeriodDays',
     option: '--cleanup-period-days',
     type: 'int',
-    validate: validateOptionalPositiveInt,
+    validate: validateCleanupPeriodDays,
     unsettable: true,
   },
   { id: 'model', option: '--model', type: 'text', unsettable: true },

@@ -73,3 +73,29 @@ export const VERBOSITY_HIGH = 'high'
  * a closed list.
  */
 export const REASONING_EFFORT_SUGGESTIONS = ['minimal', 'low', 'medium', 'high', 'xhigh']
+
+/* ----------------------------------------------------------------- bounds */
+
+/**
+ * Field-specific integer bounds. Codex's numbers do not share a scale with
+ * Claude's cleanup horizon: a 200,000-token context window and a 300,000 ms
+ * stream idle timeout are ordinary values, and zero is a meaningful retry
+ * count ("never retry"), so each field gets its own validator and ceiling.
+ */
+
+/** A context window is a token budget; ten million is far past any model. */
+export const CONTEXT_WINDOW_TOKENS_MAX = 10_000_000
+/** Retries are small counts; zero is valid and means the retries are off. */
+export const RETRIES_MAX = 100
+/** One hour of idle-stream patience, in milliseconds. */
+export const STREAM_IDLE_TIMEOUT_MS_MAX = 3_600_000
+
+/* --------------------------------------------- other credential sources */
+
+/**
+ * Codex resolves a provider credential as `env_key` ->
+ * `experimental_bearer_token` -> the ambient `auth.json`, in that order. A
+ * block carrying either of the first two never reaches the credential ccset
+ * saves, so a save into such a block is refused rather than misreported.
+ */
+export const CREDENTIAL_SOURCE_KEYS = ['env_key', 'experimental_bearer_token'] as const

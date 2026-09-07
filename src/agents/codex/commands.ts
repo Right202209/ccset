@@ -7,7 +7,6 @@ import type {
   OperationResult,
 } from '../../operations/types.js'
 import type { Ctx } from '../../types.js'
-import { validateOptionalPositiveInt } from '../../core/validate.js'
 import {
   APPROVAL_NEVER,
   APPROVAL_ON_REQUEST,
@@ -21,7 +20,7 @@ import {
 import { runProviderSet, PROVIDER_COMMAND_FIELDS } from './provider-commands.js'
 import { runProviderUse, USE_COMMAND_FIELDS } from './provider-use.js'
 import { codexConfigFile } from './global.js'
-import { GLOBAL_FIELDS, INTEGER_FIELD_IDS, validateProviderId } from './manifest.js'
+import { GLOBAL_FIELDS, INTEGER_FIELD_IDS, validateContextWindow, validateProviderId } from './manifest.js'
 import { backupsDir, launchCommand } from './paths.js'
 import { codexStatusFindings, readCodexStatus, type CodexStatusDto } from './status-dto.js'
 import { presentCodexStatus } from './status-present.js'
@@ -63,7 +62,7 @@ const GLOBAL_COMMAND_FIELDS: CommandFieldSpec[] = [
     id: 'contextWindow',
     option: '--context-window',
     type: 'int',
-    validate: validateOptionalPositiveInt,
+    validate: validateContextWindow,
     unsettable: true,
   },
 ]

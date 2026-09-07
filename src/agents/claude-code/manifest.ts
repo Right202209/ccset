@@ -1,12 +1,13 @@
 import type { FieldSpec, FieldChoice, FormValues } from '../../types.js'
 import {
+  makeOptionalIntValidator,
   validateBaseUrl,
-  validateOptionalPositiveInt,
   validateOptionalUrl,
   validateRequiredText,
   makeFileNameValidator,
 } from '../../core/validate.js'
 import {
+  CLEANUP_DAYS_MAX,
   DEFAULT_CLEANUP_DAYS,
   DEFAULT_GLOBAL_MODEL,
   DEFAULT_PROXY_URL,
@@ -18,6 +19,9 @@ import { RESERVED_PROVIDER_NAMES } from './paths.js'
 
 /** A provider name becomes settings.<name>.json, so it is validated as a file. */
 export const validateProviderName = makeFileNameValidator(RESERVED_PROVIDER_NAMES)
+
+/** Cleanup days are Claude's own scale: whole days, up to a century. */
+export const validateCleanupPeriodDays = makeOptionalIntValidator(1, CLEANUP_DAYS_MAX)
 
 /**
  * Data only. Every managed key of Claude Code's settings files is declared
@@ -93,7 +97,7 @@ export const GLOBAL_FIELDS: FieldSpec[] = [
     helpKey: 'claudeCode.help.cleanupPeriodDays',
     type: 'text',
     path: ['cleanupPeriodDays'],
-    validate: validateOptionalPositiveInt,
+    validate: validateCleanupPeriodDays,
   },
   {
     id: 'model',

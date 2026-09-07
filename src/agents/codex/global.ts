@@ -1,5 +1,5 @@
 import type { Ctx, FormValues, JsonObject, JsonValue, WriteReport } from '../../types.js'
-import { configFile } from '../../core/config-file.js'
+import { configFile, readConfigFile } from '../../core/config-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { commitOne, readPatchBase } from '../../operations/commit.js'
 import { intOrUndefined, jsonToText, textOrUndefined, withDefaults } from '../../core/values.js'
@@ -80,11 +80,26 @@ export async function saveGlobal(
   return applyGlobal(ctx, emitGlobal(values), startFresh)
 }
 
-/** Points Codex's routing at a provider, leaving every other key alone. */
+/**
+ * Points Codex's routing at a provider. `undefined` removes the key, so Codex
+ * falls back to its own default routing -- which is what a ChatGPT login that
+ * was adopted into a profile should be restored to.
+ */
 export async function saveModelProvider(
   ctx: Ctx,
-  id: string,
+  id: string | undefined,
   startFresh = false,
 ): Promise<WriteReport> {
   return applyGlobal(ctx, [{ path: MODEL_PROVIDER_PATH, value: id }], startFresh)
+}
+
+/** The model_provider value on disk, or '' when the key is absent. */
+export async function currentModelProvider(ctx: Ctx): Promise<string> {
+  const loaded = await readConfigFile(codexConfigFile(ctx.home))
+  return jsonToText(getPath(loaded.data, MODEL_PROVIDER_PATH))
+}
+
+/** Puts routing back the way a failed switch found it; absent stays absent. */
+export async function restoreModelProvider(ctx: Ctx, previous: string): Promise<WriteReport> {
+  return saveModelProvider(ctx, previous.length > 0 ? previous : undefined)
 }
