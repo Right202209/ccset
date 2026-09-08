@@ -43,6 +43,8 @@ opencode 将所有 provider 保存在同一个文件中，而不是每个 provid
 
 **当 `opencode.jsonc` 存在时，ccset 写入该文件。** opencode 会同时读取两份配置并按键合并，冲突时以 `.jsonc` 为准——而且全新安装时 opencode 自己就会生成一份 `.jsonc`。这一合并顺序读自 opencode 的源码，尚未通过运行 opencode 证实。因此该文件存在时，它就是 ccset 唯一读写的文件，并且就地编辑：你的注释、键顺序和格式在每次保存后保持不变，与 Codex 的 TOML 就地编辑是同一承诺。只存在 `opencode.json` 时，一切照旧。受管理的 `.jsonc` 旁如有旧的 `opencode.json`，Status 会将其标注为不受管理：它仍会被加载，但两边都设置的键以 `.jsonc` 的值为准。ccset 从不创建 `.jsonc`，也从不改写或删除旧的 `.json`，并且一如既往地忽略 `config.json`。
 
+**真实主目录下会遵循 `XDG_CONFIG_HOME`。** 设置了该变量时 opencode 读取 `$XDG_CONFIG_HOME/opencode`，ccset 也随之读写同一位置。通过 `CCSET_HOME` 指向其他主目录的运行不受环境变量影响，始终使用该主目录自己的 `.config/opencode`。
+
 opencode 没有 Test connection：自定义 provider 的通信协议取决于你指定的 SDK 包，因此不存在 ccset 能够如实探测的单一端点。
 
 ### Codex CLI
@@ -57,9 +59,11 @@ Codex 的配置格式是 TOML，不是 JSON。ccset **就地修改** `config.tom
 
 **API Key 不会写入 `config.toml`，因为 Codex 不从那里读取它。** ccset 会把它保存到 `~/.codex/auth.<id>.json`（权限 `0600`），并在 provider 表中写入 `requires_openai_auth = true`——正是这一项让 Codex 使用该凭据。选择 **Use this provider** 后，ccset 会把保存的凭据复制到 `~/.codex/auth.json`，同时把 `model_provider` 指向该表：切换的两个环节一步完成，因为只换凭据会让 Codex 拿着新凭据继续访问旧端点。
 
-如果 `auth.json` 中已有并非 ccset 保存的内容（例如 ChatGPT 登录态，或你手动填写的 Key），ccset 会在替换前请你为它取个名字保存下来，以便日后切换回去。无论是否保存，都会先做备份。
+如果 `auth.json` 中已有并非 ccset 保存的内容（例如 ChatGPT 登录态，或你手动填写的 Key），ccset 会在替换前请你为它取个名字保存下来，以便日后切换回去。无论是否保存，都会先做备份。切换回去是真实的操作：这个已保存的登录会出现在 **Providers** 列表中，并注明它恢复到哪条路由；选择它即可同时恢复凭据和收养时的 `model_provider`。
 
 写入的 provider 表使用 `wire_api = "responses"`——这是当前 Codex 唯一接受的取值，因此端点必须支持 OpenAI Responses API。
+
+**设置了 `env_key` 或 `experimental_bearer_token` 的表会被拒绝保存。** Codex 会先从这些来源读取凭据，轮不到 `auth.json`；把 Key 存进这样的表只会报告成功，而 Codex 仍使用旧来源。请先从表中移除这些键。
 
 **如果 Codex 配置了 `cli_auth_credentials_store = "keyring"`，它就完全不读取 `auth.json`**，而 ccset 无法写入系统密钥链。此时 Status 会如实说明，而不是提供一个实际不生效的切换操作。
 

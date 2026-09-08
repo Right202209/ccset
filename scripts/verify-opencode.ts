@@ -5,7 +5,9 @@ import path from 'node:path'
 import { saveGlobal } from '../src/agents/opencode/global.js'
 import { loadProviders, saveProvider } from '../src/agents/opencode/providers.js'
 import { buildStatus } from '../src/agents/opencode/status.js'
-import { backupsDir, opencodeConfigPath } from '../src/agents/opencode/paths.js'
+import { backupsDir, opencodeConfigPath, opencodeDir } from '../src/agents/opencode/paths.js'
+import { validateProviderId } from '../src/agents/opencode/manifest.js'
+import { applyManagedWrites } from '../src/core/merge.js'
 import { BACKUP_INFIX, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import { verifyJsoncScenarios } from './verify-opencode-jsonc-scenarios.js'
@@ -189,6 +191,57 @@ async function verifyDiscovery(home: string): Promise<void> {
   assert.equal(handWritten?.baseUrl, 'https://keep.me')
 }
 
+/**
+ * A provider id of `__proto__` would otherwise ride the managed path straight
+ * onto Object.prototype: applyManagedWrites follows keys it does not own, and
+ * the saved document would carry none of the write it reported.
+ */
+function verifyPrototypeSensitiveIds(): void {
+  assert.notEqual(
+    validateProviderId('__proto__'),
+    null,
+    'the key-name validator accepted __proto__',
+  )
+  const polluted: JsonObject = {}
+  const result = applyManagedWrites(polluted, [
+    { path: ['__proto__', 'name'], value: 'injected' },
+    { path: ['provider', '__proto__', 'x'], value: 1 },
+    { path: ['provider', 'real', 'name'], value: 'kept' },
+  ])
+  assert.equal(({} as JsonObject)['name'], undefined, 'Object.prototype was polluted')
+  assert.deepEqual(JSON.stringify(result), '{"provider":{"real":{"name":"kept"}}}')
+  assert.equal(
+    JSON.stringify(Object.getOwnPropertyDescriptor(result, '__proto__') === undefined),
+    'true',
+  )
+}
+
+/**
+ * opencode reads $XDG_CONFIG_HOME/opencode when the variable is set, and ccset
+ * follows -- but only for the real home. A scratch home keeps its own
+ * .config/opencode no matter what the surrounding shell exports.
+ */
+function verifyXdgConfigHomeIsHonoured(): void {
+  const previous = process.env['XDG_CONFIG_HOME']
+  const xdg = path.join(os.tmpdir(), 'ccset-xdg-target')
+  process.env['XDG_CONFIG_HOME'] = xdg
+  try {
+    assert.equal(
+      opencodeDir(os.homedir()),
+      path.join(xdg, 'opencode'),
+      'the effective opencode config location was ignored',
+    )
+    assert.equal(
+      opencodeDir(os.tmpdir()),
+      path.join(os.tmpdir(), '.config', 'opencode'),
+      'a scratch home was redirected by an inherited variable',
+    )
+  } finally {
+    if (previous === undefined) delete process.env['XDG_CONFIG_HOME']
+    else process.env['XDG_CONFIG_HOME'] = previous
+  }
+}
+
 async function main(): Promise<void> {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-opencode-'))
   try {
@@ -202,6 +255,8 @@ async function main(): Promise<void> {
     await verifyDiscovery(home)
     await verifyBackupsAndMasking(home)
 
+    verifyPrototypeSensitiveIds()
+    verifyXdgConfigHomeIsHonoured()
     verifyJsoncCodec()
     await verifyJsoncScenarios(providerValues, API_KEY)
 

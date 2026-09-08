@@ -10,6 +10,7 @@ import { BACKUP_INFIX, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import { findTomlProblem, readTomlObject } from '../src/core/toml/index.js'
 import { verifyTomlCodec } from './verify-toml-codec.js'
+import { verifyCodexRecovery } from './verify-codex-recovery.js'
 import {
   backupNames as listBackupNames,
   verifyCodexScreens,
@@ -269,6 +270,7 @@ async function main(): Promise<void> {
     await verifyBackupsAndMasking(home)
     await verifyHomeOverrideIsReported(home, () => saveGlobal({ home }, globalValues()))
     await verifyMalformedIsReported(home)
+    await verifyCodexRecovery(home)
 
     process.stdout.write('codex agent verification passed.\n')
   } finally {

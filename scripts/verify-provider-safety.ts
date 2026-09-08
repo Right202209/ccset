@@ -55,13 +55,13 @@ async function verifyProbeErrorIsSanitized(): Promise<void> {
 
 async function verifySecretFieldMaskingContract(): Promise<void> {
   const fieldSource = await fs.readFile(path.join(process.cwd(), 'src/ui/Field.tsx'), 'utf8')
-  const inputTypes = await fs.readFile(
-    path.join(process.cwd(), 'node_modules/ink-text-input/build/index.d.ts'),
-    'utf8',
-  )
+  const inputSource = await fs.readFile(path.join(process.cwd(), 'src/ui/TextField.tsx'), 'utf8')
   assert.match(fieldSource, /mask=\{field\.type === 'secret' \? glyphs\.mask : undefined\}/)
   assert.match(fieldSource, /field\.type === 'secret' \? maskSecret\(text\) : text/)
-  assert.match(inputTypes, /mask\?: string/)
+  assert.match(inputSource, /mask\?: string/)
+  // Control combinations are shortcuts, never text: ctrl+s reaches the form's
+  // save without its `s` landing in the focused editor.
+  assert.match(inputSource, /key\.ctrl \|\| key\.meta/)
 }
 
 async function main(): Promise<void> {

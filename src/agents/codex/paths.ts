@@ -15,6 +15,13 @@ export const CODEX_DIR_SEGMENTS = ['.codex']
 export const CODEX_CONFIG_FILE = 'config.toml'
 export const CODEX_AUTH_FILE = 'auth.json'
 
+/**
+ * ccset's own memory of what a live auth.json pointed at when it was adopted
+ * as a profile. Codex opens config.toml and auth.json by exact name and never
+ * scans the directory, so a file of any other name beside them is inert.
+ */
+export const ADOPTED_ROUTING_FILE = 'ccset.auth-profiles.json'
+
 const AUTH_PREFIX = 'auth.'
 const AUTH_SUFFIX = '.json'
 
@@ -33,6 +40,11 @@ export function codexAuthPath(home: string): string {
 
 export function authProfilePath(home: string, name: string): string {
   return path.join(codexDir(home), `${AUTH_PREFIX}${name}${AUTH_SUFFIX}`)
+}
+
+/** Where the adopted profiles' routing memory lives. */
+export function adoptedRoutingPath(home: string): string {
+  return path.join(codexDir(home), ADOPTED_ROUTING_FILE)
 }
 
 /**

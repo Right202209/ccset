@@ -4,13 +4,13 @@ import { backupFile } from '../../core/backup.js'
 import { configFile, readConfigFile } from '../../core/config-file.js'
 import { copyFileAtomic } from '../../core/copy.js'
 import { ConfigParseError, isNotFound, wrapFsError } from '../../core/errors.js'
-import { readMode } from '../../core/json-file.js'
+import { isPlainObject, readMode, writeTextAtomic } from '../../core/json-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { commitOne } from '../../operations/commit.js'
 import { listNamedFiles } from '../../core/paths.js'
 import { jsonToText } from '../../core/values.js'
 import { AUTH_API_KEY, AUTH_MODE_API_KEY, AUTH_MODE_KEY, AUTH_STORE_KEY, AUTH_STORE_KEYRING } from './constants.js'
-import { authProfileName, authProfilePath, backupsDir, codexAuthPath, codexDir } from './paths.js'
+import { adoptedRoutingPath, authProfileName, authProfilePath, backupsDir, codexAuthPath, codexDir } from './paths.js'
 
 /**
  * Codex keeps the credential in `auth.json`, not in config.toml, and reads it
@@ -174,20 +174,46 @@ export interface ActivationReport {
   adoptedPath: string | null
 }
 
+/** A sidecar read and parsed, with its bytes held for a later whole-file copy. */
+export interface StagedProfile {
+  name: string
+  path: string
+  raw: string
+}
+
 /**
- * Replaces auth.json with the named profile. The backup is taken first and
- * unconditionally, so the credential being replaced survives even when the user
- * declined to adopt it as a profile.
+ * Reads the profile ccset is about to copy into place. A profile that does not
+ * parse, or that vanished while a confirmation was open, fails here -- before
+ * routing has moved anywhere -- and the bytes are held so the copy commits
+ * exactly what was validated, however the sidecar changes afterwards.
+ */
+export async function stageAuthProfile(ctx: Ctx, name: string): Promise<StagedProfile> {
+  const source = authProfilePath(ctx.home, name)
+  await readConfigFile(configFile(source, 'json'))
+  try {
+    return { name, path: source, raw: await fs.readFile(source, 'utf8') }
+  } catch (err) {
+    throw wrapFsError(err, source, 'r')
+  }
+}
+
+/**
+ * Replaces auth.json with the named profile. The source is re-staged at commit
+ * time -- what was checked when the confirmation opened may have changed before
+ * the user accepted it -- and a profile that will not parse is never activated
+ * wholesale. The backup is taken first and unconditionally, so the credential
+ * being replaced survives even when the user declined to adopt it as a profile.
  */
 export async function activateAuthProfile(
   ctx: Ctx,
   name: string,
   adoptAs: string | null = null,
 ): Promise<ActivationReport> {
+  const staged = await stageAuthProfile(ctx, name)
   const target = codexAuthPath(ctx.home)
   const adoptedPath = adoptAs === null ? null : await adoptLiveAuth(ctx, adoptAs)
   const backupPath = await backupFile(backupsDir(ctx.home), target)
-  await copyFileAtomic(authProfilePath(ctx.home, name), target)
+  await writeTextAtomic(target, staged.raw)
   return { authPath: target, backupPath, adoptedPath }
 }
 
@@ -203,4 +229,39 @@ export async function removeAuthProfile(ctx: Ctx, name: string): Promise<boolean
     if (isNotFound(err)) return false
     throw wrapFsError(err, authProfilePath(ctx.home, name), 'rw')
   }
+}
+
+/**
+ * The promise the adopt screen makes -- "keep it as a switchable profile" --
+ * needs the routing the login was live under, because restoring the credential
+ * without restoring `model_provider` would pair the old key with the new
+ * endpoint. The record is ccset's own file: Codex never scans the directory,
+ * and a profile without a record restores to Codex's default routing.
+ */
+export type AdoptedRouting = Record<string, string | null>
+
+const ADOPTED_ROUTING_VERSION = 1
+
+export async function loadAdoptedRouting(ctx: Ctx): Promise<AdoptedRouting> {
+  const file = configFile(adoptedRoutingPath(ctx.home), 'json')
+  const loaded = await readConfigFile(file)
+  const routing = loaded.data['routing']
+  if (!isPlainObject(routing)) return {}
+  const known: AdoptedRouting = {}
+  for (const [name, value] of Object.entries(routing)) {
+    known[name] = typeof value === 'string' && value.length > 0 ? value : null
+  }
+  return known
+}
+
+export async function saveAdoptedRouting(
+  ctx: Ctx,
+  name: string,
+  routeTo: string | null,
+): Promise<void> {
+  const file = configFile(adoptedRoutingPath(ctx.home), 'json')
+  const loaded = await readConfigFile(file)
+  const routing = isPlainObject(loaded.data['routing']) ? loaded.data['routing'] : {}
+  routing[name] = routeTo
+  await writeTextAtomic(file.path, `${JSON.stringify({ version: ADOPTED_ROUTING_VERSION, routing }, null, 2)}\n`)
 }

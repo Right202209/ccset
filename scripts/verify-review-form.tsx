@@ -6,11 +6,13 @@ import type { FieldSpec, FormScreen, FormValues } from '../src/types.js'
 import { t } from '../src/i18n/index.js'
 import { ReviewForm } from '../src/ui/ReviewForm.js'
 import { ViewportProvider } from '../src/ui/Viewport.js'
+import { stripAnsi } from './ui-assertions.js'
 import { ASCII_TERMINAL, TerminalContext, UNICODE_TERMINAL, type Terminal } from '../src/ui/terminal.js'
 
 const CTRL_S = '\x13'
 const ENTER = '\r'
 const DOWN = '\x1b[B'
+const RIGHT = '\x1b[C'
 const POLL_MS = 10
 const WAIT_TIMEOUT_MS = 5_000
 
@@ -88,11 +90,10 @@ async function verifyEnterStillMoves(): Promise<void> {
 }
 
 async function verifyCtrlSRevealsInvalidAdvancedField(): Promise<void> {
-  const form = screen({
+  const { instance, submissions } = mount(screen({
     values: { name: 'acme', advanced: '' },
     baseline: { name: 'acme', advanced: '' },
-  })
-  const { instance, submissions } = mount(form)
+  }))
   await send(instance, CTRL_S)
   const paint = instance.lastFrame() ?? ''
   assert.equal(submissions.length, 0)
@@ -101,16 +102,44 @@ async function verifyCtrlSRevealsInvalidAdvancedField(): Promise<void> {
   instance.unmount()
 }
 
+// Ctrl+S belongs to the form: a blocked save must not leave the editor's own
+// `s` behind in the focused field, where a later save would persist it.
+async function verifyCtrlSLeavesTheTextAlone(): Promise<void> {
+  const { instance, submissions } = mount(screen({
+    values: { name: 'acme', advanced: '' },
+    baseline: { name: 'acme', advanced: '' },
+  }))
+  await send(instance, CTRL_S)
+  const paint = stripAnsi(instance.lastFrame() ?? '')
+  assert.equal(paint.includes('acme'), true, 'the focused value vanished')
+  assert.equal(paint.includes('acmes'), false, 'ctrl+s inserted its s into the focused field')
+
+  await send(instance, 'https://example.com')
+  await send(instance, CTRL_S)
+  assert.equal(submissions.length, 1, 'the follow-up save never ran')
+  assert.equal(submissions[0]?.name, 'acme', 'a keystroke mutation survived into the save')
+  instance.unmount()
+}
+
+// A value longer than the row scrolls: the cursor and its edits stay visible.
+async function verifyLongValueKeepsCursorVisible(): Promise<void> {
+  const longUrl = 'https://provider.example/very/long/path/that/overflows/eighty/columns'
+  const values = { name: longUrl, advanced: '' }
+  const { instance } = mount(screen({ values, baseline: values }), { columns: 80 })
+  await send(instance, 'X')
+  const tail = `${longUrl}X`.slice(-14)
+  assert.ok(
+    stripAnsi(instance.lastFrame() ?? '').includes(tail),
+    `the cursor and the tail of a long value left the visible row`,
+  )
+  instance.unmount()
+}
+
 async function verifyAdvancedToggleKeepsFocus(): Promise<void> {
   const manyFields: FieldSpec[] = [
     { id: 'one', labelKey: 'Basic one', type: 'text' },
     { id: 'two', labelKey: 'Basic two', type: 'text' },
-    ...Array.from({ length: 6 }, (_, index) => ({
-      id: `advanced-${index + 1}`,
-      labelKey: `Advanced ${index + 1}`,
-      type: 'text' as const,
-      advanced: true,
-    })),
+    ...Array.from({ length: 6 }, (_, index) => ({ id: `advanced-${index + 1}`, labelKey: `Advanced ${index + 1}`, type: 'text' as const, advanced: true })),
   ]
   const { instance } = mount(screen({ fields: manyFields }), { rows: 10 })
   await send(instance, DOWN)
@@ -127,19 +156,8 @@ async function verifyAdvancedToggleKeepsFocus(): Promise<void> {
 
 async function verifyHintsAndErrorConsumeRows(): Promise<void> {
   const detailedFields: FieldSpec[] = [
-    {
-      id: 'required',
-      labelKey: 'Required value',
-      helpKey: 'Required help',
-      suggestions: ['first', 'second'],
-      type: 'text',
-      required: true,
-    },
-    ...Array.from({ length: 5 }, (_, index) => ({
-      id: `field-${index + 1}`,
-      labelKey: `Field ${index + 1}`,
-      type: 'text' as const,
-    })),
+    { id: 'required', labelKey: 'Required value', helpKey: 'Required help', suggestions: ['first', 'second'], type: 'text', required: true },
+    ...Array.from({ length: 5 }, (_, index) => ({ id: `field-${index + 1}`, labelKey: `Field ${index + 1}`, type: 'text' as const })),
   ]
   const { instance } = mount(screen({
     fields: detailedFields,
@@ -220,9 +238,59 @@ function verifyWinningLayout(): void {
   }
 }
 
+// Choices wrap under a one-line row's clip, so the row now renders a window
+// anchored on the selected choice: the option being cycled onto stays visible.
+async function verifyChoicesStayVisibleWhileCycling(): Promise<void> {
+  const choiceFields: FieldSpec[] = [
+    { id: 'name', labelKey: 'Name', type: 'text' },
+    {
+      id: 'pick',
+      labelKey: 'Pick one',
+      type: 'choice',
+      choices: [
+        { value: 'a', labelKey: 'Read-only sandbox mode' },
+        { value: 'b', labelKey: 'Workspace-write sandbox mode' },
+        { value: 'c', labelKey: 'Danger-full-access no sandbox' },
+        { value: '', labelKey: 'Unmanaged by ccset entirely' },
+      ],
+    },
+  ]
+  const form = screen({
+    fields: choiceFields,
+    values: { name: 'acme', pick: 'a' },
+    baseline: { name: 'acme', pick: 'a' },
+  })
+  const { instance } = mount(form, { columns: 80 })
+  await send(instance, DOWN)
+  for (let index = 0; index < 3; index += 1) await send(instance, RIGHT)
+  const paint = stripAnsi(instance.lastFrame() ?? '')
+  assert.ok(
+    paint.includes('Unmanaged by ccset entirely'),
+    `the selected choice left the visible row:\n${paint}`,
+  )
+  instance.unmount()
+}
+
+// The help line wraps at narrow widths; the footer must reserve what it renders.
+async function verifyWrappedFooterStaysInBudget(): Promise<void> {
+  const many = Array.from({ length: 14 }, (_, index) => ({
+    id: `field-${index + 1}`,
+    labelKey: `Field ${index + 1}`,
+    type: 'text' as const,
+  }))
+  const { instance } = mount(screen({ fields: many }), { rows: 21, columns: 60 })
+  const lines = (instance.lastFrame() ?? '').split('\n').length
+  assert.ok(lines <= 16, `the form painted ${lines} rows against a 16-row budget`)
+  instance.unmount()
+}
+
 await verifyCtrlSSavesFromAField()
 await verifyEnterStillMoves()
 await verifyCtrlSRevealsInvalidAdvancedField()
+await verifyCtrlSLeavesTheTextAlone()
+await verifyLongValueKeepsCursorVisible()
+await verifyChoicesStayVisibleWhileCycling()
+await verifyWrappedFooterStaysInBudget()
 await verifyAdvancedToggleKeepsFocus()
 await verifyHintsAndErrorConsumeRows()
 await verifyControlsStayReachable()

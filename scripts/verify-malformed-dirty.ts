@@ -44,6 +44,14 @@ async function openGlobal(session: CliSession, from = 0): Promise<number> {
   return session.waitFor('esc cancel', from)
 }
 
+async function submitSave(session: CliSession, from: number, downCount: number): Promise<number> {
+  await session.sendEach(DOWN, downCount)
+  const cursor = await session.waitFor('❯ Save', from)
+  await new Promise((resolve) => setTimeout(resolve, 250))
+  session.send(ENTER)
+  return cursor
+}
+
 async function verifyMalformedRecovery(home: string): Promise<void> {
   await chooseEnglishOnce(home)
   const target = globalSettingsPath(home)
@@ -55,9 +63,7 @@ async function verifyMalformedRecovery(home: string): Promise<void> {
     session.send(' ')
     await fs.writeFile(target, '{ malformed fixture\n', { mode: 0o600 })
     const malformed = await fs.readFile(target, 'utf8')
-    await session.sendEach(DOWN, 8)
-    await new Promise((resolve) => setTimeout(resolve, 250))
-    session.send(ENTER)
+    await submitSave(session, cursor, 8)
     cursor = await session.waitFor('File is not valid JSON', cursor)
     assert.match(session.snapshot().slice(cursor), /Back it up and start fresh/)
 
@@ -68,9 +74,7 @@ async function verifyMalformedRecovery(home: string): Promise<void> {
     const returnedForm = session.snapshot().slice(session.snapshot().lastIndexOf('Global settings'))
     assert.match(returnedForm, /Proxy\s+\* On/)
 
-    await session.sendEach(DOWN, 8)
-    await new Promise((resolve) => setTimeout(resolve, 250))
-    session.send(ENTER)
+    await submitSave(session, cursor + 1, 8)
     cursor = await session.waitFor('File is not valid JSON', cursor + 1)
     session.send(UP)
     await new Promise((resolve) => setTimeout(resolve, 250))
@@ -107,9 +111,7 @@ async function verifyDirtyExit(home: string): Promise<void> {
     const returnedForm = session.snapshot().slice(session.snapshot().lastIndexOf('Global settings'))
     assert.match(returnedForm, /Proxy\s+\* On/)
 
-    await session.sendEach(DOWN, 9)
-    await new Promise((resolve) => setTimeout(resolve, 250))
-    session.send(ENTER)
+    await submitSave(session, cursor + 1, 9)
     cursor = await session.waitFor('Unsaved edits', cursor + 1)
     session.send(UP)
     await new Promise((resolve) => setTimeout(resolve, 250))
