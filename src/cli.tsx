@@ -4,7 +4,7 @@ import { AGENTS, findAgent } from './registry.js'
 import {
   CcsetError,
   EXIT_NOT_TTY,
-  EXIT_RUNTIME,
+  EXIT_UNKNOWN_AGENT,
   toCcsetError,
 } from './core/errors.js'
 import { resolveHome, settingsFilePath } from './core/paths.js'
@@ -62,7 +62,9 @@ function clearScreen(): void {
 function resolveAgentId(requested: string | undefined): string | undefined {
   if (requested === undefined) return undefined
   if (findAgent(requested) === undefined) {
-    fail(new CcsetError('error.unknownAgent', EXIT_RUNTIME, { id: requested }))
+    // The same code the command parser uses (65), so the exit status says
+    // "unknown agent" whichever surface refused it.
+    fail(new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: requested }))
   }
   return requested
 }
