@@ -6,6 +6,11 @@ Runtime checks are recorded below as they are performed. Each item states what
 to check, how, and what a pass looks like; entries without an explicit result
 remain pending.
 
+For the current change workflow and executable check selection, see
+[AGENTS.md](AGENTS.md) and [docs/verification.md](docs/verification.md). Sections
+1–7 describe checks and requirements; §9 is append-only evidence, so earlier
+entries can describe behavior or test wiring superseded by later work.
+
 ---
 
 ## 1. Blocking unknowns
@@ -84,24 +89,27 @@ cannot see.
 
 ## 3. Security checklist
 
-Run before any commit, per project rules.
+Select the checks affected by runtime changes and during release preparation.
+Use the executable fixtures where they cover the scenario, and record manual
+checks for the remaining cases; a documentation-only edit does not require a
+full security session.
 
 - [ ] No hardcoded secrets anywhere in `src/` or fixtures. Test fixtures use obvious
       placeholders (`sk-TEST-DO-NOT-USE`), never real tokens.
 - [ ] Every file ccset creates is `0600` on POSIX — verify with `stat` on
       `settings.json`, `settings.<name>.json`, `~/.claude.json`, and every backup.
-- [ ] Token is masked on entry (`ink-text-input` `mask` prop — **verify this prop
-      exists in the pinned version**), and masked on display in Status, review
-      screen, error messages and stack traces.
-- [ ] Masking does not leak length: middle is a fixed-width `•` run.
+- [ ] Token entry is masked by `src/ui/TextField.tsx` through the secret field
+      renderer in `src/ui/Field.tsx`; Status, review, errors, and command output
+      never expose the full token.
+- [ ] Display masking uses a fixed-width middle and fully hides short secrets.
 - [ ] Grep the built bundle and any log output for a test token string after a full
       session including a failed save and a failed connection test. Zero hits.
 - [ ] Test-connection never prints the response body.
 - [ ] Test-connection shows the destination host and requires confirmation before
       sending.
-- [ ] Provider name validation rejects `../`, absolute paths, `local`, `json`, empty
-      string, and any name containing a path separator on both POSIX and Windows
-      (`\` included).
+- [ ] Provider ID validation rejects `../`, absolute paths, empty strings, path
+      separators on POSIX and Windows (`\` included), and the Agent's reserved
+      IDs (for example, Claude Code's `local` and `json`).
 - [ ] Base URL is validated as `http(s)://` before being used in a fetch — no
       `file://`, no `javascript:`.
 - [ ] Backups containing tokens are `0600` and the README documents that rotating a
@@ -153,7 +161,8 @@ Run before any commit, per project rules.
 
 Every npm release must satisfy all of these:
 
-- [ ] `npm run typecheck` and `npm run build` pass.
+- [ ] `npm run typecheck`, `npm run build`, and the full `npm test` suite pass
+      on the applicable supported platforms.
 - [ ] `npm pack` contents are reviewed, then the tarball is installed and its core
       flow is run.
 - [ ] Changes involving writes, backups, credentials, or migrations pass the
@@ -183,30 +192,33 @@ compatibility window.
 - [ ] `package.json` has `"publishConfig": { "access": "public" }` — **scoped
       packages are private by default and `npm publish` fails without it.**
 - [ ] `"engines": { "node": ">=18" }`.
-- [ ] `npm pack` contents reviewed: `dist/` and `README.md` only. No `src/`, no
-      fixtures, no `.env`, no local settings files.
+- [ ] `npm pack` contents reviewed: generated `dist/`, `README.md`,
+      `README.zh-CN.md`, and npm's included `package.json` and `LICENSE`.
+      No `src/`, fixtures, `.env`, or local settings files.
 - [ ] Install from the packed tarball and run once before publishing.
 
 ---
 
 ## 7. Code-quality gates
 
-Per project rules, enforced on every file touched. As of §9.38 the three size
-rules are *executed* by `npm run verify:code-gates` (inside the `npm test`
-chain): files ≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10 per
-function, measured through the TypeScript AST. Functions over a limit in files
+Apply these rules to changed TypeScript code. `npm run verify:code-gates`
+(inside `npm test`) scans TypeScript files under `src/` and `scripts/`: files
+≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10 per function,
+measured through the TypeScript AST. Nesting, parameter counts, and constant
+placement remain manual review checks. Functions over a limit in files
 the gate's introduction did not touch sit in the fixture's BASELINE ratchet:
 each entry must still match a live violation, so fixing one forces the entry's
-removal, and any new violation fails the gate.
+removal, and any new violation fails the gate. Do not add baseline entries to
+hide new violations.
 
 - Functions ≤ 50 lines (excluding blanks); files ≤ 300 lines; nesting ≤ 3;
   positional parameters ≤ 3; cyclomatic complexity ≤ 10 per function.
 - No magic numbers. Named constants at minimum for: `MAX_BACKUPS = 10`,
   `FILE_MODE = 0o600`, `DEFAULT_CLEANUP_DAYS = 720`, `DEFAULT_PROXY_URL`,
   `CONNECTION_TIMEOUT_MS`, `MASK_VISIBLE_CHARS = 4`, `EXIT_*` codes.
-- `merge.ts` and `ReviewForm.tsx` are the two files most likely to breach the limits.
-  Keeping the managed-key manifest as **data** in `manifest.ts` is what keeps both
-  small; if either grows past 300 lines, the manifest has probably leaked logic.
+- Keep managed-key manifests as **data** in each Agent's `manifest.ts`. Shared
+  constants belong in `src/core/constants.ts`; Agent-specific defaults and
+  constants stay with their Agent.
 
 ---
 
@@ -1900,3 +1912,54 @@ or ANSI output from the refusal. Documentation checks found 22 valid local
 links/anchors, balanced code fences, 14 unique ADR numbers, unchanged content
 in the nine renumbered ADRs, and no remaining Git conflict markers or unmerged
 index entries. No runtime code changed during this reconciliation.
+
+---
+
+### 9.40 Shared change workflow and complete fixture suite (2026-09-11)
+
+`AGENTS.md` is the shared workflow entry: inspect the task and current code,
+read the relevant decisions, implement through the existing boundaries, select
+verification by scope, and hand off the evidence. `CLAUDE.md` points to it.
+Architecture and fixture details moved into `docs/architecture.md` and
+`docs/verification.md`, making the guidance available to every contributor
+without duplicating test counts, machine-specific tool paths, or milestone
+snapshots in assistant instructions.
+
+The workflow distinguishes documentation checks, focused runtime fixtures,
+full-suite checks for shared code/tooling, and platform/release evidence.
+Existing assertion fixtures are the regression test mechanism; a future test
+framework is not a prerequisite. The PR template and contribution guide use
+the same verification policy. PRD criterion 5 and the new-Agent guide describe
+the Agent module and registry boundary, including the expected fixture/package/
+documentation work and an explicit scope for shared-core extensions. JSONC,
+command patch semantics, masking implementation, and GitHub CLI guidance were
+updated to match the current sources.
+
+`npm test` now includes `verify:error-recovery` and `verify:i18n-zh`, previously
+omitted from the aggregate suite and therefore from the CI fixture step. The
+suite remains sequential because fixtures clean the same `.verify/` directory
+and several rebuild `dist/`. New standalone fixtures must join both the named
+script inventory and the aggregate suite.
+
+**Run on Linux x64, Node.js 26.8.1, npm 12.0.2:** `npm run typecheck`,
+`npm run build`, and `npm test` all passed. The full suite executed all 23
+fixtures, including error recovery, locale parity, and the packed-artifact
+installation check. An inventory check confirmed each named fixture appears
+exactly once in the sequential suite and in the verification guide; it also
+identified the two omissions in the previous script.
+
+Documentation checks passed for 14 changed/new Markdown files: 75 repository
+links/anchors resolved, code fences were balanced, and the previous §9 history
+was preserved. `git diff --check` passed. These are local Linux results; hosted
+CI, other platforms, and live Provider checks retain their existing evidence
+status.
+
+**Pre-commit recheck on Linux under WSL2, Node.js 26.8.1, npm 12.0.2:**
+`npm run typecheck` and `npm run build` passed. The sandboxed `npm test` and
+isolated `npm run verify:first-run-locale` stopped on an empty terminal-refusal
+diagnostic; a repeated non-TTY probe exposed `spawnSync` returning `EPERM`.
+Rerunning `npm test` outside the sandbox passed all 23 fixtures, including the
+terminal boundary and packed-artifact installation. The release checklist now
+names `README.zh-CN.md`, matching the artifact fixture. The 75 repository
+links/anchors, balanced Markdown fences, fixture inventory, and preservation
+of earlier §9 history were checked again successfully.

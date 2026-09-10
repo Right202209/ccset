@@ -9,13 +9,21 @@ maintainer may decline a technically correct change because of product scope,
 complexity, security risk, or long-term maintenance cost. Final merge and npm
 release authority stays with the maintainer unless explicitly delegated.
 
+## Working on a change
+
+Follow the shared workflow in [AGENTS.md](AGENTS.md): inspect the affected code
+and decisions, identify the intended behavior, implement through the existing
+interfaces, verify the change, and report the evidence. The
+[architecture guide](docs/architecture.md) explains the runtime boundaries; the
+[verification guide](docs/verification.md) maps change areas to executable checks.
+
 ## Pull requests
 
 A product-changing pull request must:
 
 - explain the user problem and the proposed scope change;
 - implement the complete user path, without demo-only gaps in the main flow;
-- pass the release checks relevant to the change;
+- pass the verification checks relevant to the change;
 - update English documentation and update Chinese documentation when it covers the
   changed behavior;
 - include terminal screenshots for significant TUI changes; and
@@ -49,17 +57,30 @@ general user-facing capability or has strong evidence of broader need.
 
 ## Verification
 
-At minimum, run:
+For runtime or tooling changes, start with:
 
 ```bash
 npm run typecheck
 npm run build
 ```
 
-Use `Important Documentation.md` to select the data-safety and interactive checks
-that match the change. Changes to writes, backups, credentials, migrations,
-platform-specific paths, permissions, or terminal behavior require the associated
-manual checks.
+Run the relevant `verify:*` fixtures and code-quality gate listed in the
+[verification guide](docs/verification.md). Shared behavior, dependencies, build,
+or test/CI changes also require `npm test`. Fixtures share output directories, so
+run them sequentially. The full suite must pass locally or in CI before merging
+runtime or tooling changes.
+
+For documentation-only changes, check the diff, links, examples, and factual
+claims; typecheck/build are needed only when a changed example or instruction
+requires them. Extend the existing assertion fixtures for behavior changes and
+bug regressions; no separate test framework is required.
+
+Use [Important Documentation.md](<Important Documentation.md>) for the affected
+manual data-safety and interactive scenarios. Platform-specific paths,
+permissions, and terminal behavior require evidence on that platform. Report
+commands, environments, results, and pending checks; append new runtime evidence
+to the register's §9 without rewriting earlier entries. Release requirements are
+in §6, separate from the verification needed for an individual change.
 
 ## License
 

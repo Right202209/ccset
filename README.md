@@ -96,12 +96,13 @@ and [security policy](https://github.com/Right202209/ccset/blob/master/SECURITY.
 ## Development and support
 
 ```bash
-npm install
+npm ci
 npm run typecheck
 npm run build
 ```
 
 See the [contribution guide](https://github.com/Right202209/ccset/blob/master/CONTRIBUTING.md),
+[verification commands and prerequisites](https://github.com/Right202209/ccset/blob/master/docs/verification.md),
 [verification register](https://github.com/Right202209/ccset/blob/master/Important%20Documentation.md),
 and [adding an agent](https://github.com/Right202209/ccset/blob/master/docs/adding-an-agent.md).
 

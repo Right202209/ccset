@@ -1,11 +1,9 @@
 # Adding an agent
 
-This guide is written from adding the second one, and updated from the third.
-opencode took nine files under `src/agents/opencode/`, one line in
-`src/registry.ts`, and one verification fixture — and it is the reason several
-things in `src/core/` look the way they do now. Codex took ten files and the
-same one registry line, but it also needed a new codec, which is a different
-kind of change and is covered at the end.
+Use the existing Claude Code, opencode, and Codex modules as examples of the
+same extension boundary with different file layouts. An integration includes
+its runtime module, registry entry, verification fixtures, and documentation.
+The existing JSON, JSONC, and TOML Codecs are available for reuse.
 
 Read [`CONTEXT.md`](../CONTEXT.md) for the vocabulary (Screen, Frame, Agent,
 Provider) before starting. Read [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the
@@ -19,28 +17,34 @@ submitted form back into writes. It never imports from `src/ui/`. If you find
 yourself wanting to, the shape you need is missing from `types.ts` and that is
 the change to propose.
 
-## The two files rule
+## Extension boundary
 
-PRD §2.2 criterion 5: adding an agent touches **exactly two files** — your
-module and `src/registry.ts`. That is enforceable, not aspirational. If you need
-to edit anything else under `src/`, one of these is true:
+PRD §2.2 criterion 5 defines the Agent module and `src/registry.ts` as the
+extension boundary. The module is a directory with multiple files.
+An Agent reusing existing capabilities
+changes no runtime code outside its module except the registry. Fixtures,
+`package.json` wiring, and docs are expected additional changes.
+
+If you need another runtime change, identify the responsibility first:
 
 - **You need a string.** Ship it in your own `messages.ts` (below), not in
   `src/i18n/en.ts`.
 - **You need a path helper.** Put it in your module's `paths.ts`. `src/core/paths.ts`
   holds only `resolveHome`, `backupsDirFor`, and `listNamedFiles`, which takes
   your naming rule as a callback.
-- **You need something core almost does.** Propose the core change as its own
-  issue first, the way #33 preceded #34. Do not smuggle it into the agent PR.
+- **You need a shared capability.** Make the core/interface change explicit and
+  separately reviewable, with checks for existing Agents as well as the new one.
+  It may be part of a complete implementation proposal; a preceding issue is
+  optional under [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Layout
 
-Nine files, none over 300 lines. `manifest.ts` and `providers.ts` are the two
-that grow; if either passes 300, logic has usually leaked into the manifest.
+Use focused files within the module and follow the executable quality limits.
+This is a common layout, not a required file count:
 
 | File | Holds |
 | --- | --- |
-| `index.ts` | The `Agent` object: `id`, `name`, `messages`, `detect`, `getActions` |
+| `index.ts` | The `Agent` object: `id`, `name`, `messages`, `detect`, `getActions`, and optional `commands` |
 | `manifest.ts` | **Data only.** Every managed key, declared once |
 | `constants.ts` | Template defaults, enum values, wire details |
 | `paths.ts` | Where the config lives, and where backups go |
@@ -48,21 +52,24 @@ that grow; if either passes 300, logic has usually leaked into the manifest.
 | `providers.ts` | The same for a provider, plus discovery |
 | `status.ts` | The read-only view. Reads everything, writes nothing |
 | `actions.ts` | Assembles the menu actions |
-| `messages.ts` | Your strings, namespaced by agent id |
+| `messages.ts` | Your strings, under a unique Agent namespace, in both locales |
+| `commands.ts` | Command declarations and handlers, when exposing Non-interactive commands |
+| `status-dto.ts` | Structured, secret-free status data shared with command presentation |
 
-Codex adds two more, because its credential lives outside its config document:
-`auth.ts` (the sidecars) and `activate.ts` (the switch). If your agent keeps its
-key in the settings file, you will not need either.
+Codex also separates credential handling into `auth.ts`, `activate.ts`, and
+`provider-use.ts`, because its Auth profiles live outside the config document.
+Use additional files when the Agent's responsibilities need them.
 
 ## The parts that are easy to get wrong
 
 ### Deletion is not an optimisation
 
-A `ManagedWrite` with `value: undefined` means **delete the key**. Turning a
-setting off has to remove it, not write `""` or `null`. Without that, ccset
-reports a successful save while the old value is still in the file. Every
-"blank means omit" path goes through `textOrUndefined`, `intOrUndefined`, or
-`csvOrUndefined` in `src/core/values.ts`.
+A `ManagedWrite` with `value: undefined` means **delete the key**. A blank or
+Unmanaged TUI choice must remove a key when its field contract says to omit it,
+rather than write `""` or `null`. Proxy-off deletes its environment keys, while
+a supported boolean setting such as `autoupdate = false` remains a value.
+Use `textOrUndefined`, `intOrUndefined`, and `csvOrUndefined` in
+`src/core/values.ts` for the corresponding form coercions.
 
 ### Re-read immediately before writing
 
@@ -101,10 +108,11 @@ into a directory the target agent prunes on its own schedule.
 ```ts
 export const yourMessages: Record<string, Record<string, string>> = {
   en: { 'yourAgent.field.apiKey': 'API key' },
+  'zh-Hans': { 'yourAgent.field.apiKey': 'API 密钥' },
 }
 ```
 
-Namespace every key with your agent id. The registry merges these and **throws
+Use a unique Agent namespace for every key. The registry merges these and **throws
 on a duplicate**, so you cannot silently redefine a shell string. Reuse the
 shared vocabulary in `src/i18n/en.ts` — `field.baseUrl`, `action.status`, every
 `write.*` and `confirm.*` line — rather than restating it.
@@ -118,34 +126,57 @@ Two fields exist because two agents disagreed:
 
 ### Say what you cannot do
 
-opencode also loads a JSONC config, and ccset cannot round-trip a comment
-through `JSON.parse`. Rather than write it anyway or ignore it, the Status
-screen reports the file and warns that the save may not be the config opencode
-reads. An unknown belongs in `Important Documentation.md` §1, handled like
-U1–U5 — not papered over in code.
+Name an unsupported format, credential store, or activation path in Status
+and document the verification gap. Record unresolved compatibility assumptions
+in `Important Documentation.md` §1 instead of treating a synthetic fixture as a
+live compatibility result.
+
+For example, opencode's JSONC gap was resolved with a format-preserving Codec
+(ADR 0004): an existing `.jsonc` is now the managed target and its legacy `.json`
+stays untouched. Reuse that selection and Codec behavior; the separate live
+merge-order check remains recorded as U6.
+
+## Non-interactive commands
+
+An Agent may expose `commands` through the `AgentCommands` interface. Declare
+its command fields and handlers inside the Agent module so the shared parser
+and dispatcher need no Agent-specific branches. An Agent without `commands`
+serves only the TUI; document the supported surface explicitly.
+
+Commands are Managed patches: supplied fields change, omitted fields preserve
+the disk state, and `--unset` removes a managed key. Seed from disk without TUI
+template defaults, validate the complete proposal, and reuse the operation and
+commit core. Do not implement commands by invoking Screen callbacks. Follow the
+[command specification](milestone-3-non-interactive.md) and ADRs 0006–0014 for
+secret sources, preflight, output, and exit contracts.
 
 ## Register it
 
 ```ts
-export const AGENTS: Agent[] = [claudeCode, opencode]
+import { yourAgent } from './agents/your-agent/index.js'
+
+export const AGENTS: Agent[] = [claudeCode, opencode, codex, yourAgent]
 ```
 
 That is the whole registry change. No dynamic `import()`, no scanning: the
 published artifact is a bundle and a bundler cannot resolve a scanned path.
 
-With a second agent registered, the agent-selection Screen starts appearing
-(PRD §4.1) and `--agent <id>` gains a second legal value. Both were dead code
-until opencode landed, and both had fixtures that needed updating.
+Check detection, agent selection, and the new `--agent <id>` value. Update
+fixtures that enumerate supported Agents, including locale parity and command
+capabilities where the new Agent exposes them.
 
 ## Prove it
 
-A new agent needs its own gate in `scripts/`, wired into `package.json` the way
-the others are, running against a `mkdtemp` home. Cover at minimum:
+A new Agent needs its own fixture in `scripts/`, running against a `mkdtemp`
+home. Wire it into a `verify:*` command **and** the sequential `npm test` chain in
+`package.json`, and add it to the [verification map](verification.md#fixture-map).
+Cover at minimum:
 
 - unmanaged keys survive a save, including siblings of a managed key at the
   deepest level your config nests;
 - a blank field omits its key entirely — no `null`, no `""`;
-- turning a managed choice off deletes the key;
+- choosing Unmanaged or disabling a proxy deletes its keys, while boolean
+  settings retain real boolean values;
 - secrets are masked in Status and never appear whole;
 - backups rotate to `MAX_BACKUPS` and are `0600` on POSIX.
 
@@ -173,10 +204,12 @@ gate, not a silent gap.
 Record what you ran in `Important Documentation.md`. A passing local build is
 not evidence for a platform gate.
 
-## If your agent's config is not JSON
+## If the config needs a new Codec
 
-This is a core change, and it is not covered by the two-files rule — say so in
-the PR rather than claiming criterion 5 for it.
+JSON, JSONC, and TOML are already supported. Reuse their readers, strict checks,
+and editors when they match the Agent's format. A format that needs another
+Codec is a shared-core change outside the Agent module and registry; state
+that scope explicitly and verify existing formats as well.
 
 `ConfigFile` carries a `codec`, and `src/core/config-file.ts` dispatches on it.
 Adding one means:

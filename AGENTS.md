@@ -1,88 +1,113 @@
-# Repository Guidelines
+# Repository guidelines
 
-## Project Structure & Module Organization
+Shared instructions for contributors and coding assistants. Start here; read the
+linked guides when the change reaches their area. `CLAUDE.md` points here too.
 
-This is an ESM TypeScript CLI/TUI built with Ink and React. Runtime code lives
-under `src/`:
+## Workflow for a change
 
-- `src/core/` contains agent-independent file I/O, validation, merging,
-  masking, backups, paths, and error handling.
-- `src/operations/` defines the Non-interactive operation seam: a normalized
-  request in, a structured result or typed error out, over the shared
-  plan/apply commit core.
-- `src/commands/` is the CLI adapter for that seam: the pure parser, the
-  secret sources, and the human/JSON presenters.
-- `src/agents/<id>/` contains integrations for a supported coding agent
-  (`claude-code`, `opencode`, and `codex`), including that agent's own paths,
-  constants, and user-facing strings.
-- `src/ui/` contains Ink screens and reusable form/list components.
-- `src/i18n/` contains the shell's message catalogs (`en`, `zh-Hans`) and the
-  translation helper. Agent-specific strings live with the agent and are merged
-  by the registry.
-- `src/cli.tsx` is the CLI entry point; `src/registry.ts` is the static agent
-  registry; `src/types.ts` defines shared interfaces.
+1. Inspect `git status` and the relevant code before editing. Preserve unrelated
+   local changes. Read the issue or PR and its comments when one is supplied;
+   a preceding issue is optional ([CONTRIBUTING.md](CONTRIBUTING.md)).
+2. Read [CONTEXT.md](CONTEXT.md) for domain terms, then the relevant specification
+   and [ADRs](docs/adr/). State the intended behavior and verification scope.
+   Surface conflicts with an accepted decision instead of silently changing it.
+3. Make the smallest complete change through the existing interfaces. For a bug,
+   reproduce the failure and extend the relevant executable fixture to catch it.
+   For new behavior, add focused assertions at the affected public boundary.
+4. Run the checks selected by [docs/verification.md](docs/verification.md).
+   Review the final diff and run `git diff --check`. Update the affected docs and
+   report the actual commands, results, and any checks still pending. Record new
+   runtime evidence in `Important Documentation.md` §9, which is append-only.
 
-`README.md` documents user behavior, while `Important Documentation.md` is the
-manual verification register. Build output is generated in `dist/` and should
-not be edited by hand.
+## Where to work
 
-## Build, Test, and Development Commands
+This is an ESM TypeScript CLI/TUI built with Ink and React.
 
-Run `npm install` to install dependencies (Node.js 18+ is required). Use
-`npm run typecheck` for a no-emit TypeScript check and `npm run build` to bundle
-the executable to `dist/cli.js` with tsup. There is no unit-test framework; the
-suite is twenty-two executable `npm run verify:*` fixtures in `scripts/`, listed with
-what each covers in `CLAUDE.md`. Run the ones your change touches, and verify
-remaining interactive scenarios manually against `Important Documentation.md`.
+| Area | Responsibility |
+| --- | --- |
+| `src/core/` | Agent-independent file I/O, validation, merging, masking, backups, paths, and errors |
+| `src/operations/` | Normalized operation requests/results and the shared plan/apply commit core |
+| `src/commands/` | CLI parsing, secret sources, human and JSON presentation |
+| `src/agents/<id>/` | Each Agent's paths, constants, manifests, actions, commands, and messages |
+| `src/ui/` | Ink Views, navigation, forms, lists, and terminal behavior |
+| `src/i18n/` | Shell catalogs (`en`, `zh-Hans`) and translation helpers |
+| `src/types.ts`, `src/ctx.ts` | Shared interfaces and runtime context |
+| `src/cli.tsx`, `src/registry.ts` | Process boundary and static Agent registration |
+| `scripts/` | Executable verification fixtures and their harnesses |
 
-## Coding Style & Naming Conventions
+`dist/` and `.verify/` are generated output; edit their sources instead.
 
-Follow the existing TypeScript style: two-space indentation, no semicolons, and
-single-quoted strings. Use `camelCase` for variables/functions, `PascalCase`
-for React components and types, and lowercase kebab-case IDs for agent
-directories (for example, `src/agents/claude-code`). Keep shared behavior in
-`src/core` and prefer existing interfaces and helpers over duplicated logic.
+Read these guides for the corresponding work:
 
-## Testing Guidelines
+| Change | Read |
+| --- | --- |
+| Runtime behavior or module boundaries | [Architecture](docs/architecture.md), [PRD.md](PRD.md), relevant ADRs |
+| Non-interactive commands | [Command specification](docs/milestone-3-non-interactive.md), [implemented CLI behavior](docs/user-guide.md#cli) |
+| New Agent | [Adding an Agent](docs/adding-an-agent.md), [contribution requirements](CONTRIBUTING.md#new-agents) |
+| Tests, build, CI, or release evidence | [Verification guide](docs/verification.md), [verification register](<Important Documentation.md>) |
+| User-facing behavior | [User guide](docs/user-guide.md), [README.md](README.md), [README.zh-CN.md](README.zh-CN.md) |
+| Terms or design decisions | [Domain documentation guide](docs/agents/domain.md) |
+| Issue or PR tracking | [Issue tracker](docs/agents/issue-tracker.md), [triage labels](docs/agents/triage-labels.md) |
 
-There is no configured test framework or coverage threshold yet. New behavior
-should include focused tests when a framework is introduced; until then,
-exercise the relevant TUI flow and filesystem edge cases manually, including
-invalid JSON, unmanaged keys, backups, and non-TTY execution.
+## Boundaries and guarantees
 
-## Commit & Pull Request Guidelines
+- Keep Agent-specific paths, defaults, validation rules, and strings inside its
+  module. An Agent produces `ActionResult` data; Ink Views render it. New Agents
+  reuse the shared core and register in `src/registry.ts`.
+- Non-interactive commands use `executeOperation` with structured requests,
+  results, and typed errors. Keep Screens and translated text out of that
+  contract; command mode must not load Ink. Both surfaces share the commit core.
+- Preserve unmanaged keys at every nesting level. Write managed leaves rather
+  than replacing parent objects. TOML and JSONC edits preserve unrelated text,
+  comments, and formatting.
+- Keep deletion semantics explicit: blank TUI fields omit their managed keys;
+  omitted command options preserve disk values and `--unset` requests removal.
+  A supported boolean `false` remains a boolean, not a deletion.
+- Re-read targets at save time. Preflight all command targets before the first
+  write. Back up originals and use atomic writes with `0600` on POSIX.
+  Non-interactive no-ops and dry-runs must not write or create backups.
+- A malformed target requires a TUI confirmation or the command's explicit
+  `--replace-invalid` choice. Preserve the malformed original in a backup when
+  replacing it.
+- `~/.claude.json` is create-only. Codex's live `auth.json` is backed up and
+  replaced as a whole on an explicit switch; never merge into it.
+- Mask secrets in entry, Status, review, errors, and command output. Commands
+  accept secrets only through `CCSET_TOKEN` or explicit `--token-stdin`.
+  Test connection requires confirmation naming the destination host and never
+  prints the response body.
+- Read `CCSET_*` overrides at the CLI boundary and pass them inward. Use a scratch
+  `CCSET_HOME` for manual runs and fixtures; never test writes in a real Agent home.
+- Ship user-facing string changes in both `en` and `zh-Hans`. Agent strings live
+  in the Agent's `messages.ts`; the registry merges them and rejects duplicates.
 
-Use concise conventional-style subjects such as `feat:`, `fix:`, or `docs:`
-followed by an imperative description. Keep commits focused. Pull requests
-should explain the user-visible change, list verification commands and manual
-scenarios, link the relevant issue or design note, and include terminal output
-or screenshots when changing the TUI.
+## Style and quality
 
-## Adding an Agent
+Use two spaces, no semicolons, single quotes, and `.js` extensions in relative
+TypeScript imports. Use `camelCase` for variables/functions, `PascalCase` for
+components/types, and lowercase kebab-case Agent directory IDs. TypeScript is
+strict with `noUncheckedIndexedAccess`; narrow indexed values before use.
 
-Implement `detect()`, `getActions()` and `messages` in `src/agents/<id>/`,
-conforming to the `Agent` interface in `src/types.ts`, then add the module to the
-array in `src/registry.ts`. Those are the only two files you should need to
-touch; if you need a third, see the guide before working around it.
+The executable quality gate checks TypeScript under `src/` and `scripts/`:
+files ≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10. Existing
+violations are tracked in `scripts/verify-code-gates.ts`; remove entries when
+fixed and do not add exceptions to hide new violations. Review nesting ≤ 3 and
+positional parameters ≤ 3 manually. Keep constants with the module that owns
+them; only shared constants belong in `src/core/constants.ts`.
 
-Keep agent-specific paths, constants, strings and codecs inside that module;
-reuse the generic core for merges, atomic writes, masking, and backups. Ship a
-verification fixture, and mutate your own code to confirm the fixture fails.
+## Verification and handoff
 
-Full walkthrough: [`docs/adding-an-agent.md`](docs/adding-an-agent.md).
+Use Node.js 18+ and `npm ci` for a locked install. There is no separate lint or
+unit-test framework; the `verify:*` fixtures are the test suite. Use them for
+regressions now. The [verification guide](docs/verification.md) maps changes to
+checks and distinguishes documentation-only work from runtime changes.
 
-## Agent skills
+Run fixtures sequentially: they share and clean `.verify/`, and several rebuild
+`dist/`. `npm test` runs the complete fixture suite in sequence. CI definitions in
+[ci.yml](.github/workflows/ci.yml) describe the platform matrix; local success is
+not evidence for another platform or for a live Provider request.
 
-### Issue tracker
-
-Issues are tracked in GitHub Issues using the `gh` CLI. See
-`docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Use the five default triage labels. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-This repository uses a single-context domain documentation layout. See
-`docs/agents/domain.md`.
+Use concise conventional commit subjects (`feat:`, `fix:`, `docs:`, `test:`).
+PRs explain the resulting behavior, link a relevant issue or design note when
+available, and list verification evidence. Include terminal screenshots for
+significant TUI changes. Follow the [PR template](.github/PULL_REQUEST_TEMPLATE.md)
+and the release requirements in `Important Documentation.md` §6.

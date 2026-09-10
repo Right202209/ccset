@@ -46,7 +46,8 @@ Not served in v1: unattended/scripted deployment (see §5.6 and Milestone 3).
   settings files without hand-editing JSON.
 - Never damage configuration the user already has.
 - Run via `npx @droite/ccset` with no install step.
-- Keep adding a second agent a two-file change.
+- Keep a new Agent's implementation contained in its module plus a static
+  registry entry when existing shared capabilities suffice.
 - Keep all user-facing strings translatable without a rewrite.
 
 ### 2.2 Success Criteria
@@ -59,8 +60,11 @@ Not served in v1: unattended/scripted deployment (see §5.6 and Milestone 3).
 3. Re-running ccset against an existing config preserves **every** key ccset does
    not manage (§6.4), verified by byte-comparison of unmanaged subtrees.
 4. Verified stable on macOS and Linux terminals. Windows is best-effort (§5.2).
-5. Adding an Agent touches exactly two files: a new module under `src/agents/`
-   implementing the `Agent` interface, and one line in `src/registry.ts`.
+5. Adding an Agent using existing shared capabilities changes runtime code only
+   in its new module under `src/agents/` and its entry in `src/registry.ts`.
+   The module may contain multiple files; verification fixtures, npm script
+   wiring, and documentation are additional expected changes. A new shared
+   capability is an explicit core/interface change with its own verification.
 6. Every file ccset writes that can contain a credential is mode `0600` on POSIX.
 
 ### 2.3 Non-Goals (v1)

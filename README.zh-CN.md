@@ -143,20 +143,23 @@ ccset -v | --version | -h | --help
 
 ## 添加 Agent
 
-只需改动两个文件，这一点是强制的而非愿景。在 `src/agents/<id>/` 下实现 `src/types.ts` 中的 `Agent` 接口（`detect()`、`getActions()`，以及该 Agent 界面所用的文案），然后将其加入 `src/registry.ts` 的静态数组。添加 opencode 时，`src/` 下没有改动任何其他文件。
+扩展边界是 Agent 模块加静态注册表：在 `src/agents/<id>/` 下实现 `src/types.ts` 中的 `Agent` 接口（`detect()`、`getActions()`、双语文案，以及需要提供的非交互命令），然后将其加入 `src/registry.ts`。模块内部可以拆分多个文件；验证脚本、npm 脚本接入和文档也是交付的一部分。若需要新增通用能力，应明确说明核心接口的改动和验证范围。
 
-通用文件读写、合并、备份、遮罩和路径解析位于 `src/core/`，应直接复用。`ConfigFile` 携带的 codec 是真实存在的分界：`json` 会从解析结果重建文档，`toml` 则直接修改原文本以保留注释与键顺序。完整指南见
-[docs/adding-an-agent.md](docs/adding-an-agent.md)，该文档是在添加第二个 Agent 的过程中写成的。
+通用文件读写、合并、备份、遮罩和路径解析位于 `src/core/`，应直接复用。`ConfigFile` 支持 `json`、`jsonc` 和 `toml`；后两者通过修改原文本保留注释、格式与键顺序。完整指南见
+[docs/adding-an-agent.md](docs/adding-an-agent.md)。
 
 ## 开发
 
 ```bash
-npm install
+npm ci
 npm run typecheck
 npm run build
 ```
 
-`Important Documentation.md` 是需要实际运行工具验证的场景清单。
+修改流程统一见 [AGENTS.md](AGENTS.md)，按改动范围选择检查的方式、运行环境要求和验证命令见
+[验证指南](docs/verification.md)。`npm test` 顺序运行全部验证脚本；各脚本共用输出目录，不能并行执行。
+纯文档修改检查链接、示例和事实准确性，运行时改动还需执行对应的验证脚本。
+`Important Documentation.md` 保存人工验证场景与实际执行记录。
 Pull Request 可以直接提出产品改动；验收和验证要求见
 [贡献指南](https://github.com/Right202209/ccset/blob/master/CONTRIBUTING.md)。
 
