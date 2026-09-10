@@ -106,6 +106,12 @@ async function verifyDirtyExit(home: string): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 500))
     session.send(ESC)
     cursor = await session.waitFor('Unsaved edits', cursor)
+    // Esc on the prompt itself means stay: the form with its edits stays up,
+    // and a second Esc asks again rather than leaving through the guard.
+    session.send(ESC)
+    cursor = await session.waitFor('esc cancel', cursor)
+    session.send(ESC)
+    cursor = await session.waitFor('Unsaved edits', cursor + 1)
     session.send(ENTER)
     cursor = await session.waitFor('esc cancel', cursor + 1)
     const returnedForm = session.snapshot().slice(session.snapshot().lastIndexOf('Global settings'))
