@@ -156,7 +156,7 @@ export const en: Record<string, string> = {
   'validate.urlProtocol': 'Only http:// and https:// are allowed.',
   'validate.urlHost': 'The URL has no host.',
   'validate.notInteger': 'Whole numbers only.',
-  'validate.notPositive': 'Must be greater than zero.',
+  'validate.tooSmall': 'That is below the smallest value ccset accepts.',
   'validate.tooLarge': 'That is larger than ccset accepts.',
 
   /* ----------------------------------------------------------------- warn */

@@ -157,7 +157,7 @@ export const zhHans: Record<string, string> = {
   'validate.urlProtocol': '只允许 http:// 和 https://。',
   'validate.urlHost': 'URL 没有主机名。',
   'validate.notInteger': '只能是整数。',
-  'validate.notPositive': '必须大于零。',
+  'validate.tooSmall': '低于 ccset 接受的最小值。',
   'validate.tooLarge': '超出了 ccset 接受的范围。',
 
   /* ----------------------------------------------------------------- warn */

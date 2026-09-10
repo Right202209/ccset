@@ -3,7 +3,9 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { saveGlobal } from '../src/agents/claude-code/global.js'
+import { validateCleanupPeriodDays } from '../src/agents/claude-code/manifest.js'
 import { activationCommand, globalSettingsPath } from '../src/agents/claude-code/paths.js'
+import { makeOptionalIntValidator } from '../src/core/validate.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 
 const original: JsonObject = {
@@ -52,7 +54,26 @@ function checkActivationCommand(target: string, reportCommand: string): void {
   assert.equal(reportCommand, `claude --settings '${target}'`, 'the save report did not carry the quoted activation command')
 }
 
+/**
+ * The minimum is a real bound, not just "zero is rejected": a validator built
+ * with minimum 5 must refuse 3, and the shipped day validator must refuse 0
+ * while taking 1 and blank. Blank still means omit, whichever the bounds.
+ */
+function checkIntValidatorBounds(): void {
+  const atLeastFive = makeOptionalIntValidator(5, 100)
+  assert.notEqual(atLeastFive('3'), null, 'a value below the minimum was accepted')
+  assert.equal(atLeastFive('5'), null, 'the minimum itself was refused')
+  assert.notEqual(atLeastFive('0'), null, 'zero below a positive minimum was accepted')
+  assert.equal(atLeastFive('100'), null, 'the maximum was refused')
+  assert.notEqual(atLeastFive('101'), null, 'a value over the maximum was accepted')
+  assert.equal(atLeastFive(''), null, 'a blank stopped meaning omit')
+  assert.notEqual(atLeastFive('1.5'), null, 'a non-integer was accepted')
+  assert.notEqual(validateCleanupPeriodDays('0'), null, 'day zero was accepted')
+  assert.equal(validateCleanupPeriodDays('1'), null, 'day one was refused')
+}
+
 async function main(): Promise<void> {
+  checkIntValidatorBounds()
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-global-'))
   try {
     const target = globalSettingsPath(home)
