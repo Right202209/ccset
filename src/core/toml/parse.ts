@@ -1,7 +1,7 @@
 import type { JsonObject, JsonValue } from '../../types.js'
 import { isPlainObject } from '../json-file.js'
 import { decodeTomlString } from './strings.js'
-import { endOfLine, scanKeyPath, scanToml, scanValue, skipSpace, type TomlTable } from './scan.js'
+import { endOfLine, scanKeyPath, scanToml, scanValue, skipSpace, skipTrivia, type TomlTable } from './scan.js'
 
 /**
  * Reads a scanned document into the same `JsonObject` every other codec hands
@@ -14,22 +14,6 @@ import { endOfLine, scanKeyPath, scanToml, scanValue, skipSpace, type TomlTable 
  */
 
 const RADIX_PREFIXES: Record<string, number> = { x: 16, o: 8, b: 2 }
-
-function skipTrivia(text: string, index: number): number {
-  let i = index
-  for (;;) {
-    const char = text.charAt(i)
-    if (char === ' ' || char === '\t' || char === '\n' || char === '\r') {
-      i += 1
-      continue
-    }
-    if (char === '#') {
-      i = endOfLine(text, i)
-      continue
-    }
-    return i
-  }
-}
 
 function setIn(target: JsonObject, keys: string[], value: JsonValue): void {
   const [head, ...rest] = keys

@@ -63,6 +63,23 @@ export function skipSpace(text: string, index: number): number {
   return i
 }
 
+/** Offset of the first character that is neither whitespace nor a comment. */
+export function skipTrivia(text: string, index: number): number {
+  let i = index
+  for (;;) {
+    const char = text.charAt(i)
+    if (char === ' ' || char === '\t' || char === '\n' || char === '\r') {
+      i += 1
+      continue
+    }
+    if (char === '#') {
+      i = endOfLine(text, i)
+      continue
+    }
+    return i
+  }
+}
+
 /** Offset just past the next newline, or the end of the text. */
 export function endOfLine(text: string, index: number): number {
   const next = text.indexOf('\n', index)
