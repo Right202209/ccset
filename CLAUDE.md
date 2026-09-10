@@ -14,7 +14,7 @@ npm run typecheck                # tsc --noEmit over src/, scripts/, tsup.config
 npm run build                     # tsup -> dist/cli.js, single ESM bundle + shebang
 ```
 
-There is no lint script and no unit-test framework. The test suite is twenty-two
+There is no lint script and no unit-test framework. The test suite is twenty-three
 executable verification fixtures in `scripts/`, each bundled by tsup into a throwaway
 `.verify/` directory, run once, then cleaned up. Run one by name — that is the unit of
 "running a single test":
@@ -40,6 +40,7 @@ executable verification fixtures in `scripts/`, each bundled by tsup into a thro
 | `npm run verify:commands-codex` | M3.6: codex status + global set over the TOML codec — byte preservation, integer typing, keyring/CODEX_HOME findings, backed-up replacement |
 | `npm run verify:commands-codex-provider` | M3.7: codex provider set — invariant re-assertion, sidecar preservation, live `auth.json` untouched, preflighted refusals |
 | `npm run verify:commands-codex-use` | M3.8: codex provider use — commit order, adoption/replacement choice, idempotence, unsupported environments, partial report |
+| `npm run verify:code-gates` | The §7 quality gates, executed: files ≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10. Functions over a limit in files predating the gate are ratcheted in the fixture's BASELINE list; every baseline entry must still match a live violation, so fixing one forces the entry's removal and a new violation without an entry fails the gate |
 | `npm run verify:release-artifact` | Packs a tarball, installs it into a temp project, checks contents/bin/shebang/mode |
 | `npm run verify:i18n-zh` | zh-Hans catalog parity with English (keys, placeholders, non-identity), locale resolution and normalization, and the non-TTY refusal rendered in each locale |
 | `npm run verify:error-recovery` | F11, F12: a failed save returns an error Screen keeping every typed value, and Status surfaces and clears partial backups |
