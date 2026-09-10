@@ -3,8 +3,10 @@
  * only in these types, and the UI renders only these types.
  */
 
+import type { Ctx } from './ctx.js'
 import type { AgentCommands } from './operations/types.js'
 
+export type { Ctx } from './ctx.js'
 export type { AgentCommands } from './operations/types.js'
 
 export type JsonValue =
@@ -28,12 +30,6 @@ export type Codec = 'json' | 'jsonc' | 'toml'
 export interface ConfigFile {
   path: string
   codec: Codec
-}
-
-/** Everything an action needs from the process it runs in. */
-export interface Ctx {
-  /** Home directory root; overridable via CCSET_HOME for isolated runs. */
-  home: string
 }
 
 /** Terminal budget used to cut long interface regions. */
