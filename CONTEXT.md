@@ -20,6 +20,11 @@ configuration. Depending on the Agent, a Provider is either a file of its own
 config document (opencode's `provider.<id>`, Codex's `[model_providers.<id>]`).
 _Avoid_: Agent, model
 
+**Provider ID**:
+A user-chosen, Agent-local identifier that distinguishes one Provider
+configuration and its saved Auth profile where applicable.
+_Avoid_: Provider name, profile name
+
 **Auth profile**:
 A credential ccset has saved for one Provider, in a file ccset owns, separate
 from the Agent's live credential. Codex is the case that needs the term: its key
@@ -45,6 +50,11 @@ A path in an Agent's config that ccset writes, declared once in that Agent's
 `manifest.ts`. Everything else in the file is unmanaged and survives every write
 unchanged. Writing a managed key means writing the leaf, never its parent.
 _Avoid_: Supported field, known key
+
+**Managed patch**:
+A non-interactive write proposal that changes only the Managed keys explicitly
+named by the core user. An omitted Managed key keeps its current value.
+_Avoid_: Complete config, replacement
 
 **Supported platform**:
 A platform the project intends to keep working. Platform-specific changes require
@@ -91,6 +101,16 @@ writing a configuration, including the resulting activation command.
 _Avoid_: Every menu action, exhaustive manual test suite
 
 ### Interface
+
+**Non-interactive command**:
+A stable, script-facing ccset operation that completes without a Screen or a
+prompt and requires every state-changing choice to be explicit.
+_Avoid_: Scripted Screen, headless TUI
+
+**Secret source**:
+The channel from which a Non-interactive command receives a Provider secret:
+`CCSET_TOKEN` or explicitly selected stdin, never a command argument.
+_Avoid_: Token flag, positional token
 
 **Screen**:
 The data an Action returns for the core user to act on — one of form, list, status,

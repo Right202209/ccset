@@ -1873,3 +1873,30 @@ function during its own verification and passes after its removal.
 x64, Node 20.19.5), plus the two out-of-chain gates `verify:i18n-zh` and
 `verify:error-recovery` — all pass. Every touched file is inside the 300-line
 limit; the ratchet names the rest.
+
+---
+
+### 9.39 README guide split and document reconciliation (2026-09-11)
+
+`README.md` now keeps setup, agent selection, common commands, and the main file
+safety guarantees in 113 lines. Detailed agent behavior, credential handling,
+platform limits, CLI options, exit codes, and environment variables moved to
+`docs/user-guide.md`. README links use GitHub URLs so they also work from the npm
+package, which includes the README but not the guide.
+
+After updating master to `c24cd57`, the local glossary additions were retained
+alongside the upstream JSONC and locale terms. Local M3 ADRs were renumbered to
+0006–0014 to avoid the upstream 0004/0005 assignments, with their contents
+preserved and their links updated. The accepted M3 plan records that the
+implementation has landed and that command-contract differences remain for
+conformance closeout; the user guide describes the implemented CLI.
+
+**Run on Node.js 26.8.1:** `npm run typecheck`, `npm run build`,
+`npm run verify:commands`, and `npm run verify:release-artifact` all passed.
+The README's Claude Code JSON-status and opencode dry-run examples passed
+through `dist/cli.js` with an isolated `CCSET_HOME`; the directory stayed empty.
+`--help`, `--version`, and the non-TTY exit-2 refusal also passed without writes
+or ANSI output from the refusal. Documentation checks found 22 valid local
+links/anchors, balanced code fences, 14 unique ADR numbers, unchanged content
+in the nine renumbered ADRs, and no remaining Git conflict markers or unmerged
+index entries. No runtime code changed during this reconciliation.

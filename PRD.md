@@ -503,6 +503,9 @@ guarantee cannot be extended to a non-JSON agent.
 - Windows and WSL verification to improve best-effort compatibility evidence.
 - Additional i18n catalogs.
 
+The accepted command, safety, output, and reuse plan is recorded in
+[docs/milestone-3-non-interactive.md](docs/milestone-3-non-interactive.md).
+
 ---
 
 ## 8. Risks and Assumptions
