@@ -37,9 +37,14 @@ export function backupsDir(home: string): string {
   return backupsDirFor(claudeDir(home))
 }
 
-/** The command that actually activates a settings file (PRD 9.1). */
+/**
+ * The command that actually activates a settings file (PRD 9.1). The path is
+ * single-quoted, so a home directory with a space stays one argument; an
+ * embedded quote is escaped the POSIX way (Windows stays best-effort).
+ */
 export function activationCommand(settingsPath: string): string {
-  return `claude --settings ${path.resolve(settingsPath)}`
+  const resolved = path.resolve(settingsPath).replaceAll("'", "'\\''")
+  return `claude --settings '${resolved}'`
 }
 
 /** Returns the provider name, or null when the filename is not a provider file. */

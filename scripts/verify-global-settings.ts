@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { saveGlobal } from '../src/agents/claude-code/global.js'
-import { globalSettingsPath } from '../src/agents/claude-code/paths.js'
+import { activationCommand, globalSettingsPath } from '../src/agents/claude-code/paths.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 
 const original: JsonObject = {
@@ -39,6 +39,19 @@ async function readJson(filePath: string): Promise<JsonObject> {
   return JSON.parse(await fs.readFile(filePath, 'utf8')) as JsonObject
 }
 
+/**
+ * The activation line is what the user pastes into a shell, so a home directory
+ * with a space must arrive as one argument: the path is single-quoted, and an
+ * embedded quote is escaped the POSIX way. The report carries the same line.
+ */
+function checkActivationCommand(target: string, reportCommand: string): void {
+  const spaced = '/tmp/has space/.claude/settings.json'
+  assert.equal(activationCommand(spaced), `claude --settings '${spaced}'`, 'a space in the path broke the activation command into two arguments')
+  const quoted = "/tmp/it's/.claude/settings.json"
+  assert.equal(activationCommand(quoted), `claude --settings '/tmp/it'\\''s/.claude/settings.json'`, 'an embedded quote was not escaped')
+  assert.equal(reportCommand, `claude --settings '${target}'`, 'the save report did not carry the quoted activation command')
+}
+
 async function main(): Promise<void> {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-global-'))
   try {
@@ -50,6 +63,7 @@ async function main(): Promise<void> {
     const first = await saveGlobal({ home }, values)
     assert.ok(first.backupPath)
     assert.equal(await fs.readFile(first.backupPath, 'utf8'), originalText)
+    checkActivationCommand(target, first.command)
 
     const saved = await readJson(target)
     assert.deepEqual(saved['hooks'], original['hooks'])
