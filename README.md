@@ -256,6 +256,9 @@ and `requires_openai_auth = true` on every save, and lands the key in
 something that is none of the saved profiles, the switch refuses until you pass
 exactly one of `--adopt-current-as <name>` (keep it as a new, switchable
 profile) or `--replace-current-auth` (discard it — backed up either way).
+The choice is only asked for when it is needed: passing `--adopt-current-as`
+against a live `auth.json` that already matches a saved profile is refused,
+because nothing is being replaced and there is nothing to adopt.
 
 | Exit code | Meaning |
 | --- | --- |

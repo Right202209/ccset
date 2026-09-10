@@ -149,12 +149,11 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.error.homeOverrideUnsupported':
       'CODEX_HOME points Codex at {path}; switching here would not be the switch Codex sees.',
     'codex.error.unreadableProfile': '{path} is not valid JSON — fix or remove it before switching to this profile.',
-    'codex.error.credentialSourceConflict':
-      'Provider {id} sets {keys}. Codex uses those instead of auth.json, so the saved credential would be ignored — remove them from the provider table first.',
-    'codex.validate.conflictNeedsChoice':
-      'auth.json holds a credential that is not one of the saved profiles; pass --adopt-current-as or --replace-current-auth to keep or discard it.',
-    'codex.validate.adoptOrReplace':
-      'Pass only one of --adopt-current-as and --replace-current-auth.',
+    'codex.error.credentialSourceConflict': 'Provider {id} sets {keys}. Codex uses those instead of auth.json, so the saved credential would be ignored — remove them from the provider table first.',
+    'codex.validate.conflictNeedsChoice': 'auth.json holds a credential that is not one of the saved profiles; pass --adopt-current-as or --replace-current-auth to keep or discard it.',
+    'codex.validate.adoptNeedsConflict':
+      'auth.json already matches a saved profile, so nothing is being replaced; --adopt-current-as only applies when the live credential would otherwise be lost.',
+    'codex.validate.adoptOrReplace': 'Pass only one of --adopt-current-as and --replace-current-auth.',
 
     /* ------------------------------------------------------------------ busy */
     'codex.busy.switching': 'Switching to {id}…',
@@ -287,12 +286,11 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.error.homeOverrideUnsupported':
       'CODEX_HOME 指向 {path}；在这里切换并不是 Codex 实际看到的切换。',
     'codex.error.unreadableProfile': '{path} 不是有效的 JSON — 请先修复或删除它，再切换到该凭据配置。',
-    'codex.error.credentialSourceConflict':
-      '提供商 {id} 设置了 {keys}。Codex 会优先使用它们而不是 auth.json，已保存的凭据将被忽略 — 请先从该提供商表中移除这些键。',
-    'codex.validate.conflictNeedsChoice':
-      'auth.json 中的凭据不属于任何已保存的凭据配置；请传 --adopt-current-as 保留，或 --replace-current-auth 丢弃。',
-    'codex.validate.adoptOrReplace':
-      '--adopt-current-as 与 --replace-current-auth 只能传一个。',
+    'codex.error.credentialSourceConflict': '提供商 {id} 设置了 {keys}。Codex 会优先使用它们而不是 auth.json，已保存的凭据将被忽略 — 请先从该提供商表中移除这些键。',
+    'codex.validate.conflictNeedsChoice': 'auth.json 中的凭据不属于任何已保存的凭据配置；请传 --adopt-current-as 保留，或 --replace-current-auth 丢弃。',
+    'codex.validate.adoptNeedsConflict':
+      'auth.json 已与某个已保存的凭据配置一致，没有内容会被替换；--adopt-current-as 仅用于将要丢失的未知凭据。',
+    'codex.validate.adoptOrReplace': '--adopt-current-as 与 --replace-current-auth 只能传一个。',
 
     /* ------------------------------------------------------------------ busy */
     'codex.busy.switching': '正在切换到 {id}…',

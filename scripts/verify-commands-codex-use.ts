@@ -144,6 +144,26 @@ async function checkConflictRefusals(): Promise<void> {
   const ghost = await runCli(['--agent', 'codex', 'provider', 'use', 'ghost'], before.home)
   assert.equal(ghost.code, EXIT_RUNTIME, 'a missing profile was not refused')
   await fs.rm(before.home, { recursive: true, force: true })
+
+  // The live credential is profile `old` byte for byte, so nothing would be
+  // lost: adoption only makes sense when the live bytes would otherwise go.
+  const unconflicted = await seed(KNOWN_LIVE, true)
+  const strayAdopt = await runCli(
+    ['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'kept', '--json'],
+    unconflicted.home,
+  )
+  assert.equal(strayAdopt.code, EXIT_RUNTIME, 'an adopt flag on an unconflicted switch was accepted')
+  assert.equal(
+    (JSON.parse(strayAdopt.stdout) as Envelope).error?.code,
+    'codex.validate.adoptNeedsConflict',
+    'the unconflicted-adopt refusal was not the documented code',
+  )
+  assert.equal(
+    await fs.readFile(authProfilePath(unconflicted.home, 'kept'), 'utf8').then(() => true, () => false),
+    false,
+    'a refused adoption still wrote a profile',
+  )
+  await fs.rm(unconflicted.home, { recursive: true, force: true })
 }
 
 async function checkAdoption(): Promise<void> {

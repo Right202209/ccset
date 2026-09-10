@@ -118,7 +118,7 @@ ccset -v | --version | -h | --help
 
 密钥只能通过 `CCSET_TOKEN` 或 `--token-stdin` 进入 ccset——绝不允许作为选项、位置参数或文件，这些都会被拒绝为用法错误——并且只会写进该 provider 自己的目标：Claude Code 的 provider 文件、opencode 对应配置块的 `options.apiKey`、Codex 的 `auth.<id>.json` 旁路文件。它绝不会被打印——不在面向人的输出里，不在 JSON 信封里，也不在错误、警告或备份里。
 
-关于 Codex 的细节：`provider set` 每次保存都会重新断言 `wire_api = "responses"` 与 `requires_openai_auth = true`，并把密钥写入 `auth.<id>.json`——绝不写入 `config.toml`，也绝不碰在用的 `auth.json`。`provider use` 会把指定凭据配置复制为 `auth.json` 并在同一操作中移动 `model_provider`，先提交路由。如果 `auth.json` 中已有不属于任何已保存凭据配置的内容，切换会被拒绝，直到你传且只传 `--adopt-current-as <name>`（把它保存为新的可切换配置）或 `--replace-current-auth`（丢弃——无论如何都会先备份）。
+关于 Codex 的细节：`provider set` 每次保存都会重新断言 `wire_api = "responses"` 与 `requires_openai_auth = true`，并把密钥写入 `auth.<id>.json`——绝不写入 `config.toml`，也绝不碰在用的 `auth.json`。`provider use` 会把指定凭据配置复制为 `auth.json` 并在同一操作中移动 `model_provider`，先提交路由。如果 `auth.json` 中已有不属于任何已保存凭据配置的内容，切换会被拒绝，直到你传且只传 `--adopt-current-as <name>`（把它保存为新的可切换配置）或 `--replace-current-auth`（丢弃——无论如何都会先备份）。这个选择只在需要时才会被问到：如果 `auth.json` 已与某个已保存凭据配置一致，再传 `--adopt-current-as` 会被拒绝——没有任何内容会被替换，也就没有可采纳的对象。
 
 | 退出码 | 含义 |
 | --- | --- |
