@@ -51,7 +51,7 @@ interface Envelope {
   changed?: boolean
   warnings?: { code: string; params?: Record<string, string> }[]
   targets?: { path: string; backupPath: string | null; changed: boolean }[]
-  error?: { code: string }
+  error?: { code: string; params?: Record<string, string> }
 }
 
 type Env = Record<string, string | undefined>
@@ -231,7 +231,12 @@ async function checkWarningsUnsetAndUnreadable(): Promise<void> {
     'the CODEX_HOME finding was not reported before saving',
   )
   await fs.rm(home, { recursive: true, force: true })
+  await checkUnsetAndUnreadable()
+}
 
+/** Removal never lands when it is refused, and an unreadable sidecar holds the
+ *  exit code at 4 while the document stays untouched. */
+async function checkUnsetAndUnreadable(): Promise<void> {
   const unset = await seed()
   // Codex refuses to start with a nameless provider, so removing the label is
   // refused however the block would be produced.
@@ -250,10 +255,41 @@ async function checkWarningsUnsetAndUnreadable(): Promise<void> {
   await fs.rm(broken.home, { recursive: true, force: true })
 }
 
+/**
+ * The TUI refuses a provider block whose credential comes from `env_key` or
+ * `experimental_bearer_token` (Codex reads those before auth.json, so the
+ * saved credential would be a dead letter reported as success). The command
+ * surface runs the same save, so the same refusal must hold here: exit 1,
+ * nothing written, the conflicting key named.
+ */
+async function checkCredentialSourceRefusal(): Promise<void> {
+  const before = await seed()
+  const withEnvKey = ORIGINAL.replace(
+    '[model_providers.router]\nname = "Router"',
+    '[model_providers.router]\nname = "Router"\nenv_key = "ROUTER_KEY"',
+  )
+  await fs.writeFile(codexConfigPath(before.home), withEnvKey, { mode: 0o600 })
+  const configBefore = await fs.readFile(codexConfigPath(before.home), 'utf8')
+  const refused = await runCli(
+    ['--agent', 'codex', 'provider', 'set', 'router', '--base-url', 'https://n.example/v1', '--token-stdin', '--json'],
+    before.home,
+    `${NEW_KEY}\n`,
+  )
+  assert.equal(refused.code, EXIT_RUNTIME, 'a block carrying env_key was saved anyway')
+  const envelope = JSON.parse(refused.stdout) as Envelope
+  assert.equal(envelope.error?.code, 'codex.error.credentialSourceConflict', 'the refusal did not name the conflict')
+  assert.equal(envelope.error?.params?.keys, 'env_key', 'the refusal did not name the conflicting key')
+  assert.equal(await fs.readFile(codexConfigPath(before.home), 'utf8'), configBefore, 'a refused save still mutated config.toml')
+  assert.equal(await fs.readFile(authProfilePath(before.home, 'router'), 'utf8'), before.sidecar, 'the refusal disturbed the sidecar')
+  assert.equal(`${refused.stdout}${refused.stderr}`.includes(NEW_KEY), false, 'the secret reached output')
+  await fs.rm(before.home, { recursive: true, force: true })
+}
+
 async function main(): Promise<void> {
   await checkProviderPatch()
   await checkSecretRotation()
   await checkNewProviderAndRefusals()
+  await checkCredentialSourceRefusal()
   await checkWarningsUnsetAndUnreadable()
   process.stdout.write('codex provider set verification passed.\n')
 }
