@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { saveProvider } from '../src/agents/claude-code/providers.js'
 import { buildStatus } from '../src/agents/claude-code/status.js'
-import { probeEndpoint } from '../src/agents/claude-code/test-connection.js'
+import { probeEndpoint, warnsPlaintextHttp } from '../src/agents/claude-code/test-connection.js'
 import { BACKUP_INFIX, MASK_CHAR, MASK_FULL_HIDE_BELOW, MASK_MIDDLE_WIDTH, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import { backupsDir, providerSettingsPath } from '../src/agents/claude-code/paths.js'
@@ -80,6 +80,21 @@ async function verifyMaskThresholds(): Promise<void> {
   assert.equal(maskSecret(''), '', 'the empty secret did not stay empty')
 }
 
+/**
+ * A credential over plain http travels unencrypted, so the confirm names it --
+ * unless the destination is the user's own machine, where the wire never
+ * leaves the host.
+ */
+function checkPlaintextWarning(): void {
+  assert.equal(warnsPlaintextHttp('http://api.example.com/v1'), true, 'a plain-http host did not warn')
+  assert.equal(warnsPlaintextHttp('http://localhost:8080/v1'), false, 'localhost warned')
+  assert.equal(warnsPlaintextHttp('http://proxy.localhost:3000'), false, 'a .localhost host warned')
+  assert.equal(warnsPlaintextHttp('http://127.0.0.1:8081'), false, 'a loopback address warned')
+  assert.equal(warnsPlaintextHttp('http://[::1]/v1'), false, 'an IPv6 loopback warned')
+  assert.equal(warnsPlaintextHttp('https://api.example.com/v1'), false, 'https warned')
+  assert.equal(warnsPlaintextHttp('not a url'), false, 'an unparseable URL warned')
+}
+
 async function main(): Promise<void> {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-provider-'))
   try {
@@ -125,6 +140,7 @@ async function main(): Promise<void> {
     assert.equal(maskSecret(token).length, maskSecret(`${token}-MUCH-LONGER`).length)
     await verifySecretFieldMaskingContract()
     await verifyMaskThresholds()
+    checkPlaintextWarning()
     await verifyProbeErrorIsSanitized()
 
     process.stdout.write('Provider settings and credential safety verification passed.\n')

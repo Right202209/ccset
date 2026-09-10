@@ -112,6 +112,7 @@ export const en: Record<string, string> = {
   'confirm.testHost': 'Destination host: {host}',
   'confirm.testToken': 'Token sent:      {token}',
   'confirm.testWarning': 'This transmits a live credential to a third-party host. Nothing is sent until you confirm.',
+  'confirm.testPlaintext': 'The destination is plain http: the token travels unencrypted.',
   'confirm.freshTitle': 'File is not valid JSON',
   'confirm.freshTitleToml': 'File is not valid TOML',
   'confirm.freshExplain': 'ccset will not overwrite it silently. Continuing backs the file up, then writes a fresh one containing only the settings on this form — every other key in the broken file is lost.',
