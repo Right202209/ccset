@@ -1,15 +1,16 @@
-import { MASK_CHAR, MASK_MIDDLE_WIDTH, MASK_VISIBLE_CHARS } from './constants.js'
+import { MASK_CHAR, MASK_FULL_HIDE_BELOW, MASK_MIDDLE_WIDTH, MASK_VISIBLE_CHARS } from './constants.js'
 
 const MIDDLE = MASK_CHAR.repeat(MASK_MIDDLE_WIDTH)
 
 /**
  * First 4 and last 4 characters, with a fixed-width middle so the mask never
- * encodes the true length (PRD 4.2.4). Short secrets are masked entirely --
- * showing 4+4 of a 9-character token would reveal almost all of it.
+ * encodes the true length (PRD 4.2.4). A secret shorter than
+ * MASK_FULL_HIDE_BELOW is masked entirely -- 4+4 of it would reveal half or
+ * more, and a 9-character token would have shown 8 of its 9 characters.
  */
 export function maskSecret(secret: string): string {
   if (secret.length === 0) return ''
-  if (secret.length <= MASK_VISIBLE_CHARS * 2) return MIDDLE
+  if (secret.length < MASK_FULL_HIDE_BELOW) return MIDDLE
   const head = secret.slice(0, MASK_VISIBLE_CHARS)
   const tail = secret.slice(secret.length - MASK_VISIBLE_CHARS)
   return `${head}${MIDDLE}${tail}`

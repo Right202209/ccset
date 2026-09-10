@@ -113,6 +113,7 @@ export const zhHans: Record<string, string> = {
   'confirm.testHost': '目标主机：{host}',
   'confirm.testToken': '发送的令牌：{token}',
   'confirm.testWarning': '这会把真实凭据发送到第三方主机。在你确认之前不会发送任何内容。',
+  'confirm.testPlaintext': '目标是明文 http：令牌将不经加密地发送。',
   'confirm.freshTitle': '文件不是有效的 JSON',
   'confirm.freshTitleToml': '文件不是有效的 TOML',
   'confirm.freshExplain': 'ccset 不会静默覆盖它。继续会先备份该文件，再写入一个只包含此表单内容的新文件 — 损坏文件中的其他所有键都会丢失。',
@@ -157,7 +158,7 @@ export const zhHans: Record<string, string> = {
   'validate.urlProtocol': '只允许 http:// 和 https://。',
   'validate.urlHost': 'URL 没有主机名。',
   'validate.notInteger': '只能是整数。',
-  'validate.notPositive': '必须大于零。',
+  'validate.tooSmall': '低于 ccset 接受的最小值。',
   'validate.tooLarge': '超出了 ccset 接受的范围。',
 
   /* ----------------------------------------------------------------- warn */

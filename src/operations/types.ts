@@ -1,4 +1,4 @@
-import type { Ctx } from '../types.js'
+import type { Ctx } from '../ctx.js'
 import type { TargetRecord } from '../core/target.js'
 
 export type { TargetRecord }

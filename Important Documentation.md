@@ -191,7 +191,13 @@ compatibility window.
 
 ## 7. Code-quality gates
 
-Per project rules, enforced on every file touched:
+Per project rules, enforced on every file touched. As of §9.38 the three size
+rules are *executed* by `npm run verify:code-gates` (inside the `npm test`
+chain): files ≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10 per
+function, measured through the TypeScript AST. Functions over a limit in files
+the gate's introduction did not touch sit in the fixture's BASELINE ratchet:
+each entry must still match a live violation, so fixing one forces the entry's
+removal, and any new violation fails the gate.
 
 - Functions ≤ 50 lines (excluding blanks); files ≤ 300 lines; nesting ≤ 3;
   positional parameters ≤ 3; cyclomatic complexity ≤ 10 per function.
@@ -1792,3 +1798,78 @@ prototype was polluted"; removing the ctrl/meta filter failed with "ctrl+s
 inserted its s into the focused field"; and bypassing the inline/dotted
 resolution failed with "an inline table grew a header". The full `npm test` chain, typecheck and build pass on Linux
 x64, Node 20.19.5, and every touched file stays inside the 300-line limit.
+
+---
+
+### 9.38 Post-review fix: eleven findings, and the quality gates executed (2026-09-11)
+
+A full code-and-documentation review produced eleven graded findings; every fix
+landed test-first, each new assertion shown failing against the unfixed tree
+before the fix made it pass.
+
+**Codex, both surfaces.** The `env_key`/`experimental_bearer_token` refusal
+existed only on the TUI save (`refuseOverridingCredentialSource`), so
+`CCSET_TOKEN=… ccset --agent codex provider set <id> …` against a block that
+reads its credential elsewhere reported success while the saved key was a dead
+letter — the exact "looks right and silently fails" shape the tool exists to
+prevent, and a README promise stated without limiting it to the interface. The
+refusal moved into `preflightProviderSet` so both surfaces enforce it; the
+fixture pins exit 1, the untouched document, the named key, and no secret in
+output (it failed with `actual: 0, expected: 1` first). `--adopt-current-as`
+against a live `auth.json` that already matches a saved profile used to be
+accepted and could only ever duplicate an existing profile; the preflight now
+refuses it (`codex.validate.adoptNeedsConflict`, new in both catalogs,
+`messages.ts` compacted to stay inside 300 lines), README and README.zh-CN
+state it, and the fixture pins the refusal, the absent sidecar, and the code.
+
+**Masking.** `maskSecret` masked a secret entirely only up to 8 characters, so
+a 9-character secret displayed 8 of its 9 real characters — the exact case the
+function's own comment claimed it prevented. A secret shorter than
+`MASK_FULL_HIDE_BELOW` (16) is now masked entirely: at 16 the 4+4 window shows
+at most half. The boundary sweep (1–15 fully masked, 16 showing 4+4) failed
+first on the unfixed tree.
+
+**Activation line.** `activationCommand` pasted the settings path unquoted, so
+a home directory with a space broke `claude --settings <path>` into two
+arguments. The path is single-quoted with POSIX quote escaping; the fixture
+asserts the spaced path, the escaped quote, and the save report's own command.
+
+**TOML strict pass.** `findTomlProblem` accepted documents a strict parser
+rejects — duplicate keys, repeated `[table]` headers, dotted-then-header and
+value-then-table redefinitions, static/array collisions — while the tolerant
+scanner resolved them last-wins, so ccset would edit a file Codex refuses to
+load and report success. A redefinition tracker (`toml/redefine.ts`) now joins
+the strict pass, checking leaf, dotted-table, header and array-table conflicts
+per table instance; the corpus gains eleven rejected and six legal shapes
+(super-tables after sub-tables, per-element keys of an array of tables), and
+`skipTrivia` lives once in `scan.ts` instead of twice.
+
+**The rest.** `makeOptionalIntValidator` never enforced a minimum above zero
+(every current caller uses 0 or 1, so no shipped field changed); it now
+rejects below-minimum values with `validate.tooSmall` (both catalogs), the
+dead `validate.notPositive` removed. Test connection warns before sending a
+token to a plain-`http://` non-loopback destination (`confirm.testPlaintext`,
+`warnsPlaintextHttp`). The `types.ts ↔ operations/types.ts` type-only cycle is
+broken: `Ctx` lives in `src/ctx.ts`, re-exported so no import path changed;
+the cycle scan reports none. Esc on the unsaved-edits prompt now means stay —
+the safe answer the cursor already started on — pinned through the real PTY
+(the unhandled escape timed out the fixture first). `~/.claude.json`'s
+error position and `core/position.ts` were one formula in two files, now one;
+`CONTEXT.md`'s Agent entry names three agents; an unknown `--agent` in
+interactive mode exits 65, the code the table already documented.
+
+**The gates, executed.** §7 was enforced by hand; `npm run verify:code-gates`
+(now inside the `npm test` chain, twenty-three fixtures) measures files
+≤ 300 lines and functions ≤ 50 non-blank lines, complexity ≤ 10 through the
+TypeScript AST. Its introduction measured the tree honestly: eighteen
+functions over a limit in files predating the gate sit in a ratchet BASELINE
+whose entries fail the gate once the code beneath them is fixed, and the two
+files this change pushed over 300 lines (`toml/check.ts`, the provider-set
+fixture) were slimmed back under it — the provider-set fixture also split its
+53-line check so a touched file complies. The gate failed on a 62-line probe
+function during its own verification and passes after its removal.
+
+**Run.** typecheck, build, the full `npm test` chain (21 gates, Ubuntu Linux
+x64, Node 20.19.5), plus the two out-of-chain gates `verify:i18n-zh` and
+`verify:error-recovery` — all pass. Every touched file is inside the 300-line
+limit; the ratchet names the rest.

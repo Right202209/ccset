@@ -1,5 +1,6 @@
 import { describePosition } from '../position.js'
-import { endOfLine, scanKeyPath, skipSpace } from './scan.js'
+import { endOfLine, scanKeyPath, skipSpace, skipTrivia } from './scan.js'
+import { recordDefinition, trackDefinitions } from './redefine.js'
 import { SHORT_ESCAPES } from './strings.js'
 
 /**
@@ -175,22 +176,6 @@ function checkBare(text: string, start: number): ValueScan {
 
 /* ------------------------------------------------------ compound values */
 
-function skipTrivia(text: string, index: number): number {
-  let i = index
-  for (;;) {
-    const char = text.charAt(i)
-    if (char === ' ' || char === '\t' || char === '\n' || char === '\r') {
-      i += 1
-      continue
-    }
-    if (char === '#') {
-      i = endOfLine(text, i)
-      continue
-    }
-    return i
-  }
-}
-
 function checkArray(text: string, start: number, depth: number): ValueScan {
   let i = start + 1
   for (;;) {
@@ -264,8 +249,12 @@ function checkAssignment(text: string, start: number): string | null {
   return isLineEnd(text, rest) ? null : describePosition(text, rest)
 }
 
-/** Position of the first syntax problem, or null when the document is sound. */
+/** Position of the first syntax problem, or null when the document is sound.
+ *  Sound here includes "no key or table is defined twice": the tolerant
+ *  scanner resolves duplicates last-wins, but a strict parser refuses the
+ *  document, so the strict pass must too (see redefine.ts). */
 export function findTomlProblem(text: string): string | null {
+  const definitions = trackDefinitions()
   let index = 0
   while (index < text.length) {
     const lineStart = index
@@ -274,9 +263,12 @@ export function findTomlProblem(text: string): string | null {
       index = endOfLine(text, lineStart)
       continue
     }
-    const problem =
-      text.charAt(start) === '[' ? checkHeader(text, start) : checkAssignment(text, start)
+    const isHeader = text.charAt(start) === '['
+    const problem = isHeader ? checkHeader(text, start) : checkAssignment(text, start)
     if (problem !== null) return problem
+    if (recordDefinition(definitions, text, start, isHeader)) {
+      return describePosition(text, start)
+    }
     index = endOfLine(text, nextLineFrom(text, start))
     if (index <= lineStart) index = lineStart + 1
   }

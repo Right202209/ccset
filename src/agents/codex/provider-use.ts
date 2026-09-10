@@ -46,6 +46,26 @@ interface UsePreflight {
   conflicted: boolean
 }
 
+function refuseInvalidAdoptName(auth: AuthState, adoptAs: string): void {
+  const problem = makeKeyNameValidator(auth.profiles.map((candidate) => candidate.name))(adoptAs)
+  if (problem !== null) throw new ValidationError(problem, { name: adoptAs })
+}
+
+/**
+ * Two environments make a switch a no-op or a lie: a keyring credential store
+ * means Codex never reads auth.json, and a CODEX_HOME elsewhere means the
+ * files ccset writes are not the ones it reads. Refused, not warned.
+ */
+function refuseUnsupportedEnvironment(configBase: LoadedConfig, ctx: Ctx): void {
+  if (keyringInUseIn(configBase.data)) {
+    throw new CcsetError('codex.error.keyringUnsupported', EXIT_RUNTIME)
+  }
+  const override = codexHomeOverride(ctx.home)
+  if (override !== null) {
+    throw new CcsetError('codex.error.homeOverrideUnsupported', EXIT_RUNTIME, { path: override })
+  }
+}
+
 /** Everything that decides the shape of the switch, before any rename or copy. */
 async function preflightProviderUse(
   ctx: Ctx,
@@ -64,21 +84,19 @@ async function preflightProviderUse(
   await readConfigFile(configFile(profile.path, 'json'))
   const file = codexConfigFile(ctx.home)
   const configBase = await readConfigFile(file)
-  if (keyringInUseIn(configBase.data)) {
-    throw new CcsetError('codex.error.keyringUnsupported', EXIT_RUNTIME)
-  }
-  const override = codexHomeOverride(ctx.home)
-  if (override !== null) {
-    throw new CcsetError('codex.error.homeOverrideUnsupported', EXIT_RUNTIME, { path: override })
-  }
+  refuseUnsupportedEnvironment(configBase, ctx)
   const conflicted = auth.exists && auth.activeName === null
   if (conflicted && adoptAs === null && !replaceCurrent) {
     throw new ValidationError('codex.validate.conflictNeedsChoice', { path: auth.path })
   }
-  if (adoptAs !== null) {
-    const problem = makeKeyNameValidator(auth.profiles.map((candidate) => candidate.name))(adoptAs)
-    if (problem !== null) throw new ValidationError(problem, { name: adoptAs })
+  // Adoption keeps the live bytes under a name before they are replaced. When
+  // the live credential already is a saved profile, nothing is being replaced,
+  // so there is nothing to adopt -- accepting the flag would only duplicate a
+  // profile the user already has.
+  if (adoptAs !== null && !conflicted) {
+    throw new ValidationError('codex.validate.adoptNeedsConflict')
   }
+  if (adoptAs !== null) refuseInvalidAdoptName(auth, adoptAs)
   return { id, auth, file, configBase, adoptAs, replaceCurrent, conflicted }
 }
 

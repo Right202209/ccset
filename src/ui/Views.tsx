@@ -125,9 +125,13 @@ interface PromptProps {
   onCancel: () => void
 }
 
-/** The unsaved-edits guard. Not an ActionResult: no agent produces it. */
+/** The unsaved-edits guard. Not an ActionResult: no agent produces it. Esc
+ *  means stay -- the same safe answer the cursor starts on. */
 export function Prompt({ lineKey, confirmKey, onConfirm, onCancel }: PromptProps): React.ReactElement {
   const { fold } = useTerminal()
+  useInput((_input, key) => {
+    if (key.escape) onCancel()
+  })
   const options: SelectOption[] = [
     { id: 'confirm', label: t(confirmKey), tone: 'warn' },
     { id: 'cancel', label: t('prompt.stay') },

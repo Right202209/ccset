@@ -40,6 +40,12 @@ export const MASK_VISIBLE_CHARS = 4
 /** Fixed-width middle run, so masking never encodes the true length. */
 export const MASK_MIDDLE_WIDTH = 8
 export const MASK_CHAR = '•'
+/**
+ * Secrets shorter than this are masked entirely: 4+4 of them would reveal half
+ * or more of the value. At 16 the 4+4 window shows at most half, which is the
+ * most a partial mask may disclose (PRD 4.2.4).
+ */
+export const MASK_FULL_HIDE_BELOW = 16
 
 /* ---------------------------------------------------------- connection */
 

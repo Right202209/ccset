@@ -17,7 +17,7 @@ import { loadProviders, saveProvider, seedProvider, type ProviderRecord } from '
 import { runSave } from '../../core/save.js'
 import { buildStatus } from './status.js'
 import { createStateIfMissing } from './state.js'
-import { probeEndpoint, probeHost } from './test-connection.js'
+import { probeEndpoint, probeHost, warnsPlaintextHttp } from './test-connection.js'
 
 /* -------------------------------------------------------------- global */
 
@@ -192,6 +192,7 @@ function probeConfirm(record: ProviderRecord): ActionResult {
       t('confirm.testHost', { host: probeHost(record.baseUrl) }),
       t('confirm.testToken', { token: maskSecret(record.token) }),
       t('confirm.testWarning'),
+      ...(warnsPlaintextHttp(record.baseUrl) ? [t('confirm.testPlaintext')] : []),
     ],
     confirmLabel: t('confirm.send'),
     busyLabel: t('app.busyConnecting', { host: probeHost(record.baseUrl) }),

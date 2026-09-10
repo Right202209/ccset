@@ -65,6 +65,29 @@ export function probeHost(baseUrl: string): string {
   }
 }
 
+/**
+ * A credential over plain http travels unencrypted, so the confirm names it
+ * before sending. A loopback destination never leaves the user's machine, and
+ * an unparseable URL is refused before the confirm opens, so neither warns.
+ */
+export function warnsPlaintextHttp(baseUrl: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(baseUrl.trim())
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== 'http:') return false
+  const host = parsed.hostname.toLowerCase()
+  const loopback =
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host === '::1' ||
+    host === '[::1]' ||
+    host.startsWith('127.')
+  return !loopback
+}
+
 function probeBody(model: string): string {
   return JSON.stringify({
     model: model.trim().length > 0 ? model.trim() : PROBE_FALLBACK_MODEL,

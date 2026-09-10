@@ -77,8 +77,9 @@ export function validateOptionalUrl(value: string): string | null {
  * a token budget and a timeout do not share a scale, and hard-coding one
  * agent's maximum here would misjudge every other agent's numbers.
  *
- * The pattern already excludes signs, so a zero minimum means "zero is a
- * meaningful value" (retries) rather than a separate rejection message.
+ * The pattern already excludes signs, so the minimum is a real bound: a
+ * validator built with minimum 1 rejects zero, and one built with minimum 5
+ * rejects 3. Blank still means omit, whichever the bounds are.
  */
 export function makeOptionalIntValidator(minimum: number, maximum: number): Validator {
   return (value: string): string | null => {
@@ -86,7 +87,7 @@ export function makeOptionalIntValidator(minimum: number, maximum: number): Vali
     if (raw.length === 0) return null
     if (!/^\d+$/.test(raw)) return 'validate.notInteger'
     const parsed = Number(raw)
-    if (parsed === 0 && minimum > 0) return 'validate.notPositive'
+    if (parsed < minimum) return 'validate.tooSmall'
     if (parsed > maximum) return 'validate.tooLarge'
     return null
   }

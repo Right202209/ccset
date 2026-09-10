@@ -3,6 +3,7 @@ import path from 'node:path'
 import type { Codec, ConfigFile, JsonObject } from '../types.js'
 import { DIR_MODE, FILE_MODE } from './constants.js'
 import { CcsetError, EXIT_RUNTIME, JsonParseError, isNotFound, wrapFsError } from './errors.js'
+import { describePosition } from './position.js'
 
 export interface LoadedFile {
   path: string
@@ -25,16 +26,12 @@ function serialize(codec: Codec, data: JsonObject): string {
   return `${JSON.stringify(data, null, 2)}\n`
 }
 
-/** Turns "... at position 42" into a human line/column, best effort. */
-function describePosition(err: unknown, raw: string): string {
+/** Turns "... at position 42" into the human line/column both codecs use. */
+function describeJsonErrorPosition(err: unknown, raw: string): string {
   const message = err instanceof Error ? err.message : ''
   const match = /position (\d+)/.exec(message)
   if (match?.[1] === undefined) return message.slice(0, 80)
-  const offset = Number(match[1])
-  const before = raw.slice(0, offset)
-  const line = before.split('\n').length
-  const column = offset - before.lastIndexOf('\n')
-  return `line ${line}, column ${column}`
+  return describePosition(raw, Number(match[1]))
 }
 
 export function parseJsonObject(raw: string, filePath: string): JsonObject {
@@ -42,7 +39,7 @@ export function parseJsonObject(raw: string, filePath: string): JsonObject {
   try {
     parsed = JSON.parse(raw)
   } catch (err) {
-    throw new JsonParseError(filePath, describePosition(err, raw))
+    throw new JsonParseError(filePath, describeJsonErrorPosition(err, raw))
   }
   if (!isPlainObject(parsed)) throw new JsonParseError(filePath, 'root is not an object')
   return parsed

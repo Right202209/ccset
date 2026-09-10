@@ -241,6 +241,46 @@ function verifySpacedKeyIsDistinct(): void {
   assert.deepEqual(read['lit'], { key: 8 })
 }
 
+/**
+ * Documents a strict TOML parser rejects. The tolerant scanner resolves a
+ * repeated key last-wins and would happily edit such a file, but Codex refuses
+ * to load it -- so the strict pass has to send it to the malformed confirm
+ * instead of reporting a save that cannot work.
+ */
+function verifyDuplicateDefinitionsDetected(): void {
+  const rejected: Record<string, string> = {
+    duplicateRootKey: 'a = 1\na = 2\n',
+    duplicateTableKey: '[t]\na = 1\na = 2\n',
+    duplicateHeader: '[t]\na = 1\n\n[t]\nb = 2\n',
+    dottedThenHeader: 'a.b = 1\n\n[a]\nc = 2\n',
+    headerThenDotted: '[a]\nb.c = 1\nb = 2\n',
+    headerOverValue: 'a = 1\n[a]\nb = 2\n',
+    valueThenSubTable: 'a = 1\n\n[a.b]\nc = 2\n',
+    inlineThenExtend: 'a = { b = 1 }\na.c = 2\n',
+    staticAfterArray: '[[a]]\nn = 1\n\n[a]\nb = 2\n',
+    arrayAfterStatic: '[a]\nn = 1\n\n[[a]]\nb = 2\n',
+    quotedDuplicate: 'a = 1\n"a" = 2\n',
+  }
+  for (const [name, text] of Object.entries(rejected)) {
+    assert.notEqual(findTomlProblem(text), null, `a redefinition went undetected: ${name}`)
+  }
+}
+
+/** Shapes that resemble redefinitions but are legal TOML must stay sound. */
+function verifyLegalTableShapesStaySound(): void {
+  const legal: Record<string, string> = {
+    superTableAfterSub: '[a.b]\nc = 1\n\n[a]\nd = 2\n',
+    arrayTablesRepeated: '[[x]]\nn = 1\n\n[[x]]\nn = 2\n',
+    subArrayOfTables: '[[a]]\nn = 1\n\n[[a.b]]\nc = 2\n',
+    sameKeyDifferentTables: '[t]\na = 1\n\n[u]\na = 2\n',
+    repeatedKeyPerElement: '[[x]]\na.b = 1\n\n[[x]]\na.b = 2\n',
+    dottedSiblings: 'a.b = 1\na.c = 2\n',
+  }
+  for (const [name, text] of Object.entries(legal)) {
+    assert.equal(findTomlProblem(text), null, `legal TOML reported malformed: ${name}`)
+  }
+}
+
 export function verifyTomlCodec(): void {
   verifyRoundTrip()
   verifyReads()
@@ -250,6 +290,8 @@ export function verifyTomlCodec(): void {
   verifyEscaping()
   verifySpacedKeyIsDistinct()
   verifyMalformedDetected()
+  verifyDuplicateDefinitionsDetected()
+  verifyLegalTableShapesStaySound()
   verifyExistingRepresentationsAreResolved()
   verifyIdempotent()
 }

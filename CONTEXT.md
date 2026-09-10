@@ -36,8 +36,8 @@ order are part of what "unmanaged keys survive" has to cover.
 _Avoid_: Parser, serializer, file format
 
 **Agent**:
-A coding tool whose configuration ccset can read or write, currently Claude Code
-and opencode.
+A coding tool whose configuration ccset can read or write, currently Claude
+Code, opencode and Codex CLI.
 _Avoid_: Provider
 
 **Managed key**:

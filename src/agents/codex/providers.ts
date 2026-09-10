@@ -118,7 +118,12 @@ function credentialSourceKeys(data: JsonObject, id: string): string[] {
   )
 }
 
-function refuseOverridingCredentialSource(data: JsonObject, id: string): void {
+/**
+ * Shared by both surfaces of the save: the TUI form and the Non-interactive
+ * command run the same preconditions, so neither can report success while
+ * Codex would keep reading the credential from somewhere else.
+ */
+export function refuseOverridingCredentialSource(data: JsonObject, id: string): void {
   const present = credentialSourceKeys(data, id)
   if (present.length === 0) return
   throw new ValidationError('codex.error.credentialSourceConflict', {

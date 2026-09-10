@@ -7,6 +7,7 @@ import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.j
 import type { Finding, OperationRequest, OperationResult } from '../../operations/types.js'
 import type { Ctx, ConfigFile, JsonObject } from '../../types.js'
 import { keyringInUseIn, authProfileWrites } from './auth.js'
+import { refuseOverridingCredentialSource } from './providers.js'
 import {
   AUTH_API_KEY,
   REQUIRES_OPENAI_AUTH,
@@ -128,6 +129,28 @@ interface ProviderSetPreflight {
   warnings: Finding[]
 }
 
+/**
+ * A provider that does not exist yet needs a URL and a label up front, while
+ * an existing one may patch either; the label may never be unset, because
+ * Codex refuses to start with a nameless provider.
+ */
+function refuseIncompleteNewProvider(
+  base: LoadedConfig,
+  request: OperationRequest,
+  id: string,
+): void {
+  const isNew = !(base.exists && isPlainObject(getPath(base.data, providerPath(id))))
+  if (isNew && typeof request.patch['baseUrl'] !== 'string') {
+    throw new ValidationError('codex.validate.providerBaseUrlRequired', { name: id })
+  }
+  if (request.unsets.includes('displayName')) {
+    throw new ValidationError('codex.validate.providerDisplayNameRequired', { name: id })
+  }
+  if (isNew && typeof request.patch['displayName'] !== 'string') {
+    throw new ValidationError('codex.validate.providerDisplayNameRequired', { name: id })
+  }
+}
+
 /** Reads and validates both targets before anything is planned or written. */
 async function preflightProviderSet(
   ctx: Ctx,
@@ -136,21 +159,11 @@ async function preflightProviderSet(
   const id = request.providerId ?? ''
   const file = codexConfigFile(ctx.home)
   const base = await readPatchBase(file, request.replaceInvalid)
-  const block = getPath(base.data, providerPath(id))
-  if (!(base.exists && isPlainObject(block))) {
-    if (typeof request.patch['baseUrl'] !== 'string') {
-      throw new ValidationError('codex.validate.providerBaseUrlRequired', { name: id })
-    }
-  }
-  // Codex refuses to start with a nameless provider, so a label is required
-  // however the block is produced -- new without --display-name, or an
-  // existing one whose name is asked to be unset.
-  if (request.unsets.includes('displayName')) {
-    throw new ValidationError('codex.validate.providerDisplayNameRequired', { name: id })
-  }
-  if (!(base.exists && isPlainObject(block)) && typeof request.patch['displayName'] !== 'string') {
-    throw new ValidationError('codex.validate.providerDisplayNameRequired', { name: id })
-  }
+  // The same precondition the TUI's save enforces: a block whose credential
+  // comes from env_key or experimental_bearer_token never consults the
+  // sidecar, so writing one would report success and change nothing.
+  refuseOverridingCredentialSource(base.data, id)
+  refuseIncompleteNewProvider(base, request, id)
   const authFile = configFile(authProfilePath(ctx.home, id), 'json')
   // Refuses (exit 4) when the sidecar does not parse: it may carry an adopted
   // ChatGPT profile's tokens block, so it is never replaced wholesale.
