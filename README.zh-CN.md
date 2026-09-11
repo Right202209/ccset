@@ -147,6 +147,8 @@ ccset -v | --version | -h | --help
 
 通用文件读写、合并、备份、遮罩和路径解析位于 `src/core/`，应直接复用。`ConfigFile` 支持 `json`、`jsonc` 和 `toml`；后两者通过修改原文本保留注释、格式与键顺序。完整指南见
 [docs/adding-an-agent.md](docs/adding-an-agent.md)。
+供编码助手执行接入任务的[中文工作流程](docs/agents/add-agent-workflow.md)包含范围确认、
+配置契约核实、实现顺序、验证要求和可复用的任务模板。
 
 ## 开发
 

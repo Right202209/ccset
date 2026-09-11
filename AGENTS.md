@@ -43,7 +43,7 @@ Read these guides for the corresponding work:
 | --- | --- |
 | Runtime behavior or module boundaries | [Architecture](docs/architecture.md), [PRD.md](PRD.md), relevant ADRs |
 | Non-interactive commands | [Command specification](docs/milestone-3-non-interactive.md), [implemented CLI behavior](docs/user-guide.md#cli) |
-| New Agent | [Adding an Agent](docs/adding-an-agent.md), [contribution requirements](CONTRIBUTING.md#new-agents) |
+| New Agent | [Coding-assistant workflow (中文)](docs/agents/add-agent-workflow.md), [Adding an Agent](docs/adding-an-agent.md), [contribution requirements](CONTRIBUTING.md#new-agents) |
 | Tests, build, CI, or release evidence | [Verification guide](docs/verification.md), [verification register](<Important Documentation.md>) |
 | User-facing behavior | [User guide](docs/user-guide.md), [README.md](README.md), [README.zh-CN.md](README.zh-CN.md) |
 | Terms or design decisions | [Domain documentation guide](docs/agents/domain.md) |

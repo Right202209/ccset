@@ -8,6 +8,8 @@ The existing JSON, JSONC, and TOML Codecs are available for reuse.
 Read [`CONTEXT.md`](../CONTEXT.md) for the vocabulary (Screen, Frame, Agent,
 Provider) before starting. Read [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the
 bar a new integration has to clear; this guide only covers the mechanics.
+For a step-by-step coding-assistant workflow, deliverables, and a reusable task
+prompt, see the [Chinese workflow](agents/add-agent-workflow.md).
 
 ## What you are actually building
 
