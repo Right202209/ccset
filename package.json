@@ -1,7 +1,7 @@
 {
   "name": "@droite/ccset",
   "version": "0.1.0",
-  "description": "Terminal UI that generates and edits Claude Code settings files for third-party Anthropic-compatible providers.",
+  "description": "Terminal UI and CLI that generate and edit Claude Code, opencode, Codex CLI, and pi settings files for third-party API providers.",
   "type": "module",
   "bin": {
     "ccset": "./dist/cli.js"
