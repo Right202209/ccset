@@ -98,6 +98,54 @@ Non-interactive writes refuse a `CODEX_HOME` mismatch before changing files.
 There is no Test connection for Codex: the probe ccset ships is Anthropic-shaped,
 and a Responses-API endpoint is a different request it has no honest way to make.
 
+### pi
+
+| Menu entry | What it touches |
+| --- | --- |
+| Global settings | `~/.pi/agent/settings.json` — default provider, default model, default thinking level |
+| Providers | A `providers.<id>` block in `~/.pi/agent/models.json` — add, edit, list |
+| Provider use | Writes the default provider and model into `settings.json` |
+| Status | Reads the above and `~/.pi/agent/auth.json`. Writes nothing. |
+
+pi keeps custom providers in `models.json`, one block per id, and reads its
+startup defaults from `settings.json`. Editing a provider rewrites only that
+block. Its `models` array is merged per member: a model already on disk keeps
+its own settings (`cost`, `compat`, `headers`, anything ccset does not manage),
+a new id is appended as `{ "id": … }`, and one you remove from the list is
+deleted. A block without models is left possible on purpose — reusing a
+built-in id such as `anthropic` with just a `baseUrl` is pi's documented way to
+route a built-in through a proxy.
+
+**`models.json` is edited in place; `settings.json` is plain JSON.** pi strips
+comments from `models.json` when it reads it (verified in pi's source), so the
+file may carry comments, and ccset edits it with the same format-preserving
+JSONC editor opencode's `.jsonc` gets: your comments, key order and formatting
+survive every save. `settings.json` pi parses as plain JSON, so ccset
+re-serialises that one.
+
+**ccset saves a provider key into the block's own `apiKey`.** pi resolves it
+through its documented order (CLI flag, `auth.json`, environment, then
+`models.json`), and the value supports pi's forms verbatim — a literal,
+`$ENV_VAR`, or `!command` — so you can store `$MY_KEY` instead of the secret
+itself. ccset never edits `auth.json`: pi's `/login` owns it, and Status names
+the file when it exists instead of pretending to manage it.
+
+**`PI_CODING_AGENT_DIR` is honoured for the real home.** pi reads its agent
+directory from that variable when set, so ccset follows it there. A run pointed
+at another home (`CCSET_HOME`) keeps that home's own `.pi/agent` no matter what
+the surrounding shell exports. Project-local `.pi/settings.json` is pi's own
+trust-gated file and is not managed.
+
+There is no Test connection for pi: a `models.json` provider speaks one of four
+API types, and there is no single endpoint ccset could probe honestly.
+
+**`provider use <id>` writes both `defaultProvider` and `defaultModel`** into
+`settings.json`, because pi's own startup resolution only honours a saved
+default when the two are set together. Without `--model`, the first model of
+the provider's disk entry is used; a provider entry without models (the
+built-in-override shape) has to name `--model` explicitly, since its startup
+model lives in pi's own catalog, which ccset does not read.
+
 Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
 back. Long lists state the visible range and total row count. A form asks before
 discarding unsaved edits and never asks otherwise. Nested screens show their full
@@ -127,9 +175,9 @@ navigation path in the header; narrow terminals keep the final two steps visible
   `hasCompletedOnboarding` is missing, ccset prints the one-line fix instead of
   applying it.
 - **Comments and formatting survive too, where the format has them.** Codex's
-  `config.toml` and opencode's `opencode.jsonc` are edited in place rather than
-  re-serialised, so comments, blank lines, alignment and key order are
-  preserved exactly.
+  `config.toml`, opencode's `opencode.jsonc` and pi's `models.json` are edited
+  in place rather than re-serialised, so comments, blank lines, alignment and
+  key order are preserved exactly.
 - **A file ccset cannot parse is never silently overwritten.** The UI offers to
   back it up and start fresh. Commands require `--replace-invalid` where
   replacement is supported, and back up the unreadable original first.
@@ -152,7 +200,8 @@ navigation path in the header; narrow terminals keep the final two steps visible
 - **Backups keep old tokens.** Every write first copies the target to a
   `backups/ccset/` directory beside that agent's config —
   `~/.claude/backups/ccset/` for Claude Code, `~/.config/opencode/backups/ccset/`
-  for opencode, `~/.codex/backups/ccset/` for Codex (mode `0600`, ten kept per
+  for opencode, `~/.codex/backups/ccset/` for Codex, `~/.pi/agent/backups/ccset/`
+  for pi (mode `0600`, ten kept per
   file, oldest pruned). After you rotate a token the previous one still sits in
   those copies until you run **Clear ccset backups** from that agent's Status
   screen. Removing a Codex provider's saved credential deletes the sidecar but
@@ -181,7 +230,7 @@ ccset --agent <id> <command> …   # one operation, no interface
 ccset -v | --version | -h | --help
 ```
 
-`--agent` takes `claude-code`, `opencode` or `codex`. With no command, ccset
+`--agent` takes `claude-code`, `opencode`, `codex` or `pi`. With no command, ccset
 starts the interactive interface; run through a pipe or in CI, that prints a
 message and exits `2` rather than emitting control sequences into a log. With a
 command, ccset runs it headlessly: a line-oriented report by default, or one
@@ -194,14 +243,15 @@ JSON envelope on stdout with `--json`.
 | `claude-code` | `status` · `global set` · `provider set <id>` · `state init` |
 | `opencode` | `status` · `global set` · `provider set <id>` |
 | `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
+| `pi` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 
 `status` reads everything and writes nothing. The `set` commands patch only the
 fields you name: omitted fields keep their disk values, `--unset <field>`
 deletes one explicitly, and unmanaged keys survive. TOML and JSONC edits also
 preserve the formatting around those keys. Saving a provider does not switch
 to it: Claude Code waits for
-`claude --settings`, Codex waits for `provider use`, and opencode reads its
-config on start. `state init` creates Claude Code's `~/.claude.json` when it is
+`claude --settings`, Codex and pi wait for `provider use`, and opencode reads
+its config on start. `state init` creates Claude Code's `~/.claude.json` when it is
 absent and otherwise leaves the file alone.
 
 Options the commands share:
@@ -211,15 +261,16 @@ Options the commands share:
 | `--json` | One JSON envelope on stdout instead of human lines |
 | `--dry-run` | Read, validate and plan; no backup, no write. State-changing commands only — `status` refuses it |
 | `--unset <field>` | Remove an optional field using its field ID, such as `model`, `smallModel`, or `modelProvider` |
-| `--replace-invalid` | Allow replacement of an invalid target on supported commands; the unreadable original is backed up first. `status`, `state init`, and `provider use` refuse this option |
+| `--replace-invalid` | Allow replacement of an invalid target on supported commands; the unreadable original is backed up first. `status`, `state init`, and Codex's `provider use` refuse this option |
 | `--token-stdin` | Read the API key from stdin |
 
 A key reaches ccset only through `CCSET_TOKEN` or `--token-stdin` — never an
 option, a positional or a file, all of which are usage refusals — and is then
 written only to that provider's own target: the provider file for Claude Code,
 `options.apiKey` in the named block for opencode, the `auth.<id>.json` sidecar
-for Codex. It is never printed in human output, JSON, errors, or warnings.
-Backup files still contain the previous credentials.
+for Codex, and `apiKey` in the named `providers` block for pi. It is never
+printed in human output, JSON, errors, or warnings. Backup files still contain
+the previous credentials.
 
 Codex details worth knowing: `provider set` re-asserts `wire_api = "responses"`
 and `requires_openai_auth = true` on every save, and lands the key in

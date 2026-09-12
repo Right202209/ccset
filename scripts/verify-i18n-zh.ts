@@ -36,6 +36,11 @@ const ALLOWED_IDENTICAL = new Set([
   'codex.action.globalDetail',
   'codex.status.keyringLabel',
   'codex.status.homeOverrideLabel',
+  // Wire-protocol names: the identifiers pi's models.json spells in English.
+  'pi.choice.apiOpenaiCompletions',
+  'pi.choice.apiOpenaiResponses',
+  'pi.choice.apiAnthropicMessages',
+  'pi.choice.apiGoogleGenerativeAi',
 ])
 
 function placeholders(value: string): string[] {

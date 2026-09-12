@@ -3,6 +3,7 @@ import { registerMessages } from './i18n/index.js'
 import { claudeCode } from './agents/claude-code/index.js'
 import { opencode } from './agents/opencode/index.js'
 import { codex } from './agents/codex/index.js'
+import { pi } from './agents/pi/index.js'
 
 /**
  * Hand-written and static. No filesystem scanning, no dynamic import(): the
@@ -11,7 +12,7 @@ import { codex } from './agents/codex/index.js'
  *
  * Adding an agent is this line plus one module under src/agents/.
  */
-export const AGENTS: Agent[] = [claudeCode, opencode, codex]
+export const AGENTS: Agent[] = [claudeCode, opencode, codex, pi]
 
 for (const agent of AGENTS) registerMessages(agent.messages)
 

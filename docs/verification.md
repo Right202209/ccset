@@ -71,6 +71,10 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:commands-secret` | Secret sources/rejections, provider writes, omitted-secret preservation, output masking |
 | `npm run verify:commands-opencode` | opencode status/global commands, typed values, nested preservation, JSONC findings |
 | `npm run verify:commands-opencode-provider` | Provider patches, per-key models merge, token placement, new-provider validation, malformed recovery |
+| `npm run verify:pi` | pi settings/provider saves through the TUI seam, per-member models merging, comment preservation, blank-field omission, external-modification re-read, byte-identical JSONC corpus, backup rotation and modes, detection, `PI_CODING_AGENT_DIR` rule, status masking |
+| `npm run verify:pi-screens` | pi screen string resolution: every action run and descended, labels/help/details/choices against the catalog |
+| `npm run verify:commands-pi` | pi provider patches, models merge and secret sources (stdin and `CCSET_TOKEN`), unset/dry-run refusals, secret-free status, malformed recovery, dry-run/no-op zero writes, exit codes |
+| `npm run verify:commands-pi-use` | pi global patching and provider use writing both startup leaves, off-list model warning, unreadable-models and no-model refusals |
 | `npm run verify:commands-codex` | Codex status/global commands, TOML preservation, typed integers, environment findings and replacement backups |
 | `npm run verify:commands-codex-provider` | Provider invariants, Auth profile preservation, credential-source refusals, untouched live auth |
 | `npm run verify:commands-codex-use` | Switch ordering, adoption/replacement choices, idempotence, environment preconditions, partial failures |

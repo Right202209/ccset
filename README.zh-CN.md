@@ -6,7 +6,7 @@
 
 将编程 Agent 指向第三方 API 端点时，手动编辑 JSON 容易因字段名拼写错误而导致配置静默失效。ccset 会生成和编辑这些文件，并显示磁盘上已有的配置。
 
-目前支持三个 Agent：**Claude Code**、**opencode** 和 **Codex CLI**。ccset 会询问你要配置哪一个，可以用 `--agent <id>` 指定，也可以无界面地执行单条命令——见 [命令行](#cli)。
+目前支持四个 Agent：**Claude Code**、**opencode**、**Codex CLI** 和 **pi**。ccset 会询问你要配置哪一个，可以用 `--agent <id>` 指定，也可以无界面地执行单条命令——见 [命令行](#cli)。
 
 **ccset 只生成配置，不会启用配置。** 对 Claude Code，启用时请运行 `claude --settings <path>`，每次成功写入后 ccset 都会打印该命令。opencode 和 Codex 在启动时自行读取配置文件，无需启用命令——ccset 会如实说明，而不是编造一条命令。
 
@@ -71,6 +71,27 @@ Codex 的配置格式是 TOML，不是 JSON。ccset **就地修改** `config.tom
 
 Codex 没有 Test connection：ccset 内置的探测请求是 Anthropic 形态的，而 Responses API 端点需要另一种请求，目前没有可靠的探测方式。
 
+### pi
+
+| 菜单项 | 操作对象 |
+| --- | --- |
+| Global settings | `~/.pi/agent/settings.json`：默认提供商、默认模型、默认思考级别 |
+| Providers | `~/.pi/agent/models.json` 中的 `providers.<id>` 配置块，可添加、编辑、查看 |
+| Provider use | 把默认提供商与默认模型写入 `settings.json` |
+| Status | 读取上述内容及 `~/.pi/agent/auth.json`，不会写入 |
+
+pi 把自定义 provider 保存在 `models.json` 中（每个 id 一个配置块），启动默认项则读取 `settings.json`。编辑某个 provider 只会重写对应的配置块。其中的 `models` 数组按成员合并：磁盘上已有的模型保留自身设置（`cost`、`compat`、`headers` 等 ccset 不管理的字段），新增的 id 会以 `{ "id": … }` 追加，从列表中移除的 id 会被删除。不带模型的配置块是有意支持的——用 `anthropic` 这类内置 id 只写 `baseUrl` 正是 pi 文档中让内置提供商走代理的方式。
+
+**`models.json` 就地编辑；`settings.json` 是纯 JSON。** pi 读取 `models.json` 时会自行剥离注释（已从 pi 源码核实），因此该文件可以带注释，ccset 对它使用与 opencode 的 `.jsonc` 相同的格式保留式 JSONC 编辑器：注释、键顺序和格式在每次保存后保持不变。`settings.json` 由 pi 按纯 JSON 解析，因此 ccset 对它重新序列化。
+
+**ccset 把 provider 密钥写入该配置块自己的 `apiKey`。** pi 按其文档顺序解析凭据（CLI 参数、`auth.json`、环境变量、再到 `models.json`），该值原样支持 pi 的取值形式——字面量、`$ENV_VAR` 或 `!command`——因此可以存 `$MY_KEY` 而不是密钥本身。ccset 绝不编辑 `auth.json`：它由 pi 的 `/login` 管理；文件存在时 Status 会如实标注，而不是假装管理它。
+
+**真实主目录下会遵循 `PI_CODING_AGENT_DIR`。** pi 设置了该变量时从这个目录读取配置，ccset 也随之读写同一位置。通过 `CCSET_HOME` 指向其他主目录的运行不受环境变量影响，始终使用该主目录自己的 `.pi/agent`。项目级 `.pi/settings.json` 受 pi 的信任机制管理，ccset 不管理它。
+
+pi 没有 Test connection：`models.json` 的 provider 使用四种 API 类型之一，不存在 ccset 能够如实探测的单一端点。
+
+**`provider use <id>` 会同时写入 `defaultProvider` 与 `defaultModel`**——pi 只有在两者同时设置时才会采用保存的启动默认项。未传 `--model` 时使用该 provider 磁盘条目中的第一个模型；不带模型的配置块（内置覆盖形态）必须显式传 `--model`，因为它的启动模型在 pi 自己的目录中，ccset 不读取。
+
 方向键移动，`1`-`9` 选择当前窗口内对应编号的可见行，Enter 选择，Esc 返回。长列表会显示当前可见范围和总行数。表单在放弃未保存修改前会请求确认。进入嵌套界面后，标题会显示完整导航路径；终端较窄时仍保留最后两级路径。
 
 ## 文件与密钥安全
@@ -79,10 +100,10 @@ Codex 没有 Test connection：ccset 内置的探测请求是 Anthropic 形态�
 - 只写入叶子节点，绝不整体覆盖其父对象，因此你手动写在被管理对象内部的同级键会被保留。
 - 关闭代理时会删除 `HTTP_PROXY` 和 `HTTPS_PROXY`；空字段会被省略，而不是写入 `null` 或空字符串。
 - 写入前会重新读取文件，写入采用同目录临时文件、权限设置和重命名，保证原子性。
-- POSIX 系统写入文件权限为 `0600`。每次写入前会备份到该 Agent 配置目录下的 `backups/ccset/`：Claude Code 为 `~/.claude/backups/ccset/`，opencode 为 `~/.config/opencode/backups/ccset/`，Codex 为 `~/.codex/backups/ccset/`，最多保留每个文件十份。
+- POSIX 系统写入文件权限为 `0600`。每次写入前会备份到该 Agent 配置目录下的 `backups/ccset/`：Claude Code 为 `~/.claude/backups/ccset/`，opencode 为 `~/.config/opencode/backups/ccset/`，Codex 为 `~/.codex/backups/ccset/`，pi 为 `~/.pi/agent/backups/ccset/`，最多保留每个文件十份。
 - Token 仅在确认 **Test connection** 后发送，并在界面和错误信息中遮罩显示。备份仍可能包含旧 Token，可从对应 Agent 的 Status 中清除 ccset 备份。备份被中断产生的残缺副本同样保存着正在复制的凭据，Status 会列出并警告，清除 ccset 备份时一并删除。
 - 保存失败不会结束会话：错误以独立屏幕显示，已输入的内容不会丢失，`esc` 返回表单，修正后可重试。
-- 对带注释的格式，注释和排版同样会保留：Codex 的 `config.toml` 和 opencode 的 `opencode.jsonc` 采用就地修改，注释、空行、对齐和键顺序都完整保留。
+- 对带注释的格式，注释和排版同样会保留：Codex 的 `config.toml`、opencode 的 `opencode.jsonc` 和 pi 的 `models.json` 采用就地修改，注释、空行、对齐和键顺序都完整保留。
 - 无法解析的文件不会被静默覆盖；工具会指明是 JSON 还是 TOML，并提示你备份后重新创建。
 - `~/.codex/auth.json` 只会被整体替换，绝不会被就地编辑：它是 Codex 的活跃凭据，登录和刷新令牌时都会被改写，因此 ccset 只在你明确要求时整文件覆盖。把已有凭据保存为 profile 时是逐字节复制，因此 ccset 不理解的 OAuth 令牌结构也能完整保留。
 
@@ -94,7 +115,7 @@ ccset --agent <id> <command> …   # 单条操作，无界面
 ccset -v | --version | -h | --help
 ```
 
-`--agent` 可取 `claude-code`、`opencode` 或 `codex`。不带命令时启动交互式界面；通过管道或在 CI 中运行时会提示并以退出码 `2` 退出，不会向日志输出控制序列。带命令时以无界面方式执行：默认输出面向人的行式报告，加 `--json` 则在 stdout 输出一份 JSON 信封。
+`--agent` 可取 `claude-code`、`opencode`、`codex` 或 `pi`。不带命令时启动交互式界面；通过管道或在 CI 中运行时会提示并以退出码 `2` 退出，不会向日志输出控制序列。带命令时以无界面方式执行：默认输出面向人的行式报告，加 `--json` 则在 stdout 输出一份 JSON 信封。
 
 ### 命令
 
@@ -103,8 +124,9 @@ ccset -v | --version | -h | --help
 | `claude-code` | `status` · `global set` · `provider set <id>` · `state init` |
 | `opencode` | `status` · `global set` · `provider set <id>` |
 | `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
+| `pi` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 
-`status` 只读取，不写入。各 `set` 命令只修补你给出的字段：省略的字段保留磁盘值，`--unset <field>` 显式删除一项，受管键周围的非受管键逐字节保留——在 Codex 的 `config.toml` 中连注释、空行和键顺序一起保留。ccset 写入的任何内容都不会启用提供商：Claude Code 等你运行 `claude --settings`，Codex 等你执行 `provider use`，opencode 在启动时自行读取配置。`state init` 在 Claude Code 的 `~/.claude.json` 不存在时创建它，否则原样保留。
+`status` 只读取，不写入。各 `set` 命令只修补你给出的字段：省略的字段保留磁盘值，`--unset <field>` 显式删除一项，受管键周围的非受管键逐字节保留——在 Codex 的 `config.toml` 中连注释、空行和键顺序一起保留。ccset 写入的任何内容都不会启用提供商：Claude Code 等你运行 `claude --settings`，Codex 和 pi 等你执行 `provider use`，opencode 在启动时自行读取配置。`state init` 在 Claude Code 的 `~/.claude.json` 不存在时创建它，否则原样保留。
 
 各命令共享的选项：
 
@@ -116,7 +138,7 @@ ccset -v | --version | -h | --help
 | `--replace-invalid` | 确认替换已无法解析的目标；先备份无法读取的原文件 |
 | `--token-stdin` | 从 stdin 读取 API 密钥 |
 
-密钥只能通过 `CCSET_TOKEN` 或 `--token-stdin` 进入 ccset——绝不允许作为选项、位置参数或文件，这些都会被拒绝为用法错误——并且只会写进该 provider 自己的目标：Claude Code 的 provider 文件、opencode 对应配置块的 `options.apiKey`、Codex 的 `auth.<id>.json` 旁路文件。它绝不会被打印——不在面向人的输出里，不在 JSON 信封里，也不在错误、警告或备份里。
+密钥只能通过 `CCSET_TOKEN` 或 `--token-stdin` 进入 ccset——绝不允许作为选项、位置参数或文件，这些都会被拒绝为用法错误——并且只会写进该 provider 自己的目标：Claude Code 的 provider 文件、opencode 对应配置块的 `options.apiKey`、Codex 的 `auth.<id>.json` 旁路文件、pi 对应 `providers` 配置块的 `apiKey`。它绝不会被打印——不在面向人的输出里，不在 JSON 信封里，也不在错误、警告或备份里。
 
 关于 Codex 的细节：`provider set` 每次保存都会重新断言 `wire_api = "responses"` 与 `requires_openai_auth = true`，并把密钥写入 `auth.<id>.json`——绝不写入 `config.toml`，也绝不碰在用的 `auth.json`。`provider use` 会把指定凭据配置复制为 `auth.json` 并在同一操作中移动 `model_provider`，先提交路由。如果 `auth.json` 中已有不属于任何已保存凭据配置的内容，切换会被拒绝，直到你传且只传 `--adopt-current-as <name>`（把它保存为新的可切换配置）或 `--replace-current-auth`（丢弃——无论如何都会先备份）。这个选择只在需要时才会被问到：如果 `auth.json` 已与某个已保存凭据配置一致，再传 `--adopt-current-as` 会被拒绝——没有任何内容会被替换，也就没有可采纳的对象。
 
