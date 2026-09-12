@@ -29,6 +29,7 @@ the dependent part.
 | U7 | ~~Can a TOML config be round-tripped without losing comments, key order, and formatting, using a format-preserving parser?~~ **Answered 2026-09-01, see §9.26.** Yes, by editing the document in place rather than re-serialising it (ADR 0003). A corpus of 13 documents — comments, CRLF, no trailing newline, `#` inside strings, quoted and dotted keys, multi-line arrays and strings, inline tables, arrays of tables, literal Windows paths, date-times, radix integers — is byte-identical after an empty write list, and stays so after a managed edit elsewhere in the file. | Take a real `~/.codex/config.toml`, parse and re-emit it unchanged, byte-compare. | Was: a Codex CLI agent, and the `Codec` seam being real rather than notional. Both are now built. |
 | U8 | Does a custom `model_providers.<id>` entry with `requires_openai_auth = true` actually authenticate against a third-party endpoint using the credential in `auth.json`? | Point a Codex provider at a real Responses-API-compatible endpoint, switch to it with ccset, run one prompt. | Whether ccset's Codex provider blocks work end to end. The mechanism is read from Codex's own source (`resolve_provider_auth` in `codex-rs/model-provider/src/auth.rs`, v0.152.0) and matches its tests, but no live request has been made. |
 | U9 | When `cli_auth_credentials_store = "keyring"`, does Codex ignore `auth.json` entirely? | Set the key, log in, inspect whether `auth.json` is written or read. | Whether ccset's Status warning is a warning or must become a refusal to offer profile switching. |
+| U10 | Do the provider blocks ccset writes to pi's `models.json` actually load and serve models in a live pi run, and does pi strip comments from `models.json` at runtime the way its source reads? | Write a ccset provider into `~/.pi/agent/models.json`, launch pi, select the model, run one prompt; repeat with a commented `models.json`. | Whether the pi integration works end to end and whether the JSONC-codec choice for `models.json` holds at runtime. Both mechanisms are read from pi's source (`model-config.ts`, `model-resolver.ts`, pi-mono main `71dca871bc80b6bc97be37f0ca3189399d651fff`, 2026-09); no live run has been made. |
 
 ---
 
@@ -1963,3 +1964,108 @@ terminal boundary and packed-artifact installation. The release checklist now
 names `README.zh-CN.md`, matching the artifact fixture. The 75 repository
 links/anchors, balanced Markdown fences, fixture inventory, and preservation
 of earlier §9 history were checked again successfully.
+
+### 9.41 pi agent integration (2026-09-12)
+
+pi (badlogic/pi-mono, `@mariozechner/pi-coding-agent`) is integrated as a fourth
+Agent: custom providers in `~/.pi/agent/models.json`, startup defaults in
+`~/.pi/agent/settings.json`, TUI plus `status`, `global set`, `provider set`,
+and `provider use`. The module reuses the shared codecs, merge, backup, masking,
+and plan/apply core; the only changes outside `src/agents/pi/` are the registry
+entry, the three fixtures and their npm wiring, the i18n-zh allowance for the
+four wire-protocol names, docs, and one UI fix below.
+
+Configuration facts verified against pi's source and docs on 2026-09-11
+(pi-mono `main`, coding-agent 0.73.x): agent dir `~/.pi/agent` with
+`PI_CODING_AGENT_DIR` override (`packages/coding-agent/src/config.ts`);
+`settings.json` parsed as plain JSON (`settings-manager.ts`); `models.json`
+parsed after `stripJsonComments` with a strict typebox schema
+(`model-config.ts`) — hence ccset edits it with the format-preserving JSONC
+codec; `auth.json` holds `api_key`/`oauth` credentials, written `0600`, owned
+by `/login` and not edited by ccset; credential resolution order CLI flag >
+`auth.json` > environment > `models.json` `apiKey` (providers.md); and
+`findInitialModel` honours a saved default only when `defaultProvider` **and**
+`defaultModel` are both set (`model-resolver.ts`), which is why `provider use`
+writes both leaves and requires `--model` when the provider's disk entry has no
+models to take the first from.
+
+Deliberate scope choices, stated where the UI touches them: a block without
+`models` is allowed because overriding a built-in provider id is pi's documented
+proxy shape; a block that serves its own models must carry `api` (proposal
+check `pi.validate.apiRequired`, applying the complete write set); `apiKey`
+accepts pi's literal/`$ENV_VAR`/`!command` forms verbatim; members of the
+`models` array merge per id with every unmanaged member field preserved — the
+array is materialised from a re-read at save time because pi's members are a
+JSON array, not a map, and array element deletion is not a managed-write
+operation the merge core offers. Members without a usable string `id` are
+passed through untouched rather than dropped.
+
+**One shared UI fix:** the agent-select screen painted its own duplicate
+"Select an agent" title under the App header. With three agents the paint
+exactly filled a 12-row viewport; the fourth agent overflowed it
+(`verify:ui-render` caught this: "A Rendered paint used 13/12 rows"). The
+duplicate title was removed, restoring the chrome shape the SelectList default
+budget already assumes.
+
+Fixture mutations (each introduced, watched to turn red, reverted, watched to
+go green again):
+
+| Mutation | Failed assertion |
+| --- | --- |
+| `modelWrites` replaced the disk array with a fresh array built from the form's ids | `verify:pi` and `verify:commands-pi`: "a member lost its unmanaged cost" |
+| `emitProvider` wrote `""` for a blank `apiKey` instead of omitting the key | `verify:pi`: "a blank secret wrote a value instead of omitting the key" |
+
+**Run on Linux x64 (Gentoo), Node.js 20.19.5, npm 10.9.4:** `npm run typecheck`
+passed; `npm run build` passed; `npm run verify:code-gates` passed (151 files,
+the 18 baseline exceptions are pre-existing entries, none added); the full
+`npm test` chain passed end to end, now 26 fixtures including the new
+`verify:pi`, `verify:commands-pi`, and `verify:commands-pi-use`; `git diff
+--check` passed. A real-terminal walk through a PTY drove the built CLI with
+`--agent pi` in both `CCSET_LOCALE=en` and `CCSET_LOCALE=zh-Hans`: created a
+provider through the interactive form (masked secret entry, the api choice left
+on its template default, ctrl+s), saw the busy line and the success screen
+(Path / Mode 0600 / Backup: none / activation line), and confirmed the written
+`models.json` held exactly the managed leaves. The `verify:ui-render`,
+`verify:header-path`, `verify:first-run-locale`, and `verify:status-terminal`
+fixtures were re-run green after the agent-select fix.
+
+Not verified, and not claimed: no live pi process has been run against the
+files ccset writes (recorded as U10), no other platform has run the suite, and
+no real Provider request was made.
+
+### 9.42 pi post-review fixes (2026-09-12)
+
+The two-axis code review of 256239f (per file and cross-file) produced the
+findings below; each was fixed on `feat/agent-pi` and re-verified. The review
+also asked for the workflow's §1–§2 deliverables to be recorded: the managed
+field mapping now lives as a table in the `src/agents/pi/manifest.ts` header
+(the file the workflow says is the blast radius), and the contract sources are
+pinned here and in `constants.ts` to pi-mono main
+`71dca871bc80b6bc97be37f0ca3189399d651fff` (2026-09-11):
+https://github.com/badlogic/pi-mono .
+
+| Finding | Fix |
+| --- | --- |
+| `src/ui/Menu.tsx` agent-select fix rode in the agent commit, not separately reviewable (both axes) | Branch split into two commits: the UI fix first, the integration second |
+| Duplicated `OperationResult` tail in all three handlers and report stamp in both save paths | Extracted to `src/agents/pi/result.ts` (`piOperationResult`, `withActivation`) |
+| `status-dto.ts` hardcoded `['providers', id, 'baseUrl']` literals beside a manifest that owns every path; `provider-commands.ts` kept a parallel id→path map | Both resolve through the manifest builders now |
+| `data as unknown as Record<string, unknown>` double cast crossing the operation seam | Centralized in `status-dto.ts` (`toStatusData` / `fromStatusData`); no other file casts |
+| Workflow §5 scenarios not covered: form-opened-then-file-changed, byte-identical empty write for the format-preserving codec, positive `CCSET_TOKEN` source | `verify:pi` gained the external-edit re-read check and a CRLF/comments corpus asserting byte identity for an empty list and a same-value write; `verify:commands-pi` gained the `CCSET_TOKEN` case plus refusals for `--unset` with a value and `status --dry-run` |
+| Mutation testing never targeted the deletion path in the command seam | Third mutation: `providerPatchWrites` ignoring `request.unsets` turned `verify:commands-pi` red on "--unset models did not delete", then reverted to green |
+
+The screen walk moved to its own `verify:pi-screens` fixture (the
+verify-codex-auth pattern) to keep both files inside the size gate; it is wired
+into `verify:*`, the sequential `test` chain, and the verification map. Two
+baseline-smell findings were accepted rather than fixed, each because a
+documented repo shape overrides the smell: `status.ts` and `status-dto.ts`
+mirror branches (the layout table prescribes both files, as opencode does), and
+`seedSettings` wraps an empty `GLOBAL_DEFAULTS` (opencode keeps the same seam so
+a template default can land in one place).
+
+**Run on Linux x64 (Gentoo), Node.js 20.19.5, npm 10.9.4:** `npm run typecheck`
+and `npm run build` passed; `verify:pi`, `verify:pi-screens`,
+`verify:commands-pi`, `verify:commands-pi-use`, and `verify:code-gates` (153
+files, no new baseline exceptions) passed; the mutation run and its reverted
+re-run are recorded above. After the branch was split into the two commits
+below, the full `npm test` chain passed end to end — 27 stages including the
+new `verify:pi-screens` — and `git diff --check` passed.
