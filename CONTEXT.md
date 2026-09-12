@@ -42,7 +42,7 @@ _Avoid_: Parser, serializer, file format
 
 **Agent**:
 A coding tool whose configuration ccset can read or write, currently Claude
-Code, opencode and Codex CLI.
+Code, opencode, Codex CLI and pi.
 _Avoid_: Provider
 
 **Managed key**:
