@@ -2069,3 +2069,28 @@ files, no new baseline exceptions) passed; the mutation run and its reverted
 re-run are recorded above. After the branch was split into the two commits
 below, the full `npm test` chain passed end to end — 27 stages including the
 new `verify:pi-screens` — and `git diff --check` passed.
+
+### 9.43 macOS CI: the error-recovery gate vs soft-wrapped paints (2026-09-12)
+
+Master's macOS CI jobs were already red before the pi branch (run 34584455289
+on 991f150): `verify:error-recovery` failed with "The failure is not named on
+the error Screen". Root cause: the gate asserted the full
+`error.permission` sentence as one `includes()` against the paint, but the
+terminal soft-wraps a line at the viewport width, and the runners' temporary
+homes sit under `/var/folders/...` — long enough to push the permission line
+past 80 columns, splitting the message across rows. Ubuntu's short `/tmp` homes
+kept the line intact, which is why Linux stayed green.
+
+Reproduced locally on Linux by running the fixture with `TMPDIR` pointed at a
+60-character directory: the same assertion failed for the same reason. Fix: the
+gate now matches both sides with whitespace stripped (`flattened` in
+`scripts/verify-error-recovery.ts`), so the assertion is about what the screen
+names rather than where the line breaks fall. With the same long-`TMPDIR`
+simulation, `verify:ui-render`, `verify:header-path`,
+`verify:review-form`, `verify:malformed-dirty`, `verify:first-run-locale`,
+`verify:status-terminal`, `verify:pi`, and `verify:pi-screens` all passed
+unchanged — no other gate asserts a path-bearing sentence against a paint.
+
+**Result:** `verify:error-recovery` passes both under the long-`TMPDIR`
+simulation and the ordinary run on Linux x64, Node.js 20.19.5. macOS, Node 18/20/22
+results are recorded by CI on the branch carrying this fix.
