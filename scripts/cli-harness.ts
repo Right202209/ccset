@@ -15,6 +15,15 @@ export interface RunResult {
   stderr: string
 }
 
+/** Narrows a parsed-JSON value to an object, so a fixture's assertions can
+ *  index it without `any`. A non-object becomes an empty one, which the
+ *  assertions then fail on instead of throwing. */
+export function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
 /**
  * One run of the built CLI. An `env` entry overrides the ambient environment,
  * and an `undefined` value strips the variable -- how the codex gates remove

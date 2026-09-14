@@ -14,7 +14,6 @@ export const en: Record<string, string> = {
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': 'Exit',
-  'menu.help': '↑↓ move · 1-9 jump · enter select · esc back',
   'key.moveUp': 'move up', 'key.moveDown': 'move down', 'key.jump': 'jump', 'key.select': 'select', 'key.back': 'back',
   'key.change': 'change', 'key.next': 'next', 'key.save': 'save', 'key.cancel': 'cancel', 'key.continue': 'continue', 'key.choose': 'choose', 'key.confirm': 'confirm',
   'menu.notDetected': 'No config for this agent yet — ccset will create what it needs.',
@@ -119,9 +118,6 @@ export const en: Record<string, string> = {
   'confirm.fresh': 'Back it up and start fresh',
 
   /* ---------------------------------------------------------------- prompt */
-  'prompt.exitTitle': 'Unsaved edits',
-  'prompt.exitLine': 'This form holds edits that have not been written to disk.',
-  'prompt.exitConfirm': 'Discard them and exit',
   'prompt.discardTitle': 'Unsaved edits',
   'prompt.discardLine': 'This form holds edits that have not been written to disk.',
   'prompt.discardConfirm': 'Discard them and go back',
@@ -201,6 +197,7 @@ export const en: Record<string, string> = {
   'cli.usage.emptyValue':
     'Option {option} cannot be empty. To remove a setting, use --unset instead.',
   'cli.usage.invalidChoice': 'Option {option} expects one of: {choices} (got {value}).',
+  'cli.usage.notInteger': 'Option {option} needs a whole number (got {value}).',
   'cli.usage.unexpectedArgument': 'Unexpected argument: {value}.',
   'cli.usage.missingProviderId': 'This command needs a provider id.',
   'cli.usage.unknownField': 'Unknown field for --unset: {field}.',

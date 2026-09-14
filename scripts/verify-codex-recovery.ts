@@ -7,7 +7,7 @@ import { currentModelProvider, saveModelProvider } from '../src/agents/codex/glo
 import { ValidationError } from '../src/core/errors.js'
 import { runSave } from '../src/core/save.js'
 import { loadProviders, saveProvider } from '../src/agents/codex/providers.js'
-import { authProfilePath, backupsDir, codexAuthPath, codexConfigPath } from '../src/agents/codex/paths.js'
+import { authProfilePath, codexAuthPath, codexConfigPath } from '../src/agents/codex/paths.js'
 import { readTomlObject } from '../src/core/toml/index.js'
 import type { ActionResult, Ctx, FormValues, JsonObject } from '../src/types.js'
 

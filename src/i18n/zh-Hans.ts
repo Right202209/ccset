@@ -15,7 +15,6 @@ export const zhHans: Record<string, string> = {
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': '退出',
-  'menu.help': '↑↓ 移动 · 1-9 跳转 · enter 选择 · esc 返回',
   'key.moveUp': '上移', 'key.moveDown': '下移', 'key.jump': '跳转', 'key.select': '选择', 'key.back': '返回',
   'key.change': '切换', 'key.next': '下一项', 'key.save': '保存', 'key.cancel': '取消', 'key.continue': '继续', 'key.choose': '选择', 'key.confirm': '确认',
   'menu.notDetected': '该 Agent 尚无配置 — ccset 会创建所需的文件。',
@@ -86,9 +85,9 @@ export const zhHans: Record<string, string> = {
   'status.readError': '无法读取。',
   'status.fixHint': '手动应用：{fix}',
   'status.unmanagedNote': '每次保存都会原样保留 {count} 个 ccset 不管理的键。',
+  'status.backupsNote': '备份中可能仍含有你已轮换的令牌。',
   'status.partials': '未完成的副本',
   'status.partialsNote': '{count} 个未完成的备份副本中含有凭据；"清除 ccset 备份"会一并移除。',
-  'status.backupsNote': '备份中可能仍含有你已轮换的令牌。',
   'status.help': '↑↓ 移动 · enter 选择 · esc 返回',
 
   /* ----------------------------------------------------------------- notes */
@@ -120,9 +119,6 @@ export const zhHans: Record<string, string> = {
   'confirm.fresh': '备份后重新开始',
 
   /* ---------------------------------------------------------------- prompt */
-  'prompt.exitTitle': '未保存的修改',
-  'prompt.exitLine': '此表单中有尚未写入磁盘的修改。',
-  'prompt.exitConfirm': '放弃并退出',
   'prompt.discardTitle': '未保存的修改',
   'prompt.discardLine': '此表单中有尚未写入磁盘的修改。',
   'prompt.discardConfirm': '放弃并返回',
@@ -199,6 +195,7 @@ export const zhHans: Record<string, string> = {
   'cli.usage.duplicateOption': '选项 {option} 被给了多次。',
   'cli.usage.emptyValue': '选项 {option} 不能为空。要移除设置请改用 --unset。',
   'cli.usage.invalidChoice': '选项 {option} 只接受：{choices}（得到 {value}）。',
+  'cli.usage.notInteger': '选项 {option} 需要一个整数（得到 {value}）。',
   'cli.usage.unexpectedArgument': '多余的参数：{value}。',
   'cli.usage.missingProviderId': '此命令需要一个 provider id。',
   'cli.usage.unknownField': '--unset 的字段未知：{field}。',

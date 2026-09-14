@@ -21,11 +21,12 @@ export interface ManagedWrite {
  */
 const PROTOTYPE_KEY = '__proto__'
 
-function isPrototypeKey(key: string): boolean {
+/** Shared with the read-side codecs, which face the same hostile keys. */
+export function isPrototypeKey(key: string): boolean {
   return key === PROTOTYPE_KEY
 }
 
-function ownChild(target: JsonObject, key: string): JsonObject | undefined {
+export function ownChild(target: JsonObject, key: string): JsonObject | undefined {
   if (isPrototypeKey(key) || !Object.prototype.hasOwnProperty.call(target, key)) return undefined
   const child = target[key]
   return isPlainObject(child) ? child : undefined

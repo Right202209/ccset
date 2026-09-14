@@ -38,21 +38,29 @@ function buildProgram(): Command {
   return program
 }
 
-/** Errors leave through stderr only: the TUI is gone by the time this runs. */
-function fail(error: CcsetError): never {
-  process.stderr.write(`${t(error.messageKey, error.params)}\n`)
-  process.exit(error.exitCode)
+/**
+ * Errors leave through stderr only: the TUI is gone by the time this runs.
+ * The exit waits for the write callback: a pipe write is queued on the thread
+ * pool and process.exit does not wait for it, so the message could otherwise
+ * be truncated mid-flight. The callback, not a drained event loop, is what
+ * ends the process -- an Ink screen can still be mounted when an error
+ * escapes the render tree, and a hung process would be worse than a short one.
+ */
+function fail(error: CcsetError): void {
+  process.stderr.write(`${t(error.messageKey, error.params)}\n`, () => {
+    process.exit(error.exitCode)
+  })
 }
 
 /**
  * Ink degrades badly into a pipe, and a legible refusal beats emitting control
  * sequences into a log (PRD 5.6). Only the TUI asks this: a Non-interactive
- * command exists precisely to run without a terminal.
+ * command exists precisely to run without a terminal. Thrown, not exited, so
+ * main().catch can route the message through fail() with the same outcome.
  */
 function requireTty(): void {
   if (process.stdin.isTTY === true) return
-  process.stderr.write(`${t('cli.notTty')}\n`)
-  process.exit(EXIT_NOT_TTY)
+  throw new CcsetError('cli.notTty', EXIT_NOT_TTY)
 }
 
 function clearScreen(): void {
@@ -64,7 +72,7 @@ function resolveAgentId(requested: string | undefined): string | undefined {
   if (findAgent(requested) === undefined) {
     // The same code the command parser uses (65), so the exit status says
     // "unknown agent" whichever surface refused it.
-    fail(new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: requested }))
+    throw new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: requested })
   }
   return requested
 }
@@ -195,7 +203,9 @@ async function main(): Promise<void> {
   }
   // CCSET_TOKEN, like the overrides above, is read once at this boundary: the
   // parser learns only whether a token is present, and the secret reader its value.
-  process.exit(await runCommand(argv, AGENTS, process.env['CCSET_TOKEN']))
+  // Exit code, not process.exit: the envelope was queued on the thread pool, and
+  // only a drained event loop guarantees it reaches the pipe whole.
+  process.exitCode = await runCommand(argv, AGENTS, process.env['CCSET_TOKEN'])
 }
 
 main().catch((err: unknown) => fail(toCcsetError(err)))

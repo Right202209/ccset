@@ -8,7 +8,7 @@ import {
   EXIT_UNSUPPORTED_COMMAND,
   EXIT_USAGE,
 } from '../src/core/errors.js'
-import { runCli as spawnCli, withHome, type RunResult } from './cli-harness.js'
+import { runCli as spawnCli, asRecord, withHome, type RunResult } from './cli-harness.js'
 
 /**
  * pi's provider.set seam across the process boundary: provider patches, the
@@ -29,13 +29,18 @@ async function writeModels(home: string, text: string): Promise<void> {
   await fs.writeFile(target, text, { mode: 0o600 })
 }
 
-async function modelsOf(home: string): Promise<Record<string, any>> {
+async function modelsOf(home: string): Promise<Record<string, unknown>> {
   const raw = await fs.readFile(modelsPath(home), 'utf8')
   const withoutLineComments = raw
     .split('\n')
     .filter((line) => !line.trim().startsWith('//'))
     .join('\n')
-  return JSON.parse(withoutLineComments) as Record<string, any>
+  return JSON.parse(withoutLineComments) as Record<string, unknown>
+}
+
+/** One provider block by id; an unknown id reads as an empty block. */
+async function providerBlockOf(home: string, id: string): Promise<Record<string, unknown>> {
+  return asRecord(asRecord(asRecord(await modelsOf(home))['providers'])[id])
 }
 
 async function backupCount(home: string): Promise<number> {
@@ -69,7 +74,7 @@ async function checkNewProvider(home: string): Promise<void> {
   assert.equal(envelope.targets[0]?.mode, '0600', 'the created file was not 0600')
   assert.equal(envelope.targets[0]?.backupPath, null, 'a fresh file made a backup')
   assert.equal(await backupCount(home), 0, 'a fresh file made a backup on disk')
-  const block = (await modelsOf(home))['providers']['router']
+  const block = await providerBlockOf(home, 'router')
   assert.equal(block['baseUrl'], 'https://r.example/v1')
   assert.equal(block['api'], 'anthropic-messages')
   assert.equal(block['apiKey'], SECRET)
@@ -102,21 +107,27 @@ async function checkPatchSemantics(home: string): Promise<void> {
   assert.equal(edited.code, 0, `provider edit failed: ${edited.stderr}`)
   const raw = await fs.readFile(modelsPath(home), 'utf8')
   assert.match(raw, /keep me/, 'the JSONC comment did not survive')
-  const block = (await modelsOf(home))['providers']['router']
+  const block = await providerBlockOf(home, 'router')
   assert.equal(block['baseUrl'], 'https://n.example/v1')
   assert.deepEqual(block['headers'], { 'x-custom': 'keep' }, 'unmanaged provider keys were lost')
   assert.equal(block['apiKey'], 'old-key-0123456789', 'an omitted secret did not preserve the disk value')
-  const byId = new Map<string, any>(block['models'].map((member: any) => [member['id'], member]))
-  assert.equal(byId.get('m1')?.['cost']?.['input'], 1, 'a member lost its unmanaged cost')
+  const models = Array.isArray(block['models']) ? (block['models'] as unknown[]) : []
+  const byId = new Map<string, Record<string, unknown>>()
+  for (const member of models) {
+    const record = asRecord(member)
+    const id = record['id']
+    if (typeof id === 'string') byId.set(id, record)
+  }
+  assert.equal(asRecord(asRecord(byId.get('m1'))['cost'])['input'], 1, 'a member lost its unmanaged cost')
   assert.equal(byId.get('m2'), undefined, 'a dropped model survived')
-  assert.equal(byId.get('m3')?.['id'], 'm3', 'a new model was not added')
+  assert.equal(asRecord(byId.get('m3'))['id'], 'm3', 'a new model was not added')
 
   const unset = await runCli(['--agent', 'pi', 'provider', 'set', 'router', '--unset', 'models', '--json'], home)
   assert.equal(unset.code, 0)
-  assert.equal('models' in (await modelsOf(home))['providers']['router'], false, '--unset models did not delete')
+  assert.equal('models' in (await providerBlockOf(home, 'router')), false, '--unset models did not delete')
   const unsetApi = await runCli(['--agent', 'pi', 'provider', 'set', 'router', '--unset', 'api', '--json'], home)
   assert.equal(unsetApi.code, 0)
-  assert.equal('api' in (await modelsOf(home))['providers']['router'], false, '--unset api did not delete')
+  assert.equal('api' in (await providerBlockOf(home, 'router')), false, '--unset api did not delete')
 
   const badChoice = await runCli(['--agent', 'pi', 'provider', 'set', 'router', '--api', 'grpc'], home)
   assert.equal(badChoice.code, EXIT_USAGE, 'an invalid choice was not a usage error')
@@ -135,7 +146,7 @@ async function checkDryRunAndNoOp(home: string): Promise<void> {
   assert.equal(envelope.dryRun, true)
   assert.equal(envelope.changed, true)
   assert.equal(envelope.targets[0]?.backupPath, null)
-  assert.equal((await modelsOf(home))['providers']['router']['baseUrl'], 'https://r.example/v1', 'a dry run wrote')
+  assert.equal((await providerBlockOf(home, 'router'))['baseUrl'], 'https://r.example/v1', 'a dry run wrote')
   assert.equal(await backupCount(home), 0, 'a dry run made a backup')
 
   const noOp = await runCli(
@@ -183,7 +194,7 @@ async function checkStatusAndSecrets(home: string): Promise<void> {
     { CCSET_HOME: home, CCSET_TOKEN: SECRET },
   )
   assert.equal(envToken.code, 0, 'a secret through CCSET_TOKEN was refused: ' + envToken.stderr)
-  assert.equal((await modelsOf(home))['providers']['fromenv']?.['apiKey'], SECRET, 'the CCSET_TOKEN key did not land')
+  assert.equal((await providerBlockOf(home, 'fromenv'))['apiKey'], SECRET, 'the CCSET_TOKEN key did not land')
   const conflict = await spawnCli(
     ['--agent', 'pi', 'provider', 'set', 'router', '--base-url', 'https://r.example/v1', '--token-stdin'],
     { CCSET_HOME: home, CCSET_TOKEN: SECRET },

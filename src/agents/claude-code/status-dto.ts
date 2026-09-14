@@ -5,7 +5,7 @@ import { countUnmanagedKeys, getPath, getStringAt } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
 import type { BackupsSummary } from '../../operations/status-sections.js'
 import type { JsonObject, JsonValue } from '../../types.js'
-import { ENV_HTTPS_PROXY, ENV_HTTP_PROXY, GLOBAL_FIELDS, MANAGED_GLOBAL_PATHS, PROVIDER_FIELDS, PROVIDER_TOKEN_PATH } from './manifest.js'
+import { ENV_HTTPS_PROXY, ENV_HTTP_PROXY, GLOBAL_FIELDS, MANAGED_GLOBAL_PATHS, PROVIDER_FIELDS, PROVIDER_TOKEN_PATH, SECRET_FIELD_IDS } from './manifest.js'
 import { backupsDir, globalSettingsPath } from './paths.js'
 import { loadProviders } from './providers.js'
 import { inspectState } from './state.js'
@@ -47,9 +47,6 @@ export interface ClaudeStatusDto {
   backups: BackupsSummary
 }
 
-/** Field ids that carry a credential; the DTO reports presence, never value. */
-const SECRET_FIELD_IDS = new Set(['token'])
-
 function managedValues(data: JsonObject): Record<string, JsonValue | undefined> {
   const managed: Record<string, JsonValue | undefined> = {}
   for (const field of GLOBAL_FIELDS) {
@@ -65,6 +62,9 @@ function managedValues(data: JsonObject): Record<string, JsonValue | undefined> 
 function withoutSecrets(
   managed: Record<string, JsonValue | undefined>,
 ): Record<string, JsonValue | undefined> {
+  // The manifest derives this set from the field types, so the "machine
+  // readable, secret-free" invariant follows the manifest instead of a
+  // hand-maintained copy of it.
   const safe = { ...managed }
   for (const id of SECRET_FIELD_IDS) delete safe[id]
   return safe

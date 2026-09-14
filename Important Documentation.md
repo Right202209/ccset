@@ -2094,3 +2094,70 @@ unchanged — no other gate asserts a path-bearing sentence against a paint.
 **Result:** `verify:error-recovery` passes both under the long-`TMPDIR`
 simulation and the ordinary run on Linux x64, Node.js 20.19.5. macOS, Node 18/20/22
 results are recorded by CI on the branch carrying this fix.
+
+### 9.44 OCR review fixes: 42 findings from the full-repo audit (2026-09-15)
+
+The open-code-review delegation-mode audit of master `2c87bb3` (`OCR.md`,
+42 findings: 1 high, 4 medium, 37 low) was fixed on
+`fix/ocr-review-findings`. All 42 were addressed; the load-bearing ones:
+
+- **H-1** `src/core/toml/parse.ts`: `setIn`/`containerFor` now share
+  `merge.ts`'s `isPrototypeKey`/`ownChild` (exported for the purpose), so a
+  `__proto__` bare key -- legal per `scan.ts`'s charset -- is dropped on the
+  read path exactly as the merge writer drops it: a dotted write is skipped, a
+  table whose path runs through one collects into a detached object nothing
+  reads back. Runtime check: `__proto__.polluted = 1`, `[__proto__]` and
+  `[[__proto__]]` leave `Object.prototype` untouched while normal tables still
+  parse (verified before and after the fix; the before-state reproduced the
+  pollution reported by the audit).
+- **M-1** `json-file.ts` no longer echoes a V8 JSON-parse message fragment
+  when no `position N` can be parsed -- newer messages quote document bytes,
+  which can reach a token; the position falls back to `unknown position`.
+- **M-2** `cli.tsx` no longer `process.exit`s straight after queueing a pipe
+  write: the command envelope sets `process.exitCode` and lets the loop drain;
+  `fail()` exits from the stderr write callback (a drained loop is not an
+  option there -- an Ink screen can still be mounted); `requireTty` throws the
+  `cli.notTty` error so the refusal routes through `fail()` with the same
+  exit code 2.
+- **M-3/L-8/L-15/L-16** single-source the secret-field sets: the claude-code
+  and opencode status DTOs consume their manifests' derived `SECRET_FIELD_IDS`
+  (previously hardcoded `{'token'}`/`{'apiKey'}` copies beside dead exports);
+  the codex and pi manifests' dead exports are deleted.
+- **L-9** `readOpencodeStatus` reads the managed document once and derives the
+  provider list from the same snapshot via the new `providerListFrom`
+  (`loadProviders` keeps its own read for the TUI).
+- **L-13** pi's `modelWrites` deduplicates `wanted` (the csv form path could
+  append `{ id }` twice), and `mergedModels` records appends in `present`.
+- **L-14** a codex `provider.use --dry-run` under `--adopt-current-as` plans
+  the adopted sidecar record too, matching what `authMoveRecords` commits.
+- The remaining lows: TOML editor keeps `pairs === null` inline tables intact
+  (L-1); the strict checker terminates a time token at `,`/`]`/`}` so
+  space-separated date-times inside arrays pass (L-2, runtime-verified);
+  U+007F is escaped by the writer and rejected raw by the checker (L-3,
+  runtime-verified); dead `ateLineBreak` removed (L-4); the `backupOrder`
+  comment now describes what `parseInt` actually does (L-5); the command
+  parser refuses a NaN int (new `cli.usage.notInteger` key, both locales) and
+  a following `--` flag as an option value (L-6/L-7); manifest path builders
+  and value arrays replace opencode's inline literals, and `autoupdateValue`
+  is imported from `global.ts` (L-10); claude-code labels derive from the
+  manifest's `labelKey`s (L-11); the eight nested ternaries became statements
+  or the shared `focusColor` helper (L-12/L-17/L-23); zh-Hans key order
+  matches `en.ts`, the dead `menu.help` and `prompt.exit*` keys are gone
+  (L-18/L-19/L-20); k/j move on non-textual form rows as the keymap promises
+  (L-21); `formLayout` is `useFormLayout` (L-22); the fixtures close their
+  assertion gaps (L-24/L-25), strip `CCSET_*` for the non-TTY probe (L-26),
+  drop dead parameters/imports (L-27/L-29), use exit-code constants
+  (L-30/L-31), assert stderr through the case table they declare (L-32), and
+  use `Record<string, unknown>`/`asRecord` instead of `any` (L-28/L-33).
+
+Fixture-behavior notes: `verify:commands-secret` now also asserts stderr
+wording for the `--token-file` case (previously exit-code only); no fixture
+asserted a provider-use dry-run target list with adoption, so L-14 changes no
+expected output.
+
+**Run on Linux x64 (Gentoo), Node.js 20.19.5, npm 10.9.4:** after all edits,
+`npm run typecheck` and `npm run build` passed; the full `npm test` chain
+passed end to end (exit 0, all fixtures including the rebuilt
+`verify:release-artifact`), `verify:code-gates` passed over 153 files with the
+18 known baseline exceptions and no new ones; `git diff --check` passed. The
+H-1/L-2/L-3 runtime probes above were run against the fixed tree.

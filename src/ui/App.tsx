@@ -23,7 +23,9 @@ function initialAgent(agents: Agent[], agentId?: string): Agent | null {
   return agents.length === 1 ? agents[0] ?? null : null
 }
 
-type PromptKind = 'exit' | 'discard'
+/** Only unsaved edits ever raise the prompt; the unreachable exit variant and
+ *  its catalog keys were removed with the dead branch. */
+type PromptKind = 'discard'
 
 export function App({
   ctx,
@@ -65,11 +67,9 @@ export function App({
   }
 
   function resolvePrompt(): void {
-    const kind = prompt
     setPrompt(null)
     setDirty(false)
-    if (kind === 'discard') screens.back()
-    else exit()
+    screens.back()
   }
 
   useInput((_input, key) => {

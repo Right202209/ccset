@@ -36,6 +36,15 @@ function run(command: string, args: string[], cwd = process.cwd()): string {
   return result.stdout
 }
 
+/** The process environment minus CCSET_*: an inherited CCSET_LOCALE would
+ *  localize the TTY refusal and fail the wording match for reasons unrelated
+ *  to the artifact -- the same stripping the pty harness applies. */
+function localeFreeEnv(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith('CCSET_')),
+  )
+}
+
 /**
  * npm through 11 reported `pack --json` as an array; npm 12 reports an object
  * keyed by package name. CI runs the Node 18/20/22 matrix, whose bundled npm
@@ -91,7 +100,7 @@ async function main(): Promise<void> {
 
     const bin = path.join(install, 'node_modules', '.bin', 'ccset')
     assert.equal(run(bin, ['--version'], install).trim(), packageJson.version)
-    const nonTty = spawnSync(bin, [], { cwd: install, input: '', encoding: 'utf8' })
+    const nonTty = spawnSync(bin, [], { cwd: install, input: '', encoding: 'utf8', env: localeFreeEnv() })
     assert.equal(nonTty.status, 2)
     assert.match(nonTty.stderr, /interactive.*terminal/is)
     assert.equal(/\x1b/.test(`${nonTty.stdout}${nonTty.stderr}`), false)

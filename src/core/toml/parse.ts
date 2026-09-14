@@ -1,5 +1,6 @@
 import type { JsonObject, JsonValue } from '../../types.js'
 import { isPlainObject } from '../json-file.js'
+import { isPrototypeKey, ownChild } from '../merge.js'
 import { decodeTomlString } from './strings.js'
 import { endOfLine, scanKeyPath, scanToml, scanValue, skipSpace, skipTrivia, type TomlTable } from './scan.js'
 
@@ -11,19 +12,23 @@ import { endOfLine, scanKeyPath, scanToml, scanValue, skipSpace, skipTrivia, typ
  * as their source text. ccset manages none of them; keeping the text means they
  * still count as preserved keys and still display, and the writer never touches
  * them, so nothing is lost by not modelling them.
+ *
+ * A `__proto__` key is a legal bare key here, so the traversal guards it the
+ * same way the merge writer does: a write aimed at the prototype slot is
+ * dropped rather than applied, and a table whose path runs through one collects
+ * into a detached object nothing reads back.
  */
 
 const RADIX_PREFIXES: Record<string, number> = { x: 16, o: 8, b: 2 }
 
 function setIn(target: JsonObject, keys: string[], value: JsonValue): void {
   const [head, ...rest] = keys
-  if (head === undefined) return
+  if (head === undefined || isPrototypeKey(head)) return
   if (rest.length === 0) {
     target[head] = value
     return
   }
-  const child = target[head]
-  const container: JsonObject = isPlainObject(child) ? child : {}
+  const container: JsonObject = ownChild(target, head) ?? {}
   target[head] = container
   setIn(container, rest, value)
 }
@@ -103,6 +108,7 @@ function containerFor(root: JsonObject, table: TomlTable): JsonObject {
   const parentKeys = table.path.slice(0, -1)
   let node = root
   for (const key of parentKeys) {
+    if (isPrototypeKey(key)) return {}
     const child = node[key]
     const next: JsonObject = isPlainObject(child) ? child : {}
     node[key] = next
@@ -110,6 +116,7 @@ function containerFor(root: JsonObject, table: TomlTable): JsonObject {
   }
   const leaf = table.path[table.path.length - 1]
   if (leaf === undefined) return node
+  if (isPrototypeKey(leaf)) return {}
   if (!table.isArray) {
     const existing = node[leaf]
     const created: JsonObject = isPlainObject(existing) ? existing : {}

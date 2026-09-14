@@ -50,6 +50,11 @@ export const AUTOUPDATE_CHOICES: FieldChoice[] = [
   { value: UNMANAGED, labelKey: 'choice.unmanaged' },
 ]
 
+/** Command choices carry no labels: the CLI takes the bare schema values,
+ *  spelled from the same constants the choice lists above are built from. */
+export const SHARE_VALUES: string[] = [SHARE_MANUAL, SHARE_AUTO, SHARE_DISABLED]
+export const AUTOUPDATE_VALUES: string[] = [AUTOUPDATE_ON, AUTOUPDATE_OFF, AUTOUPDATE_NOTIFY]
+
 /* --------------------------------------------------------------- global */
 
 export const GLOBAL_MODEL_PATH = ['model']

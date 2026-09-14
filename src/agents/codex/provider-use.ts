@@ -151,6 +151,29 @@ async function authMoveRecords(
   return records
 }
 
+/** The records a dry run plans for the credential move: the auth.json
+ *  replacement, and the adoption sidecar a conflicted live auth is first
+ *  copied to -- the same writes authMoveRecords commits for a real run. */
+async function plannedAuthRecords(ctx: Ctx, pre: UsePreflight): Promise<TargetRecord[]> {
+  const planned: TargetRecord[] = []
+  if (pre.conflicted && pre.adoptAs !== null) {
+    const adoptedPath = authProfilePath(ctx.home, pre.adoptAs)
+    planned.push({
+      path: adoptedPath,
+      mode: (await fileExists(adoptedPath)) ? await readMode(adoptedPath) : MODE_AFTER_WRITE,
+      backupPath: null,
+      changed: true,
+    })
+  }
+  planned.push({
+    path: codexAuthPath(ctx.home),
+    mode: pre.auth.exists ? await readMode(codexAuthPath(ctx.home)) : MODE_AFTER_WRITE,
+    backupPath: null,
+    changed: true,
+  })
+  return planned
+}
+
 export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
   const id = request.providerId ?? ''
   const pre = await preflightProviderUse(ctx, id, request)
@@ -170,12 +193,7 @@ export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promi
   if (authChanged) {
     if (request.dryRun) {
       // A dry run still plans the credential move it would make.
-      targets.push({
-        path: codexAuthPath(ctx.home),
-        mode: pre.auth.exists ? await readMode(codexAuthPath(ctx.home)) : MODE_AFTER_WRITE,
-        backupPath: null,
-        changed: true,
-      })
+      targets.push(...(await plannedAuthRecords(ctx, pre)))
     } else {
       targets.push(...(await authMoveRecords(ctx, pre, outcome.records)))
     }

@@ -5,13 +5,16 @@ import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.j
 import type {
   CommandDeclaration,
   CommandFieldSpec,
+  CommandValue,
   OperationRequest,
   OperationResult,
 } from '../../operations/types.js'
-import type { Ctx, JsonObject } from '../../types.js'
+import type { Ctx, JsonObject, JsonValue } from '../../types.js'
 import { validateBaseUrl } from '../../core/validate.js'
 import {
+  AUTOUPDATE_VALUES,
   GLOBAL_FIELDS,
+  SHARE_VALUES,
   providerApiKeyPath,
   providerBaseUrlPath,
   providerModelPath,
@@ -23,6 +26,7 @@ import {
   validateProviderId,
   validateProviderTimeoutMs,
 } from './manifest.js'
+import { autoupdateValue } from './global.js'
 import { backupsDir, launchCommand, opencodeTarget } from './paths.js'
 import {
   opencodeStatusFindings,
@@ -43,14 +47,14 @@ const GLOBAL_COMMAND_FIELDS: CommandFieldSpec[] = [
     id: 'share',
     option: '--share',
     type: 'choice',
-    choices: ['manual', 'auto', 'disabled'],
+    choices: SHARE_VALUES,
     unsettable: true,
   },
   {
     id: 'autoupdate',
     option: '--autoupdate',
     type: 'choice',
-    choices: ['true', 'false', 'notify'],
+    choices: AUTOUPDATE_VALUES,
     unsettable: true,
   },
   { id: 'username', option: '--username', type: 'text', unsettable: true },
@@ -61,11 +65,12 @@ function managedPathOf(fieldId: string): string[] | undefined {
   return GLOBAL_FIELDS.find((field) => field.id === fieldId)?.path
 }
 
-/** `autoupdate` is `true | false | "notify"` in the schema -- real booleans. */
-function autoupdateValue(raw: string): boolean | string {
-  if (raw === 'true') return true
-  if (raw === 'false') return false
-  return raw
+/** The write shape of one patch value: `autoupdate` leaves the string domain,
+ *  list values stay lists, everything else is its text. */
+function patchValue(fieldId: string, value: CommandValue): JsonValue {
+  if (fieldId === 'autoupdate') return autoupdateValue(String(value)) as JsonValue
+  if (Array.isArray(value)) return value
+  return String(value)
 }
 
 function globalPatchWrites(request: OperationRequest): ManagedWrite[] {
@@ -79,15 +84,7 @@ function globalPatchWrites(request: OperationRequest): ManagedWrite[] {
     }
     const value = request.patch[field.id]
     if (value === undefined) continue
-    writes.push({
-      path,
-      value:
-        field.id === 'autoupdate'
-          ? autoupdateValue(String(value))
-          : Array.isArray(value)
-            ? value
-            : String(value),
-    })
+    writes.push({ path, value: patchValue(field.id, value) })
   }
   return writes
 }

@@ -6,9 +6,18 @@ import { countUnmanagedKeys, getPath } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
 import type { JsonObject, JsonValue } from '../../types.js'
-import { GLOBAL_FIELDS, MANAGED_GLOBAL_PATHS, providerApiKeyPath } from './manifest.js'
+import {
+  GLOBAL_FIELDS,
+  MANAGED_GLOBAL_PATHS,
+  providerApiKeyPath,
+  providerBaseUrlPath,
+  providerModelsPath,
+  providerNamePath,
+  providerNpmPath,
+  SECRET_FIELD_IDS,
+} from './manifest.js'
 import { backupsDir, opencodeConfigPath, opencodeTarget } from './paths.js'
-import { loadProviders, type ProviderRecord } from './providers.js'
+import { providerListFrom, type ProviderRecord } from './providers.js'
 
 /**
  * The raw status payload for opencode, secret-free and machine-readable: the
@@ -44,8 +53,6 @@ export interface OpencodeStatusDto {
   backups: BackupsSummary
 }
 
-const SECRET_FIELD_IDS = new Set(['apiKey'])
-
 function managedValues(data: JsonObject): Record<string, JsonValue | undefined> {
   const managed: Record<string, JsonValue | undefined> = {}
   for (const field of GLOBAL_FIELDS) {
@@ -58,6 +65,9 @@ function managedValues(data: JsonObject): Record<string, JsonValue | undefined> 
 function withoutSecrets(
   managed: Record<string, JsonValue | undefined>,
 ): Record<string, JsonValue | undefined> {
+  // The manifest derives this set from the field types, so the "machine
+  // readable, secret-free" invariant follows the manifest instead of a
+  // hand-maintained copy of it.
   const safe = { ...managed }
   for (const id of SECRET_FIELD_IDS) delete safe[id]
   return safe
@@ -65,10 +75,10 @@ function withoutSecrets(
 
 function toProviderStatus(data: JsonObject, record: ProviderRecord): OpencodeProviderStatus {
   const managed: Record<string, JsonValue | undefined> = {
-    displayName: getPath(data, ['provider', record.id, 'name']),
-    npm: getPath(data, ['provider', record.id, 'npm']),
-    baseUrl: getPath(data, ['provider', record.id, 'options', 'baseURL']),
-    models: getPath(data, ['provider', record.id, 'models']),
+    displayName: getPath(data, providerNamePath(record.id)),
+    npm: getPath(data, providerNpmPath(record.id)),
+    baseUrl: getPath(data, providerBaseUrlPath(record.id)),
+    models: getPath(data, providerModelsPath(record.id)),
   }
   return {
     id: record.id,
@@ -112,8 +122,10 @@ export async function readOpencodeStatus(ctx: { home: string }): Promise<Opencod
   const backups = { path: backupsDirPath, count, partials }
   const legacyJson = legacyPresent ? { path: legacyPath } : undefined
   try {
+    // One read feeds both views: deriving the provider list from the same
+    // snapshot keeps the two sections from disagreeing about the file.
     const config = await readConfigFile(target)
-    const list = await loadProviders(ctx)
+    const list = providerListFrom(target, config)
     return {
       config: {
         path: target.path,

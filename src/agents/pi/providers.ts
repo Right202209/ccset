@@ -113,7 +113,10 @@ function mergedModels(disk: JsonValue[], wanted: string[]): JsonValue[] {
     merged.push(member)
   }
   for (const modelId of wanted) {
-    if (!present.has(modelId)) merged.push({ id: modelId })
+    if (present.has(modelId)) continue
+    // Recording the append is what makes a repeated id in `wanted` append once.
+    present.add(modelId)
+    merged.push({ id: modelId })
   }
   return merged
 }
@@ -121,15 +124,18 @@ function mergedModels(disk: JsonValue[], wanted: string[]): JsonValue[] {
 /**
  * The one models write, shared by the TUI form and the command patch. No-op
  * when the disk array already matches (an unchanged save must not rewrite the
- * span, so unmanaged member formatting survives byte for byte).
+ * span, so unmanaged member formatting survives byte for byte). `wanted` is
+ * deduplicated here: the form's csv field trusts its input, and the
+ * one-member-per-id contract has to hold whatever the caller supplied.
  */
 export function modelWrites(id: string, wanted: string[], base: JsonObject): ManagedWrite[] {
+  const unique = [...new Set(wanted)]
   const disk = getPath(base, providerModelsPath(id))
   if (!Array.isArray(disk)) {
-    if (wanted.length === 0) return []
-    return [{ path: providerModelsPath(id), value: wanted.map((modelId) => ({ id: modelId })) }]
+    if (unique.length === 0) return []
+    return [{ path: providerModelsPath(id), value: unique.map((modelId) => ({ id: modelId })) }]
   }
-  const merged = mergedModels(disk, wanted)
+  const merged = mergedModels(disk, unique)
   if (JSON.stringify(merged) === JSON.stringify(disk)) return []
   return [{ path: providerModelsPath(id), value: merged }]
 }

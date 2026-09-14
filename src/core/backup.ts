@@ -87,7 +87,12 @@ async function listBackupEntries(dir: string, prefix: string): Promise<BackupEnt
     .map((name) => ({ name, order: backupOrder(name, prefix) }))
 }
 
-/** Sorts by the epoch stamp; the -N collision suffix breaks ties. */
+/**
+ * Sorts by the epoch stamp. `Number.parseInt` stops at the `-N` collision
+ * suffix, so same-millisecond candidates share an order value and their
+ * relative order follows the directory listing; the suffix only keeps two
+ * writes in one millisecond from claiming the same name.
+ */
 function backupOrder(name: string, prefix: string): number {
   const suffix = name.slice(prefix.length)
   const stamp = Number.parseInt(suffix, 10)

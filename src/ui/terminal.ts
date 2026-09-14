@@ -159,6 +159,20 @@ export function toneColor(colors: ColorSet, tone?: MessageTone): string | undefi
 }
 
 /**
+ * The one selection a focusable row makes: focus wins, an active row takes its
+ * tone (the save row's green, a toggled-on boolean), everything else keeps the
+ * foreground. Field and ReviewForm share it so the rule cannot drift apart.
+ */
+export function focusColor(
+  colors: ColorSet,
+  focused: boolean,
+  tone?: MessageTone,
+): string | undefined {
+  if (focused) return colors.focus
+  return toneColor(colors, tone)
+}
+
+/**
  * The gutter a marked row reserves. The unmarked row pads to the same width, so
  * gaining or losing a marker never shifts the text beside it.
  */

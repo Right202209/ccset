@@ -95,7 +95,9 @@ function conflict(messageKey: string): never {
  */
 function proxyWrites(request: OperationRequest, base: JsonObject): ManagedWrite[] {
   const raw = request.patch['proxy']
-  const proxy = raw === 'on' ? true : raw === 'off' ? false : undefined
+  let proxy: boolean | undefined
+  if (raw === 'on') proxy = true
+  else if (raw === 'off') proxy = false
   const url = request.patch['proxyUrl']
   const unsetUrl = request.unsets.includes('proxyUrl')
   if (proxy === false && url !== undefined) conflict('claudeCode.validate.proxyConflict')

@@ -178,10 +178,3 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
 export const PROVIDER_DEFAULTS: FormValues = {
   api: DEFAULT_PROVIDER_API,
 }
-
-/** Fields whose value must never be printed unmasked. */
-export const SECRET_FIELD_IDS = new Set(
-  [...GLOBAL_FIELDS, ...PROVIDER_FIELDS]
-    .filter((field) => field.type === 'secret')
-    .map((field) => field.id),
-)

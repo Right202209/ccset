@@ -23,9 +23,10 @@ export function seedGlobal(data: JsonObject): FormValues {
 /**
  * `autoupdate` is `true | false | "notify"` in the schema, so the two boolean
  * choices have to leave the form's string domain and become real JSON booleans.
- * Writing the string "false" would read as truthy to opencode.
+ * Writing the string "false" would read as truthy to opencode. Shared with the
+ * command layer, which coerces the same field on the Non-interactive surface.
  */
-function autoupdateValue(raw: string | undefined): boolean | string | undefined {
+export function autoupdateValue(raw: string | undefined): boolean | string | undefined {
   if (raw === undefined) return undefined
   if (raw === 'true') return true
   if (raw === 'false') return false

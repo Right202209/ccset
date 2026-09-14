@@ -68,12 +68,19 @@ function providerSection(provider: CodexProviderStatus): KeyedStatusSection {
     titleKey: 'status.providerTitle',
     titleParams: { name: provider.id },
     lines,
-    noteKey: provider.noBaseUrl
-      ? 'codex.status.noBaseUrl'
-      : provider.noAmbientAuth
-        ? 'codex.status.noAmbientAuth'
-        : undefined,
+    noteKey: providerNoteKey(provider),
   }
+}
+
+function providerNoteKey(provider: CodexProviderStatus): string | undefined {
+  if (provider.noBaseUrl) return 'codex.status.noBaseUrl'
+  if (provider.noAmbientAuth) return 'codex.status.noAmbientAuth'
+  return undefined
+}
+
+function profileValueKey(profile: CodexProfileStatus): string {
+  if (!profile.readable) return 'status.unreadable'
+  return profile.apiKeyPresent ? 'status.present' : 'status.absent'
 }
 
 function authSection(dto: CodexStatusDto): KeyedStatusSection {
@@ -106,11 +113,7 @@ function profilesSection(dto: CodexStatusDto): KeyedStatusSection {
     // A profile's name is user data, not a catalog key; t() renders an unknown
     // key verbatim, which is exactly the label the section wants.
     labelKey: profile.name,
-    valueKey: !profile.readable
-      ? 'status.unreadable'
-      : profile.apiKeyPresent
-        ? 'status.present'
-        : 'status.absent',
+    valueKey: profileValueKey(profile),
     tone: profile.readable ? undefined : 'error',
   }))
   return {
