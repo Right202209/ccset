@@ -90,13 +90,13 @@ conflict choice when one would be required.
 
 ## Agent capability matrix
 
-| Command | Claude Code | opencode | Codex CLI |
-| --- | --- | --- | --- |
-| `status` | yes | yes | yes |
-| `global set` | yes | yes | yes |
-| `provider set` | yes | yes | yes |
-| `provider use` | no | no | yes |
-| `state init` | yes | no | no |
+| Command | Claude Code | opencode | Codex CLI | pi |
+| --- | --- | --- | --- | --- |
+| `status` | yes | yes | yes | yes |
+| `global set` | yes | yes | yes | yes |
+| `provider set` | yes | yes | yes | yes |
+| `provider use` | no | no | yes | yes |
+| `state init` | yes | no | no | no |
 
 A command that is valid in the grammar but absent from the selected Agent's
 capability declaration returns exit code `7`; it is not silently mapped to a
@@ -375,7 +375,7 @@ validation, and plan steps but never creates a backup or changes a file.
 | --- | --- |
 | Mode and parser | No-subcommand pipe exits `2` with no ANSI; explicit commands run without TTY; missing/unknown Agent, command, field, duplicate scalar, enum, integer, and empty patch return `5` |
 | Secrets | Env and stdin success; both sources, TTY stdin, multi-line/NUL/oversize/whitespace inputs fail; token is absent from argv, stdout, stderr, JSON, errors, and logs |
-| Writes | All three Agents preserve unmanaged keys, use `0600`, back up only changed targets, honor `--dry-run`, and return an accurate no-op report |
+| Writes | Every serving Agent preserves unmanaged keys, uses `0600`, backs up only changed targets, honors `--dry-run`, and returns an accurate no-op report |
 | Invalid files | All-target preflight, exit `4`, backup-before-replace, no known partial write, and correct `--replace-invalid` boundaries |
 | Codex | Auth adoption/replacement conflict, existing-profile idempotence, unreadable profile, keyring, `CODEX_HOME`, routing plus sidecar writes, and `partial` reporting |
 | Status and output | Structured status with `secretPresent`, parse failures plus exit `4`, warning-only success, JSON schema, stable codes, no ANSI, and human i18n |

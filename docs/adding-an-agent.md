@@ -1,6 +1,6 @@
 # Adding an agent
 
-Use the existing Claude Code, opencode, and Codex modules as examples of the
+Use the existing Claude Code, opencode, Codex, and pi modules as examples of the
 same extension boundary with different file layouts. An integration includes
 its runtime module, registry entry, verification fixtures, and documentation.
 The existing JSON, JSONC, and TOML Codecs are available for reuse.

@@ -87,6 +87,7 @@ TUI 的模板默认值与 CLI 的 Managed patch 要分别定义。还要明确�
 | 全局配置与各 Provider 分文件 | [claude-code](../../src/agents/claude-code/) | `paths.ts`、`global.ts`、`providers.ts`、`provider-commands.ts` |
 | 同一文档内嵌多个 Provider | [opencode](../../src/agents/opencode/) | `manifest.ts`、`providers.ts`、`commands.ts`；逐模型合并和 JSONC 目标选择 |
 | 配置与凭据分离、需要显式切换 | [codex](../../src/agents/codex/) | `auth.ts`、`activate.ts`、`provider-use.ts`；多文件提交及失败处理 |
+| 默认项与 Provider 分居两个 JSON 文档、集合是数组 | [pi](../../src/agents/pi/) | `paths.ts`、`providers.ts`、`use.ts`；按成员合并 models 数组与 settings.json 单文件写入 |
 
 按职责借鉴代码，只带入目标 Agent 已核实的规则。例如 Claude Code 的
 create-only 状态文件、Codex 的整文件凭据替换，以及现有 Anthropic 连接探测，
