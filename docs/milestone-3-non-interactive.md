@@ -90,13 +90,13 @@ conflict choice when one would be required.
 
 ## Agent capability matrix
 
-| Command | Claude Code | opencode | Codex CLI | Grok Build |
-| --- | --- | --- | --- | --- |
-| `status` | yes | yes | yes | yes |
-| `global set` | yes | yes | yes | yes |
-| `provider set` | yes | yes | yes | yes |
-| `provider use` | no | no | yes | yes |
-| `state init` | yes | no | no | no |
+| Command | Claude Code | opencode | Codex CLI | pi | Grok Build |
+| --- | --- | --- | --- | --- | --- |
+| `status` | yes | yes | yes | yes | yes |
+| `global set` | yes | yes | yes | yes | yes |
+| `provider set` | yes | yes | yes | yes | yes |
+| `provider use` | no | no | yes | yes | yes |
+| `state init` | yes | no | no | no | no |
 
 A command that is valid in the grammar but absent from the selected Agent's
 capability declaration returns exit code `7`; it is not silently mapped to a

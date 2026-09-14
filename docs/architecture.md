@@ -110,6 +110,18 @@ Agent-specific constraints that are easy to miss:
   Switching writes routing before credentials and handles failures explicitly.
   Non-interactive switches require explicit credential-conflict choices;
   `CODEX_HOME` mismatch and keyring preconditions follow ADRs 0011–0013.
+- **pi:** providers share `~/.pi/agent/models.json` under `providers.<id>`;
+  startup defaults (`defaultProvider`, `defaultModel`, `defaultThinkingLevel`)
+  live in a second document, `settings.json`, so `provider.use` writes two
+  leaves of a different file than `provider.set`. The `models` array merges per
+  member id (a JSON array, not a map), materialised from the re-read at save
+  time; members without a usable string `id` pass through untouched.
+  `models.json` is edited with the format-preserving JSONC codec because pi
+  strips comments on that file when reading; `settings.json` is plain JSON.
+  `auth.json` is pi's `/login` credential store — Status names it, ccset never
+  edits it. `PI_CODING_AGENT_DIR` is honoured only when the run points at the
+  real home, matching the opencode `XDG_CONFIG_HOME` rule.
+
 - **Grok Build:** everything ccset manages is one TOML document,
   `~/.grok/config.toml`: `[models].default` names the startup model, and each
   `[model.<id>]` table is a Provider. Managed leaves are `model`, `base_url`,
@@ -126,7 +138,7 @@ Agent-specific constraints that are easy to miss:
   ccset-manageable table id; the default reaches it through the free-text
   `models.default`, and a hand-written quoted table survives untouched.
 
-There is no Test connection for opencode, Codex, or Grok Build: the existing
+There is no Test connection for opencode, Codex, pi, or Grok Build: the existing
 probe speaks the Anthropic protocol, and arbitrary SDK/Responses endpoints need
 their own contract. Live compatibility unknowns belong in the register, not in
 assumed guarantees.

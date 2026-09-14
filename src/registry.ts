@@ -3,6 +3,7 @@ import { registerMessages } from './i18n/index.js'
 import { claudeCode } from './agents/claude-code/index.js'
 import { opencode } from './agents/opencode/index.js'
 import { codex } from './agents/codex/index.js'
+import { pi } from './agents/pi/index.js'
 import { grokBuild } from './agents/grok-build/index.js'
 
 /**
@@ -12,7 +13,7 @@ import { grokBuild } from './agents/grok-build/index.js'
  *
  * Adding an agent is this line plus one module under src/agents/.
  */
-export const AGENTS: Agent[] = [claudeCode, opencode, codex, grokBuild]
+export const AGENTS: Agent[] = [claudeCode, opencode, codex, pi, grokBuild]
 
 for (const agent of AGENTS) registerMessages(agent.messages)
 

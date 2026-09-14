@@ -1,6 +1,7 @@
 # Adding an agent
 
-Use the existing Claude Code, opencode, Codex, and Grok Build modules as examples of the
+Use the existing Claude Code, opencode, Codex, pi, and Grok Build modules as
+examples of the
 same extension boundary with different file layouts. An integration includes
 its runtime module, registry entry, verification fixtures, and documentation.
 The existing JSON, JSONC, and TOML Codecs are available for reuse.

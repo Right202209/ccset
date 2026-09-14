@@ -3,7 +3,7 @@
 [中文说明](https://github.com/Right202209/ccset/blob/master/README.zh-CN.md) | English
 
 Configure third-party API providers for **Claude Code**, **opencode**,
-**Codex CLI**, and **Grok Build** with an interactive terminal UI or scriptable
+**Codex CLI**, **pi**, and **Grok Build** with an interactive terminal UI or scriptable
 commands. ccset preserves unmanaged settings and backs up existing files before
 changing them.
 
@@ -33,6 +33,7 @@ ccset --agent claude-code
 | Claude Code | `claude-code` | `~/.claude/settings.json` and `settings.<name>.json` |
 | opencode | `opencode` | `~/.config/opencode/opencode.jsonc` when present, otherwise `opencode.json` |
 | Codex CLI | `codex` | `~/.codex/config.toml` and saved `auth.<id>.json` profiles |
+| pi | `pi` | `~/.pi/agent/settings.json` and `models.json` |
 | Grok Build | `grok-build` | `~/.grok/config.toml` |
 
 - **Claude Code:** ccset prints the `claude --settings <path>` command to run
@@ -42,6 +43,10 @@ ccset --agent claude-code
 - **Codex CLI:** save a provider, then choose **Use this provider** or run
   `provider use` to switch both routing and the live credential. The endpoint
   must support the OpenAI Responses API.
+- **pi:** custom providers live in `models.json` and the startup defaults in
+  `settings.json`. `provider use` sets both default provider and default model;
+  pi's `auth.json` stays owned by its `/login`. ccset honours
+  `PI_CODING_AGENT_DIR` when using your real home directory.
 - **Grok Build:** reads `config.toml` on launch; `/model` and `-m` override the
   saved default per session. ccset honours `GROK_HOME` when using your real
   home directory.
@@ -59,6 +64,7 @@ ccset --agent <id> status [--json]
 ccset --agent <id> global set [options]
 ccset --agent <id> provider set <provider-id> [options]
 ccset --agent codex provider use <provider-id> [options]
+ccset --agent pi provider use <provider-id> [options]
 ccset --agent grok-build provider use <provider-id> [options]
 ccset --agent claude-code state init
 ```

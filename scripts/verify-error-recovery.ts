@@ -41,6 +41,17 @@ function requireAgent(id: string): Agent {
 
 const claudeCode = requireAgent('claude-code')
 
+/**
+ * Both sides stripped of whitespace. The terminal soft-wraps a line at the
+ * viewport width, and a home under a long temporary directory (macOS runners'
+ * /var/folders/...) pushes the permission line past 80 columns, so the paint
+ * carries the message across several rows. What the gate cares about is that
+ * the failure is named, not where the line breaks fall.
+ */
+function flattened(text: string): string {
+  return text.replace(/\s+/g, '')
+}
+
 /** One finished backup and one partial copy, both holding a credential. */
 async function seedBackups(dir: string): Promise<void> {
   await fs.mkdir(dir, { recursive: true, mode: 0o700 })
@@ -92,7 +103,9 @@ async function checkFailedSaveKeepsTheForm(home: string): Promise<void> {
       await session.send(SAVE)
       const failed = await session.waitFor(t('error.screenTitle'))
       assert.ok(
-        failed.includes(t('error.permission', { path: providerSettingsPath(home, NAME), mode: 'rw' })),
+        flattened(failed).includes(
+          flattened(t('error.permission', { path: providerSettingsPath(home, NAME), mode: 'rw' })),
+        ),
         `The failure is not named on the error Screen:\n${failed}`,
       )
 
