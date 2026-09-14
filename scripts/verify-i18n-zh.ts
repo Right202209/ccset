@@ -36,6 +36,10 @@ const ALLOWED_IDENTICAL = new Set([
   'codex.action.globalDetail',
   'codex.status.keyringLabel',
   'codex.status.homeOverrideLabel',
+  // Wire-protocol names: the identifiers Grok Build's api_backend spells.
+  'grokBuild.choice.backendChatCompletions',
+  'grokBuild.choice.backendResponses',
+  'grokBuild.choice.backendMessages',
 ])
 
 function placeholders(value: string): string[] {

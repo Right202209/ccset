@@ -110,10 +110,26 @@ Agent-specific constraints that are easy to miss:
   Switching writes routing before credentials and handles failures explicitly.
   Non-interactive switches require explicit credential-conflict choices;
   `CODEX_HOME` mismatch and keyring preconditions follow ADRs 0011–0013.
+- **Grok Build:** everything ccset manages is one TOML document,
+  `~/.grok/config.toml`: `[models].default` names the startup model, and each
+  `[model.<id>]` table is a Provider. Managed leaves are `model`, `base_url`,
+  `name`, `api_backend`, and the inline `api_key` secret; Grok resolves
+  credentials as `api_key` → `env_key` → session token → `XAI_API_KEY`, so no
+  key or endpoint is *required* — a block whose id names a built-in model may
+  override only the fields it sets, and a block without `base_url` is warned
+  about rather than refused. `provider.use` writes the one `models.default`
+  leaf and warns when the id defines no `[model.*]` block (it may be a
+  built-in). `auth.json` is Grok's own credential store — Status names it,
+  ccset never edits it. `GROK_HOME` is honoured only when the run points at the
+  real home, matching the opencode `XDG_CONFIG_HOME` rule. Provider ids carry
+  the shared name pattern, so a built-in id with a dot (`grok-4.6`) is never a
+  ccset-manageable table id; the default reaches it through the free-text
+  `models.default`, and a hand-written quoted table survives untouched.
 
-There is no Test connection for opencode or Codex: the existing probe speaks the
-Anthropic protocol, and arbitrary SDK/Responses endpoints need their own contract.
-Live compatibility unknowns belong in the register, not in assumed guarantees.
+There is no Test connection for opencode, Codex, or Grok Build: the existing
+probe speaks the Anthropic protocol, and arbitrary SDK/Responses endpoints need
+their own contract. Live compatibility unknowns belong in the register, not in
+assumed guarantees.
 
 ## Navigation and terminal rendering
 

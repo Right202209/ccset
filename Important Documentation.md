@@ -1963,3 +1963,80 @@ terminal boundary and packed-artifact installation. The release checklist now
 names `README.zh-CN.md`, matching the artifact fixture. The 75 repository
 links/anchors, balanced Markdown fences, fixture inventory, and preservation
 of earlier §9 history were checked again successfully.
+
+---
+
+### 9.41 Grok Build agent integration (2026-09-14)
+
+ccset now supports a fourth Agent, Grok Build (xAI's coding agent, `grok`).
+Everything ccset manages is one format-preserving TOML document,
+`~/.grok/config.toml`: `[models].default` (the startup model, the single
+global key) and each `[model.<id>]` table (a Provider). Managed provider
+leaves are `model`, `base_url`, `name`, `api_backend`
+(`chat_completions`/`responses`/`messages`), and the inline `api_key` secret;
+`env_key`, headers, query params, and sampling numbers stay unmanaged and
+survive every write. `provider.use` writes `models.default` only and warns
+when the id defines no `[model.*]` block, because it may name a built-in
+model. A new provider block is not required to carry a `base_url` or a key —
+Grok's documented built-in-override shape sets only the fields it overrides,
+and Grok resolves credentials as `api_key` → `env_key` → session token →
+`XAI_API_KEY` — so under-supplied blocks draw a warning instead of a refusal.
+`auth.json` is Grok's own credential store: Status names it, ccset never
+edits it. `GROK_HOME` is honoured only when the run points at the real home,
+matching the opencode `XDG_CONFIG_HOME` rule. The module lives in
+`src/agents/grok-build/` and registers in `src/registry.ts`; the TUI offers
+Global settings, Providers, and Status, and the commands serve `status`,
+`global set`, `provider set`, and `provider use`. Because the agent-select
+list grew to four rows, the duplicate in-list "Select an agent" title was
+removed (the App header already paints it).
+
+**Shared-core fix.** Grok's documented shape — a leaf key `model` inside
+`[model.<id>]`, in a file with more than one such table — exposed a false
+positive in the strict TOML checker: assignments were recorded without their
+table context, so `model = "x"` inside `[model.relay]` made the later
+`[model."grok-4.6"]` header read as a redefinition and ccset refused a valid
+config. `findTomlProblem` now records assignments under the table they sit in
+and marks only a key's own dotted segments as dotted-created tables. The fix
+also catches a violation the old code missed (`[a]` with key `x`, then an
+`[a.x]` header). Regression cases joined `scripts/verify-toml-codec.ts`
+(legal Grok shape, super-table-after-key-in-sub, sub-table-after-key inside a
+table), and the value-shape checks moved to `src/core/toml/value-check.ts`
+with the code-gate baseline keys updated for the move; codex and opencode
+fixtures stay green.
+
+**Verification.** New fixtures, wired into `package.json` and the sequential
+`test` chain and registered in the verification map:
+`verify:grok-build` (TUI seam: leaf writes at four TOML levels, blank-field
+omission, external-modification re-read, byte-identical CRLF/comment corpus,
+backup rotation to `MAX_BACKUPS` at `0600`, detection, the `GROK_HOME` rule,
+status masking and zero writes), `verify:grok-build-screens` (screen walk:
+every action run and descended, all label/help/detail/choice keys resolve),
+`verify:commands-grok-build` (provider patches over the built `dist/cli.js`,
+the built-in-override shape, secret sources and their conflict, unset/dry-run
+refusals, secret-free status, malformed refusal plus `--replace-invalid`
+backup, exit codes), and `verify:commands-grok-build-use` (global patching
+with sibling preservation, `provider use` writing `models.default`, the
+unknown-id warning, dotted built-in ids through the free-text `--model`,
+unreadable-config refusal, dry-run zero writes). Mutation verification ran
+three deliberate bugs through `verify:grok-build`, each of which turned it
+red before the revert: a blank secret written as `""` ("a blank field
+produced a concrete value"), an unmasked key in Status ("status leaked the
+provider key"), and a wholesale parent-object write ("an unchanged save
+rewrote bytes"). Manual runs through the built CLI exercised `provider set`,
+`provider use`, `status` (human and JSON), and `--help` in an isolated
+`CCSET_HOME`.
+
+**Sources and limits.** The config contract was taken from the upstream
+docs `05-configuration.md`, `11-custom-models.md`, and
+`26-config-reference.md` at xai-org/grok-build main
+`37949780c144e37df692e3d669051a21fec24f20` (2026-09-14), plus the official
+docs.x.ai/build overview. No live `grok` binary was run against ccset's
+output and no non-Linux platform was exercised: the fixtures prove read/write
+behavior against synthetic documents only, and real-endpoint compatibility
+(including whether Grok accepts each written block) remains for the operator
+to confirm with `grok inspect`. Provider ids carry the shared
+`[A-Za-z0-9_-]+` name pattern, so a built-in id carrying a dot is never a
+ccset-manageable table id; `models.default` reaches it through the free-text
+`global set --model`, and a hand-written quoted table such as
+`[model."grok-4.6"]` is preserved untouched. Consider this integration
+experimental until a live Grok Build version confirms the documented paths.

@@ -62,6 +62,10 @@ interface AgentSelectProps {
 /**
  * Only rendered once a second agent is registered (PRD 4.1); with one agent
  * ccset enters it directly rather than asking a question with one answer.
+ * The App header already paints "Select an agent" for this frame, so no title
+ * of its own: the SelectList default budget assumes MainMenu's chrome, and an
+ * extra row here would push the list past the viewport once the agent count
+ * outgrows it.
  */
 export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): React.ReactElement {
   const { fold } = useTerminal()
@@ -71,7 +75,6 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
   ]
   return (
     <Box flexDirection="column">
-      <Text bold>{fold(t('menu.agentTitle'))}</Text>
       <SelectList
         options={options}
         onSelect={(option, index) => {
