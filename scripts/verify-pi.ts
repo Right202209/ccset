@@ -117,6 +117,14 @@ async function checkModelsMerge(home: string): Promise<void> {
   assert.equal(idless.length, 1, 'a member without an id was not passed through')
   // An unchanged save must not rewrite the models span at all.
   assert.deepEqual(modelWrites('router', ['m1', 'm3'], await modelsOf(home)), [], 'an unchanged list produced a write')
+  // A duplicated csv id must materialize one member per id, whichever branch
+  // the write takes: a fresh provider has no models array yet.
+  await saveProvider(
+    ctx,
+    valuesOf({ id: 'dup', baseUrl: 'https://d.example/v1', api: 'openai-completions', apiKey: SECRET, models: 'x, x' }),
+  )
+  const dupBlock = await providerBlockOf(home, 'dup')
+  assert.deepEqual(dupBlock['models'], [{ id: 'x' }], 'a duplicated csv id appended twice')
 }
 
 async function checkBlankOmitsKey(home: string): Promise<void> {
