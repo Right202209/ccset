@@ -55,8 +55,10 @@ async function writeModels(home: string, text: string): Promise<void> {
   await fs.writeFile(target, text, { mode: 0o600 })
 }
 
-/** An object view of a parsed-JSON value; a non-object becomes an empty one,
- *  which the assertions then fail on instead of throwing. */
+/** An object view of a parsed-JSON value, typed for the managed-Json domain:
+ *  unlike the harness's `asRecord` (unknown in, Record<string, unknown> out)
+ *  this keeps `JsonObject`, which the write seam (modelWrites) takes. A
+ *  non-object becomes an empty one, which the assertions then fail on. */
 function asObject(value: JsonValue | undefined): JsonObject {
   return isPlainObject(value) ? value : {}
 }

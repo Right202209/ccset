@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { opencodeConfigPath } from '../src/agents/opencode/paths.js'
 import { EXIT_INVALID_CONFIG, EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
-import { asRecord, runCli as spawnCli, type RunResult } from './cli-harness.js'
+import { asRecord, blockOf, runCli as spawnCli, type RunResult } from './cli-harness.js'
 
 /**
  * M3.5: opencode provider set with per-model merge, across the process seam.
@@ -49,7 +49,7 @@ async function configOf(home: string): Promise<Record<string, unknown>> {
 
 /** The provider block named id, as the document on disk spells it. */
 async function providerBlockOf(home: string, id: string): Promise<Record<string, unknown>> {
-  return asRecord(asRecord(asRecord(await configOf(home))['provider'])[id])
+  return blockOf(await configOf(home), 'provider', id)
 }
 
 const SET = ['--agent', 'opencode', 'provider', 'set', 'router', '--base-url', 'https://new.example']

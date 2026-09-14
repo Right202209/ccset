@@ -24,6 +24,16 @@ export function asRecord(value: unknown): Record<string, unknown> {
     : {}
 }
 
+/** One named block of a parsed document (a provider map entry, say); an
+ *  unknown section or id reads as an empty block the assertions fail on. */
+export function blockOf(
+  document: unknown,
+  section: string,
+  id: string,
+): Record<string, unknown> {
+  return asRecord(asRecord(asRecord(document)[section])[id])
+}
+
 /**
  * One run of the built CLI. An `env` entry overrides the ambient environment,
  * and an `undefined` value strips the variable -- how the codex gates remove

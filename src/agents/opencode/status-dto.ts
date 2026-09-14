@@ -125,7 +125,7 @@ export async function readOpencodeStatus(ctx: { home: string }): Promise<Opencod
     // One read feeds both views: deriving the provider list from the same
     // snapshot keeps the two sections from disagreeing about the file.
     const config = await readConfigFile(target)
-    const list = providerListFrom(target, config)
+    const list = providerListFrom(config)
     return {
       config: {
         path: target.path,

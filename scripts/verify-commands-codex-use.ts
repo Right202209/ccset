@@ -132,10 +132,7 @@ async function checkConflictRefusals(): Promise<void> {
   assert.equal(dry.code, EXIT_RUNTIME, 'a dry run skipped the conflict checks')
   assert.equal(await liveOf(before.home), UNKNOWN_LIVE, 'a dry run wrote the credential')
 
-  const both = await runCli(
-    ['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'kept', '--replace-current-auth'],
-    before.home,
-  )
+  const both = await runCli(['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'kept', '--replace-current-auth'], before.home)
   assert.equal(both.code, EXIT_USAGE, 'both conflict choices together were not rejected')
 
   const taken = await runCli(['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'router'], before.home)
@@ -148,10 +145,7 @@ async function checkConflictRefusals(): Promise<void> {
   // The live credential is profile `old` byte for byte, so nothing would be
   // lost: adoption only makes sense when the live bytes would otherwise go.
   const unconflicted = await seed(KNOWN_LIVE, true)
-  const strayAdopt = await runCli(
-    ['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'kept', '--json'],
-    unconflicted.home,
-  )
+  const strayAdopt = await runCli(['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'kept', '--json'], unconflicted.home)
   assert.equal(strayAdopt.code, EXIT_RUNTIME, 'an adopt flag on an unconflicted switch was accepted')
   assert.equal(
     (JSON.parse(strayAdopt.stdout) as Envelope).error?.code,
@@ -168,10 +162,7 @@ async function checkConflictRefusals(): Promise<void> {
 
 async function checkAdoption(): Promise<void> {
   const before = await seed(UNKNOWN_LIVE, false)
-  const result = await runCli(
-    ['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'saved', '--json'],
-    before.home,
-  )
+  const result = await runCli(['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'saved', '--json'], before.home)
   assert.equal(result.code, 0, `an adoption switch failed: ${result.stderr}`)
   assert.equal(
     await fs.readFile(authProfilePath(before.home, 'saved'), 'utf8').then(() => true, () => false),
@@ -190,10 +181,7 @@ async function checkAdoption(): Promise<void> {
 
 async function checkReplacement(): Promise<void> {
   const before = await seed(UNKNOWN_LIVE, false)
-  const result = await runCli(
-    ['--agent', 'codex', 'provider', 'use', 'router', '--replace-current-auth', '--json'],
-    before.home,
-  )
+  const result = await runCli(['--agent', 'codex', 'provider', 'use', 'router', '--replace-current-auth', '--json'], before.home)
   assert.equal(result.code, 0, `a replacement switch failed: ${result.stderr}`)
   assert.equal(await liveOf(before.home), ROUTER_PROFILE, 'the profile did not land')
   assert.equal(await fs.readFile(authProfilePath(before.home, 'router'), 'utf8'), ROUTER_PROFILE, 'the saved profile changed')
@@ -231,14 +219,29 @@ async function checkDryRun(): Promise<void> {
   assert.equal(dry.code, 0, `a dry run failed: ${dry.stderr}`)
   const envelope = JSON.parse(dry.stdout) as Envelope
   assert.equal(envelope.changed, true)
-  assert.equal(
-    (envelope.targets ?? []).every((target) => target.backupPath === null),
-    true,
-    'a dry run reported a backup',
-  )
+  assert.equal((envelope.targets ?? []).every((target) => target.backupPath === null), true, 'a dry run reported a backup')
   assert.equal(await liveOf(before.home), KNOWN_LIVE, 'a dry run wrote the credential')
   assert.equal(await textOf(before.home), before.routing, 'a dry run moved the routing')
   await fs.rm(before.home, { recursive: true, force: true })
+
+  // A conflicted dry run under --adopt-current-as plans the sidecar too: the
+  // real run commits the same two writes, adoption then the replacement.
+  const adopted = await seed(UNKNOWN_LIVE, false)
+  const plan = await runCli(['--agent', 'codex', 'provider', 'use', 'router', '--adopt-current-as', 'kept', '--dry-run', '--json'], adopted.home)
+  assert.equal(plan.code, 0, `an adoption dry run failed: ${plan.stderr}`)
+  const planned = JSON.parse(plan.stdout) as Envelope
+  assert.equal(
+    (planned.targets ?? []).some((target) => target.path.endsWith('auth.kept.json')),
+    true,
+    'a dry run did not plan the adopted sidecar',
+  )
+  assert.equal(await liveOf(adopted.home), UNKNOWN_LIVE, 'an adoption dry run wrote the credential')
+  assert.equal(
+    await fs.readFile(authProfilePath(adopted.home, 'kept'), 'utf8').then(() => true, () => false),
+    false,
+    'an adoption dry run wrote the sidecar',
+  )
+  await fs.rm(adopted.home, { recursive: true, force: true })
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { ConfigFile, Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
+import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
 import { readConfigFile, type LoadedConfig } from '../../core/config-file.js'
 import { isPlainObject } from '../../core/json-file.js'
 import {
@@ -171,10 +171,10 @@ function asObject(value: unknown): JsonObject {
  * sections from this instead of re-reading the file through loadProviders,
  * so both views of one status run see the same snapshot.
  */
-export function providerListFrom(file: ConfigFile, config: LoadedConfig): ProviderList {
+export function providerListFrom(config: LoadedConfig): ProviderList {
   const root = asObject(getPath(config.data, [PROVIDER_ROOT]))
   return {
-    path: file.path,
+    path: config.path,
     exists: config.exists,
     parsed: true,
     records: Object.keys(root)
@@ -191,7 +191,7 @@ export function providerListFrom(file: ConfigFile, config: LoadedConfig): Provid
 export async function loadProviders(ctx: Ctx): Promise<ProviderList> {
   const file = await opencodeTarget(ctx.home)
   try {
-    return providerListFrom(file, await readConfigFile(file))
+    return providerListFrom(await readConfigFile(file))
   } catch (err) {
     return {
       path: file.path,

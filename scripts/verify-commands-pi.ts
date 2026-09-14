@@ -8,7 +8,7 @@ import {
   EXIT_UNSUPPORTED_COMMAND,
   EXIT_USAGE,
 } from '../src/core/errors.js'
-import { runCli as spawnCli, asRecord, withHome, type RunResult } from './cli-harness.js'
+import { runCli as spawnCli, asRecord, blockOf, withHome, type RunResult } from './cli-harness.js'
 
 /**
  * pi's provider.set seam across the process boundary: provider patches, the
@@ -40,7 +40,7 @@ async function modelsOf(home: string): Promise<Record<string, unknown>> {
 
 /** One provider block by id; an unknown id reads as an empty block. */
 async function providerBlockOf(home: string, id: string): Promise<Record<string, unknown>> {
-  return asRecord(asRecord(asRecord(await modelsOf(home))['providers'])[id])
+  return blockOf(await modelsOf(home), 'providers', id)
 }
 
 async function backupCount(home: string): Promise<number> {

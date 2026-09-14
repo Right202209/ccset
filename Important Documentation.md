@@ -2161,3 +2161,47 @@ passed end to end (exit 0, all fixtures including the rebuilt
 `verify:release-artifact`), `verify:code-gates` passed over 153 files with the
 18 known baseline exceptions and no new ones; `git diff --check` passed. The
 H-1/L-2/L-3 runtime probes above were run against the fixed tree.
+
+**Two-axis follow-up review of the fix commit.** The Standards axis found the
+one real gap: three of the new behaviors shipped without fixture assertions,
+against the AGENTS.md workflow ("for new behavior, add focused assertions at
+the affected public boundary"). All three now have them, and the judgement-call
+smells it labelled were fixed where the fix was cheap:
+
+- The parser's own normalization contract (NaN int refusal, following-flag
+  guard) had no reachable shipped declaration to test through — every shipped
+  int field carries a validator that rejects the same input earlier — so the
+  new `verify:commands-parser` fixture drives `parseCommand` with a synthetic
+  int-field declaration (refuses `--count abc` with `cli.usage.notInteger`,
+  exit 64; accepts `--count 42` as a number) and the `--` guard through the
+  built CLI (`--model --ccset-not-an-option` exits 64 naming `--model needs a
+  value`, and writes nothing). Wired into `verify:*`, the sequential `test`
+  chain, and the verification map.
+- `verify:commands-codex-use`'s dry-run check now covers the conflicted
+  `--adopt-current-as` plan: the envelope names the adopted sidecar
+  (`auth.kept.json`), and neither the live credential nor the sidecar was
+  written.
+- Duplication the review labelled: the codex switch's `TargetRecord` shape is
+  built by one `changedRecord` helper across its three sites; opencode's
+  `providerListFrom` takes only the `LoadedConfig` (its `path` already carries
+  what the `file` parameter duplicated); the fixtures' `providerBlockOf`
+  helpers share `blockOf` from `cli-harness.ts`. `verify-pi.ts` keeps its
+  own `asObject` on purpose: it is the `JsonValue`-typed variant the write
+  seam (`modelWrites`) requires, where the harness helper returns
+  `Record<string, unknown>` — the comment now says so.
+
+Spec axis: all 42 findings verified fixed as recommended, no missing or
+partial requirements, no unrequested behavior; OCR.md §5 themes 3 (fixture
+harness duplication beyond the above) and 5 (`commit.ts` rendered
+re-validation, which the report itself deferred to a corpus fixture) remain
+open by design. `verify:code-gates` passed over 154 files (the new fixture)
+with the same 18 baseline exceptions, and the focused re-runs
+(`verify:commands`, `verify:commands-parser`, `verify:commands-secret`,
+`verify:commands-pi`, `verify:commands-pi-use`, `verify:pi`,
+`verify:commands-opencode-provider`, `verify:commands-codex-use`,
+`verify:i18n-zh`) all passed; a final full `npm test` chain is recorded below.
+
+**Final full-chain run (same platform):** `npm test` passed end to end with
+exit 0 — now 28 stages including the new `verify:commands-parser` — and
+`verify:code-gates` passed over 154 files with the 18 known baseline
+exceptions. `git diff --check` passed.
