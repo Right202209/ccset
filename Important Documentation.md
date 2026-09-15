@@ -2293,3 +2293,8 @@ exit 0 over all 32 stages including the four grok fixtures;
 `verify:code-gates` passed over 173 files with the same 18 baseline
 exceptions. The register entries above are renumbered 9.44 (Grok Build) /
 9.45 (this work) accordingly.
+The first CI run of the merge commit failed only `macos-latest / Node.js 18`
+in `verify:malformed-dirty` (`waitFor('❯ Save')` hit the harness's 5 s
+PTY timeout); the job passed unchanged on rerun and every other matrix
+entry passed first try, so it is recorded as runner timing, the family
+§9.43 documents, not a merge regression.
