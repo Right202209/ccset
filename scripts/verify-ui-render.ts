@@ -104,16 +104,22 @@ function assertPainted(paint: string, text: string, missing: string): void {
 /**
  * The agent-selection Screen, which only exists once a second agent is
  * registered (PRD 4.1) and so was unreachable until opencode landed. Row 1 is
- * Claude Code, which the rest of this drive goes on to configure.
+ * Claude Code, which the rest of this drive goes on to configure. The list is
+ * windowed to the session viewport, so the first paint holds only the leading
+ * rows: walk the focus down through every row (an Exit row sits below the
+ * agents), assert every agent painted in some frame, then jump straight back
+ * to row 1, which the 1-9 jump reaches from any scroll position.
  */
 async function driveAgentSelect(session: UiSession): Promise<void> {
   const paint = await session.waitFor(t('menu.agentTitle'))
   session.assertSingleFocus(paint, 'agent select')
-  for (const agent of AGENTS) {
-    assertPainted(paint, agent.name, `The agent list omits ${agent.id}`)
-  }
   assertPainted(paint, `${session.focusedRow('1.')} ${AGENTS[0]?.name ?? ''}`,
     'The agent list does not focus row 1')
+  await session.sendEach(DOWN, AGENTS.length + 1)
+  const walked = session.paints().join('\n')
+  for (const agent of AGENTS) {
+    assertPainted(walked, agent.name, `The agent list omits ${agent.id}`)
+  }
   await session.send('1')
 }
 

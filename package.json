@@ -1,7 +1,7 @@
 {
   "name": "@droite/ccset",
   "version": "0.1.0",
-  "description": "Terminal UI and CLI that generate and edit Claude Code, opencode, Codex CLI, and pi settings files for third-party API providers.",
+  "description": "Terminal UI and CLI that generate and edit Claude Code, opencode, Codex CLI, pi, and Grok Build configuration files for third-party API providers.",
   "type": "module",
   "bin": {
     "ccset": "./dist/cli.js"
@@ -40,8 +40,12 @@
     "verify:commands-opencode-provider": "npm run build && tsup scripts/verify-commands-opencode-provider.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-opencode-provider.js; status=$?; rm -rf .verify; exit $status",
     "verify:pi": "tsup scripts/verify-pi.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-pi.js; status=$?; rm -rf .verify; exit $status",
     "verify:commands-pi": "npm run build && tsup scripts/verify-commands-pi.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-pi.js; status=$?; rm -rf .verify; exit $status",
+    "verify:grok-build": "tsup scripts/verify-grok-build.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-grok-build.js; status=$?; rm -rf .verify; exit $status",
+    "verify:grok-build-screens": "tsup scripts/verify-grok-build-screens.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-grok-build-screens.js; status=$?; rm -rf .verify; exit $status",
+    "verify:commands-grok-build": "npm run build && tsup scripts/verify-commands-grok-build.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-grok-build.js; status=$?; rm -rf .verify; exit $status",
+    "verify:commands-grok-build-use": "npm run build && tsup scripts/verify-commands-grok-build-use.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-grok-build-use.js; status=$?; rm -rf .verify; exit $status",
     "verify:release-artifact": "tsup scripts/verify-release-artifact.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-release-artifact.js; status=$?; rm -rf .verify; exit $status",
-    "test": "npm run verify:global-settings && npm run verify:opencode && npm run verify:codex && npm run verify:provider-safety && npm run verify:write-safety && npm run verify:ui-render && npm run verify:header-path && npm run verify:review-form && npm run verify:error-recovery && npm run verify:malformed-dirty && npm run verify:first-run-locale && npm run verify:status-terminal && npm run verify:i18n-zh && npm run verify:commands && npm run verify:commands-parser && npm run verify:commands-status && npm run verify:commands-secret && npm run verify:commands-opencode && npm run verify:commands-opencode-provider && npm run verify:pi && npm run verify:pi-screens && npm run verify:commands-pi && npm run verify:commands-pi-use && npm run verify:commands-codex && npm run verify:commands-codex-provider && npm run verify:commands-codex-use && npm run verify:code-gates && npm run verify:release-artifact",
+    "test": "npm run verify:global-settings && npm run verify:opencode && npm run verify:codex && npm run verify:provider-safety && npm run verify:write-safety && npm run verify:ui-render && npm run verify:header-path && npm run verify:review-form && npm run verify:error-recovery && npm run verify:malformed-dirty && npm run verify:first-run-locale && npm run verify:status-terminal && npm run verify:i18n-zh && npm run verify:commands && npm run verify:commands-parser && npm run verify:commands-status && npm run verify:commands-secret && npm run verify:commands-opencode && npm run verify:commands-opencode-provider && npm run verify:pi && npm run verify:pi-screens && npm run verify:commands-pi && npm run verify:commands-pi-use && npm run verify:grok-build && npm run verify:grok-build-screens && npm run verify:commands-grok-build && npm run verify:commands-grok-build-use && npm run verify:commands-codex && npm run verify:commands-codex-provider && npm run verify:commands-codex-use && npm run verify:code-gates && npm run verify:release-artifact",
     "prepublishOnly": "npm run build",
     "verify:commands-codex": "npm run build && tsup scripts/verify-commands-codex.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-codex.js; status=$?; rm -rf .verify; exit $status",
     "verify:commands-codex-provider": "npm run build && tsup scripts/verify-commands-codex-provider.ts --format esm --platform node --out-dir .verify --clean && node .verify/verify-commands-codex-provider.js; status=$?; rm -rf .verify; exit $status",
@@ -54,6 +58,10 @@
     "claude",
     "claude-code",
     "anthropic",
+    "opencode",
+    "codex",
+    "grok",
+    "grok-build",
     "settings",
     "tui",
     "cli"

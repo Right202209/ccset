@@ -146,6 +146,52 @@ the provider's disk entry is used; a provider entry without models (the
 built-in-override shape) has to name `--model` explicitly, since its startup
 model lives in pi's own catalog, which ccset does not read.
 
+### Grok Build
+
+| Menu entry | What it touches |
+| --- | --- |
+| Global settings | `~/.grok/config.toml` — the default model (`models.default`) |
+| Providers | A `[model.<id>]` table in that file — add, edit, list |
+| Status | Reads the above and `~/.grok/auth.json`. Writes nothing. |
+
+Grok Build's config is TOML, edited in place the same way Codex's is: comments,
+blank lines, alignment and key order survive every save. `auth.json` is Grok's
+own credential store, written by `grok login`; ccset names it in Status and never
+edits it.
+
+A provider is one `[model.<id>]` table. ccset manages `model` (the model
+identifier the endpoint receives), `base_url`, `name`, `api_backend`
+(`chat_completions`, `responses`, or `messages`) and `api_key`; everything else
+the table may carry — `env_key`, `extra_headers`, `query_params`, sampling and
+window numbers — survives untouched. An id that names a built-in model overrides
+only the fields it sets, which is Grok's documented way to override a built-in's
+key, so a new block is not required to carry a `base_url`. A block without one is
+flagged in Status and in command warnings, since a custom model cannot reach any
+endpoint without it. Ids ccset writes are limited to letters, digits, dashes and
+underscores; a built-in id that carries a dot (`grok-4.6`) is not an id ccset can
+write as a table — point `models.default` at it with `global set --model`, and a
+hand-written quoted table such as `[model."grok-4.6"]` is preserved untouched.
+
+**Provider use** writes `models.default` and nothing else: Grok reads it for
+every new session, and `/model` or `-m` still overrides it per session. A switch
+to an id no `[model.*]` block defines warns rather than refuses, because the id
+may name a built-in model.
+
+Grok resolves a model's credential as `api_key`, then `env_key`, then the signed-in
+session token, then `XAI_API_KEY`. A key ccset saves lands inline in
+`config.toml` and is masked in every display; prefer `env_key` (unmanaged — set
+it by hand) if you do not want the key in the file at all.
+
+**`GROK_HOME` is honoured for the real home.** Grok reads `$GROK_HOME` when the
+variable is set, so that is the directory ccset reads and writes too — but only
+when ccset itself was pointed at the real home. A run pointed elsewhere
+(`CCSET_HOME`, or every fixture) keeps that home's own `.grok`, so an inherited
+variable cannot take an isolated run's writes out of the scratch directory.
+
+There is no Test connection for Grok Build either: its three API backends each
+need their own request shape, and the Anthropic-shaped probe ccset ships would
+not be honest about any of them.
+
 Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
 back. Long lists state the visible range and total row count. A form asks before
 discarding unsaved edits and never asks otherwise. Nested screens show their full
@@ -175,9 +221,9 @@ navigation path in the header; narrow terminals keep the final two steps visible
   `hasCompletedOnboarding` is missing, ccset prints the one-line fix instead of
   applying it.
 - **Comments and formatting survive too, where the format has them.** Codex's
-  `config.toml`, opencode's `opencode.jsonc` and pi's `models.json` are edited
-  in place rather than re-serialised, so comments, blank lines, alignment and
-  key order are preserved exactly.
+  `config.toml`, Grok Build's `config.toml`, opencode's `opencode.jsonc` and
+  pi's `models.json` are edited in place rather than re-serialised, so
+  comments, blank lines, alignment and key order are preserved exactly.
 - **A file ccset cannot parse is never silently overwritten.** The UI offers to
   back it up and start fresh. Commands require `--replace-invalid` where
   replacement is supported, and back up the unreadable original first.
@@ -200,12 +246,13 @@ navigation path in the header; narrow terminals keep the final two steps visible
 - **Backups keep old tokens.** Every write first copies the target to a
   `backups/ccset/` directory beside that agent's config —
   `~/.claude/backups/ccset/` for Claude Code, `~/.config/opencode/backups/ccset/`
-  for opencode, `~/.codex/backups/ccset/` for Codex, `~/.pi/agent/backups/ccset/`
-  for pi (mode `0600`, ten kept per
-  file, oldest pruned). After you rotate a token the previous one still sits in
-  those copies until you run **Clear ccset backups** from that agent's Status
-  screen. Removing a Codex provider's saved credential deletes the sidecar but
-  not its backups, for the same reason.
+  for opencode, `~/.codex/backups/ccset/` for Codex,
+  `~/.pi/agent/backups/ccset/` for pi, `~/.grok/backups/ccset/` for Grok
+  Build (mode `0600`, ten kept per file, oldest pruned). After you rotate a
+  token the previous one still sits in those copies until you run
+  **Clear ccset backups** from that agent's Status screen. Removing a Codex
+  provider's saved credential deletes the sidecar but not its backups, for
+  the same reason.
 - **A backup interrupted mid-copy is not hidden.** The partial copy holds the
   credential it was copying, so Status lists it with a warning until
   **Clear ccset backups** removes it.
@@ -230,11 +277,12 @@ ccset --agent <id> <command> …   # one operation, no interface
 ccset -v | --version | -h | --help
 ```
 
-`--agent` takes `claude-code`, `opencode`, `codex` or `pi`. With no command, ccset
-starts the interactive interface; run through a pipe or in CI, that prints a
-message and exits `2` rather than emitting control sequences into a log. With a
-command, ccset runs it headlessly: a line-oriented report by default, or one
-JSON envelope on stdout with `--json`.
+`--agent` takes `claude-code`, `opencode`, `codex`, `pi` or `grok-build`.
+With no command, ccset starts the interactive interface; run through a pipe
+or in CI, that prints a message and exits `2` rather than emitting control
+sequences into a log. With a command, ccset runs it headlessly: a
+line-oriented report by default, or one JSON envelope on stdout with
+`--json`.
 
 ### Commands
 
@@ -244,15 +292,16 @@ JSON envelope on stdout with `--json`.
 | `opencode` | `status` · `global set` · `provider set <id>` |
 | `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 | `pi` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
+| `grok-build` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 
 `status` reads everything and writes nothing. The `set` commands patch only the
 fields you name: omitted fields keep their disk values, `--unset <field>`
 deletes one explicitly, and unmanaged keys survive. TOML and JSONC edits also
 preserve the formatting around those keys. Saving a provider does not switch
 to it: Claude Code waits for
-`claude --settings`, Codex and pi wait for `provider use`, and opencode reads
-its config on start. `state init` creates Claude Code's `~/.claude.json` when it is
-absent and otherwise leaves the file alone.
+`claude --settings`, Codex, pi and Grok Build wait for `provider use`, and
+opencode reads its config on start. `state init` creates Claude Code's
+`~/.claude.json` when it is absent and otherwise leaves the file alone.
 
 Options the commands share:
 
@@ -268,7 +317,8 @@ A key reaches ccset only through `CCSET_TOKEN` or `--token-stdin` — never an
 option, a positional or a file, all of which are usage refusals — and is then
 written only to that provider's own target: the provider file for Claude Code,
 `options.apiKey` in the named block for opencode, the `auth.<id>.json` sidecar
-for Codex, and `apiKey` in the named `providers` block for pi. It is never
+for Codex, `apiKey` in the named `providers` block for pi, and the
+`[model.<id>]` block's `api_key` for Grok Build. It is never
 printed in human output, JSON, errors, or warnings. Backup files still contain
 the previous credentials.
 

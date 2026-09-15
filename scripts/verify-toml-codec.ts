@@ -5,13 +5,10 @@ import type { ManagedWrite } from '../src/core/merge.js'
 
 /**
  * The codec, on its own. Not a gate with an npm script: it runs inside
- * verify:codex, the way verify-viewport runs inside verify:ui-render, because
- * Codex is the only agent that uses it and splitting the file is what keeps
- * both inside the 300-line limit.
- *
- * U7 is the question this answers: can a TOML document be round-tripped without
- * losing comments, key order and formatting? Until it could, "unmanaged keys
- * survive" was not promisable for a non-JSON agent.
+ * verify:codex, the way verify-viewport runs inside verify:ui-render, and
+ * now covers the shapes Grok Build relies on as well.
+ * U7: can a TOML document round-trip without losing comments, key order and formatting?
+ * Until it could, "unmanaged keys survive" was not promisable.
  */
 
 /** Documents that must survive an empty write list byte for byte (U7). */
@@ -242,10 +239,10 @@ function verifySpacedKeyIsDistinct(): void {
 }
 
 /**
- * Documents a strict TOML parser rejects. The tolerant scanner resolves a
- * repeated key last-wins and would happily edit such a file, but Codex refuses
- * to load it -- so the strict pass has to send it to the malformed confirm
- * instead of reporting a save that cannot work.
+ * Documents a strict TOML parser rejects: the tolerant scanner resolves a
+ * repeated key last-wins and would happily edit such a file, but a strict
+ * parser refuses to load it, so the strict pass must send it to the malformed
+ * confirm instead of reporting a save that cannot work.
  */
 function verifyDuplicateDefinitionsDetected(): void {
   const rejected: Record<string, string> = {
@@ -260,6 +257,7 @@ function verifyDuplicateDefinitionsDetected(): void {
     staticAfterArray: '[[a]]\nn = 1\n\n[a]\nb = 2\n',
     arrayAfterStatic: '[a]\nn = 1\n\n[[a]]\nb = 2\n',
     quotedDuplicate: 'a = 1\n"a" = 2\n',
+    subTableAfterKeyInsideTable: '[a]\nx = 1\n\n[a.x]\ny = 2\n',
   }
   for (const [name, text] of Object.entries(rejected)) {
     assert.notEqual(findTomlProblem(text), null, `a redefinition went undetected: ${name}`)
@@ -275,6 +273,10 @@ function verifyLegalTableShapesStaySound(): void {
     sameKeyDifferentTables: '[t]\na = 1\n\n[u]\na = 2\n',
     repeatedKeyPerElement: '[[x]]\na.b = 1\n\n[[x]]\na.b = 2\n',
     dottedSiblings: 'a.b = 1\na.c = 2\n',
+    // Grok Build's shape: a key named like the table root, inside two
+    // [model.<id>] tables, must not read as a redefinition.
+    modelKeyInsideModelTables: '[model.relay]\nmodel = "x"\n\n[model."grok-4.6"]\napi_key = "k"\n',
+    superTableAfterKeyInSub: '[model.relay]\nmodel = "x"\n\n[model]\n',
   }
   for (const [name, text] of Object.entries(legal)) {
     assert.equal(findTomlProblem(text), null, `legal TOML reported malformed: ${name}`)
