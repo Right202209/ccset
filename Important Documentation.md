@@ -2282,3 +2282,14 @@ with the same 18 baseline exceptions, and the focused re-runs
 exit 0 — now 28 stages including the new `verify:commands-parser` — and
 `verify:code-gates` passed over 154 files with the 18 known baseline
 exceptions. `git diff --check` passed.
+
+**Post-merge rerun (2026-09-15):** the branch absorbed master's Grok Build
+integration (PR #66), which moved the value-shape checks to
+`src/core/toml/value-check.ts`; the L-2 and L-3 fixes were re-applied there
+and the H-1/L-2/L-3 runtime probes were re-run green against the merged
+tree, `verify:codex` (which carries the strict-checker corpus, now with the
+Grok shapes) passed, and the full `npm test` chain passed end to end with
+exit 0 over all 32 stages including the four grok fixtures;
+`verify:code-gates` passed over 173 files with the same 18 baseline
+exceptions. The register entries above are renumbered 9.44 (Grok Build) /
+9.45 (this work) accordingly.
