@@ -4,7 +4,7 @@ import stringWidth from 'string-width'
 import type { FieldSpec, FieldValue, FormScreen, FormValues, MessageTone } from '../types.js'
 import { t } from '../i18n/index.js'
 import { FieldRow, FORM_HINT_INDENT, type FieldHint } from './Field.js'
-import { focusGutter, useTerminal } from './terminal.js'
+import { focusColor, focusGutter, useTerminal } from './terminal.js'
 import { helpFor } from './keymap.js'
 import { WindowRegion } from './Viewport.js'
 import { textOf, useReviewForm, type ReviewRow as Row } from './useReviewForm.js'
@@ -151,7 +151,7 @@ function ControlRow({ kind, focused, showAdvanced }: ControlRowProps): React.Rea
       ? t(showAdvanced ? 'form.hideAdvanced' : 'form.showAdvanced')
       : t(kind === 'save' ? 'form.save' : 'form.cancel')
   const { glyphs, colors, fold } = useTerminal()
-  const color = focused ? colors.focus : kind === 'save' ? colors.tone.success : undefined
+  const color = focusColor(colors, focused, kind === 'save' ? 'success' : undefined)
   return (
     <Box>
       <Text color={color} bold={focused}>

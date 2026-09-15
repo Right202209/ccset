@@ -138,7 +138,7 @@ async function driveProviderList(session: UiSession): Promise<void> {
   assertPainted(paint, first, 'The provider list does not focus row 1')
 }
 
-async function driveProviderForm(session: UiSession, terminal: Terminal): Promise<void> {
+async function driveProviderForm(session: UiSession): Promise<void> {
   await session.send(LIST_PROVIDER_ROW)
   const paint = await session.waitFor(t('action.providerEdit', { name: PROVIDER }))
   session.assertSingleFocus(paint, 'review form')
@@ -155,7 +155,7 @@ async function driveTokenEditor(session: UiSession, terminal: Terminal): Promise
   assertPainted(paint, terminal.glyphs.mask, 'The focused token field is not masked')
 }
 
-async function driveStatus(session: UiSession, terminal: Terminal): Promise<void> {
+async function driveStatus(session: UiSession): Promise<void> {
   await session.send(ESC)
   await session.waitFor(t('claudeCode.action.providerAddDetail'))
   await session.send(ESC)
@@ -251,9 +251,9 @@ async function verifyRenderedPaints(home: string, set: string, terminal: Termina
     await driveAgentSelect(session)
     await driveMenu(session)
     await driveProviderList(session)
-    await driveProviderForm(session, terminal)
+    await driveProviderForm(session)
     await driveTokenEditor(session, terminal)
-    await driveStatus(session, terminal)
+    await driveStatus(session)
     await driveConfirm(session)
     session.assertAlive()
     const paints = session.paints()

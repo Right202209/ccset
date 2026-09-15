@@ -48,24 +48,18 @@ async function checkAllowedSources(home: string): Promise<void> {
 }
 
 async function checkRejectedSources(home: string): Promise<void> {
-  const cases: [string[], Record<string, string>, string][] = [
-    [[...SET, '--token-stdin'], { CCSET_TOKEN: 'x' }, 'not both'],
-    [[...SET, '--token', TOKEN], {}, 'Unknown option'],
-    [[...SET, '--token-file', '/tmp/secret'], {}, 'Unknown option'],
-    [[...SET, TOKEN], {}, 'Unexpected argument'],
+  const cases: [string[], Record<string, string>, RegExp][] = [
+    [[...SET, '--token-stdin'], { CCSET_TOKEN: 'x' }, /not both/],
+    [[...SET, '--token', TOKEN], {}, /Unknown option/],
+    [[...SET, '--token-file', '/tmp/secret'], {}, /Unknown option/],
+    [[...SET, TOKEN], {}, /Unexpected argument/],
   ]
-  for (const [args, env] of cases) {
+  for (const [args, env, stderr] of cases) {
     const result = await runCli(args, home, 'unused-stdin', env)
     assert.equal(result.code, EXIT_USAGE, `${args.join(' ')} did not exit 64`)
+    assert.match(result.stderr, stderr, `${args.join(' ')} refused with the wrong wording`)
     assert.equal(await fs.access(providerSettingsPath(home, 'acme')).then(() => true, () => false), false)
   }
-
-  const both = await runCli([...SET, '--token-stdin'], home, 'unused', { CCSET_TOKEN: 'x' })
-  assert.match(both.stderr, /not both/)
-  const flag = await runCli([...SET, '--token', TOKEN], home)
-  assert.match(flag.stderr, /Unknown option/)
-  const positional = await runCli([...SET, TOKEN], home)
-  assert.match(positional.stderr, /Unexpected argument/)
 }
 
 async function checkRejectedValues(home: string): Promise<void> {
@@ -103,11 +97,11 @@ async function checkPatchSemantics(home: string): Promise<void> {
 
   const patched = await runCli([...SET, '--fallback-model', 'fa', '--fallback-model', 'fb'], home)
   assert.equal(patched.code, 0, `the patch failed: ${patched.stderr}`)
-  const saved = JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, any>
+  const saved = JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, unknown>
   assert.deepEqual(saved['permissions'], { allow: ['Read'] }, 'an unmanaged key was lost')
   assert.equal((saved['env'] as Record<string, unknown>)['CUSTOM'], 'keep-me', 'an env sibling was lost')
   assert.deepEqual(saved['fallbackModel'], ['fa', 'fb'], 'the repeatable list did not accumulate')
-  const siblingToken = JSON.parse(await fs.readFile(sibling, 'utf8')) as Record<string, any>
+  const siblingToken = JSON.parse(await fs.readFile(sibling, 'utf8')) as Record<string, unknown>
   assert.equal((siblingToken['env'] as Record<string, unknown>)['ANTHROPIC_AUTH_TOKEN'], OTHER_TOKEN)
 
   const repeat = await runCli([...SET, '--fallback-model', 'fa', '--fallback-model', 'fb'], home)
@@ -122,7 +116,7 @@ async function checkPatchSemantics(home: string): Promise<void> {
 
   const dry = await runCli([...SET, '--model', 'm9', '--dry-run'], home)
   assert.equal(dry.code, 0)
-  assert.equal((JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, any>)['model'], undefined)
+  assert.equal((JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, unknown>)['model'], undefined)
 }
 
 async function checkNewProviderRules(home: string): Promise<void> {

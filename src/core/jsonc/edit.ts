@@ -250,7 +250,6 @@ function removalSpan(text: string, prop: Node): Span {
 
 interface Swallow {
   end: number
-  ateLineBreak: boolean
 }
 
 /** A comma after the value, with any same-line comment and line break on it. */
@@ -258,9 +257,7 @@ function commaAfter(text: string, from: number): Swallow | null {
   const comma = skipTrivia(text, from)
   if (text.charAt(comma) !== ',') return null
   const comment = sameLineCommentEnd(text, comma + 1)
-  const rest = comment ?? comma + 1
-  const lineEnd = endOfLine(text, rest)
-  return { end: lineEnd, ateLineBreak: lineEnd !== rest }
+  return { end: endOfLine(text, comment ?? comma + 1) }
 }
 
 /** A comma immediately before the key, over whitespace but never a comment. */

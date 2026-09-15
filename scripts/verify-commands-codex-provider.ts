@@ -129,7 +129,7 @@ async function checkSecretRotation(): Promise<void> {
     `${NEW_KEY}\n`,
   )
   assert.equal(rotated.code, 0, 'a secret rotation failed')
-  const sidecar = JSON.parse(await fs.readFile(authProfilePath(before.home, 'router'), 'utf8')) as Record<string, any>
+  const sidecar = JSON.parse(await fs.readFile(authProfilePath(before.home, 'router'), 'utf8')) as Record<string, unknown>
   assert.equal(sidecar['OPENAI_API_KEY'], NEW_KEY, 'the secret did not land in the named profile')
   assert.equal(sidecar['auth_mode'], 'apikey', 'the profile auth mode was lost')
   assert.deepEqual((sidecar['tokens'] as Record<string, string>)['id_token'], 'keep-me', 'unmanaged sidecar content was lost')
@@ -153,7 +153,7 @@ async function checkNewProviderAndRefusals(): Promise<void> {
   const fresh = text.slice(text.indexOf('[model_providers.fresh]'))
   assert.equal(fresh.includes('wire_api = "responses"'), true, 'the new block missed the wire_api invariant')
   assert.equal(fresh.includes('requires_openai_auth = true'), true, 'the new block missed the ambient-auth invariant')
-  const profile = JSON.parse(await fs.readFile(authProfilePath(before.home, 'fresh'), 'utf8')) as Record<string, any>
+  const profile = JSON.parse(await fs.readFile(authProfilePath(before.home, 'fresh'), 'utf8')) as Record<string, unknown>
   assert.equal(profile['OPENAI_API_KEY'], NEW_KEY, 'the new profile did not get the key')
 
   const noUrl = await runCli(['--agent', 'codex', 'provider', 'set', 'second', '--token-stdin'], before.home, NEW_KEY)

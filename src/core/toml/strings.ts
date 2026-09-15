@@ -30,6 +30,8 @@ const ENCODE_ESCAPES: Record<string, string> = {
 const UNICODE_LENGTHS: Record<string, number> = { u: 4, U: 8 }
 const HEX_RADIX = 16
 const CONTROL_MAX = 0x1f
+/** TOML 1.0 requires DEL to be escaped inside a basic string, like the C0 controls. */
+const DEL = 0x7f
 const ESCAPE_HEX_WIDTH = 4
 
 /** Strips the delimiters and reports whether escapes apply inside them. */
@@ -106,7 +108,7 @@ export function encodeTomlString(value: string): string {
       continue
     }
     const code = char.codePointAt(0) ?? 0
-    out += code <= CONTROL_MAX ? unicodeEscape(code) : char
+    out += code <= CONTROL_MAX || code === DEL ? unicodeEscape(code) : char
   }
   return `${out}"`
 }

@@ -238,9 +238,3 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
 
 /** Nothing about a third-party endpoint is guessable, so nothing is proposed. */
 export const PROVIDER_DEFAULTS: FormValues = {}
-
-export const SECRET_FIELD_IDS = new Set(
-  [...GLOBAL_FIELDS, ...PROVIDER_FIELDS]
-    .filter((field) => field.type === 'secret')
-    .map((field) => field.id),
-)

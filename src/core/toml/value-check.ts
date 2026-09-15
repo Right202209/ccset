@@ -37,9 +37,12 @@ function ok(text: string, end: number): ValueScan {
   return { end, problem: null }
 }
 
+/** TOML 1.0 forbids the C0 controls (bar the whitespace multi-line strings
+ *  allow) and DEL inside every string form; DEL has no literal exemption. */
 function isForbiddenControl(char: string): boolean {
   const code = char.codePointAt(0) ?? 0
-  return code < 0x20 && char !== '\t' && char !== '\n' && char !== '\r'
+  const control = code < 0x20 && char !== '\t' && char !== '\n' && char !== '\r'
+  return control || code === 0x7f
 }
 
 /** One escape sequence inside a basic string; null when it is not valid. */
@@ -145,6 +148,9 @@ function checkBare(text: string, start: number): ValueScan {
         text.charAt(j) !== '\n' &&
         text.charAt(j) !== '\r' &&
         text.charAt(j) !== '#' &&
+        text.charAt(j) !== ',' &&
+        text.charAt(j) !== ']' &&
+        text.charAt(j) !== '}' &&
         text.charAt(j) !== ' ' &&
         text.charAt(j) !== '\t'
       ) {

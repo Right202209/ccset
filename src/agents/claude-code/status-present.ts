@@ -2,6 +2,7 @@ import type { KeyedStatusSection } from '../../operations/types.js'
 import { backupsSection } from '../../operations/status-sections.js'
 import type { JsonValue } from '../../types.js'
 import { SWITCH_OFF, SWITCH_ON } from './constants.js'
+import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
 import type { ClaudeProviderStatus, ClaudeStatusDto } from './status-dto.js'
 
 /**
@@ -46,18 +47,21 @@ function valueOf(id: string, managed: Record<string, JsonValue | undefined>): Ke
   return { labelKey: labelOf(id), value: String(value) }
 }
 
+/** Field ids to label keys, taken from the manifest the fields are declared
+ *  in; an id the manifest does not know degrades to the raw id, as before. */
+const LABEL_KEYS: ReadonlyMap<string, string> = new Map(
+  [...GLOBAL_FIELDS, ...PROVIDER_FIELDS].map((field) => [field.id, field.labelKey]),
+)
+
 function labelOf(fieldId: string): string {
-  const labels: Record<string, string> = {
-    model: 'field.globalModel',
-    cleanupPeriodDays: 'claudeCode.field.cleanupPeriodDays',
-    disableNonessentialTraffic: 'claudeCode.field.disableNonessentialTraffic',
-    attributionHeader: 'claudeCode.field.attributionHeader',
-    disableInstallationChecks: 'claudeCode.field.disableInstallationChecks',
-    enableToolSearch: 'claudeCode.field.enableToolSearch',
-    baseUrl: 'field.baseUrl',
-    fallbackModel: 'claudeCode.field.fallbackModel',
-  }
-  return labels[fieldId] ?? fieldId
+  return LABEL_KEYS.get(fieldId) ?? fieldId
+}
+
+/** The three-way switch rendering one catalog key per state. */
+function switchValueKey(value: JsonValue | undefined): string {
+  if (value === SWITCH_ON) return 'choice.on'
+  if (value === SWITCH_OFF) return 'choice.off'
+  return 'choice.unmanaged'
 }
 
 function globalSection(dto: ClaudeStatusDto): KeyedStatusSection {
@@ -81,10 +85,9 @@ function globalSection(dto: ClaudeStatusDto): KeyedStatusSection {
   lines.push(valueOf('model', managed))
   lines.push(valueOf('cleanupPeriodDays', managed))
   for (const id of ['disableNonessentialTraffic', 'attributionHeader', 'disableInstallationChecks', 'enableToolSearch']) {
-    const value = managed[id]
     lines.push({
       labelKey: labelOf(id),
-      valueKey: value === SWITCH_ON ? 'choice.on' : value === SWITCH_OFF ? 'choice.off' : 'choice.unmanaged',
+      valueKey: switchValueKey(managed[id]),
     })
   }
   return {

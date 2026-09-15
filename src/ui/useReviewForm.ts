@@ -95,7 +95,7 @@ function helpFooterRows(fold: (text: string) => string, columns: number): number
   return lines.split('\n').length + HELP_MARGIN_ROWS
 }
 
-function formLayout({ screen, rows, errors, index }: LayoutOptions) {
+function useFormLayout({ screen, rows, errors, index }: LayoutOptions) {
   const viewport = useViewport()
   const { fold } = useTerminal()
   const row = rows[Math.min(index, rows.length - 1)]
@@ -135,9 +135,14 @@ function useFormInput(active: boolean, row: ReviewRow | undefined, actions: Inpu
     else if (key.upArrow) actions.move(-1)
     else if (key.downArrow || key.tab) actions.move(1)
     else if (key.return) actions.activate()
+    // The keymap's form entry promises k/j; textual rows return first, so the
+    // letters keep typing into them and only reach the movement below on rows
+    // where they cannot be text.
     else if (row?.kind === 'field' && isTextual(row.field)) return
     else if (key.leftArrow && row?.kind === 'field') actions.cycle(row.field, -1)
     else if ((key.rightArrow || input === ' ') && row?.kind === 'field') actions.cycle(row.field, 1)
+    else if (input === 'k') actions.move(-1)
+    else if (input === 'j') actions.move(1)
   }, { isActive: active })
 }
 
@@ -149,7 +154,7 @@ export function useReviewForm(options: ControllerOptions) {
   const [index, setIndex] = useState(0)
   const rows = useMemo(() => buildRows(screen.fields, showAdvanced), [screen.fields, showAdvanced])
   const row = rows[Math.min(index, rows.length - 1)]
-  const layout = formLayout({ screen, rows, errors, index })
+  const layout = useFormLayout({ screen, rows, errors, index })
   useDirtyState(screen, values, onDirtyChange)
 
   function move(delta: number): void {

@@ -1,5 +1,5 @@
 import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
-import { readConfigFile } from '../../core/config-file.js'
+import { readConfigFile, type LoadedConfig } from '../../core/config-file.js'
 import { isPlainObject } from '../../core/json-file.js'
 import {
   countUnmanagedKeys,
@@ -167,6 +167,23 @@ function asObject(value: unknown): JsonObject {
 }
 
 /**
+ * The list view of an already-read document. Status derives its provider
+ * sections from this instead of re-reading the file through loadProviders,
+ * so both views of one status run see the same snapshot.
+ */
+export function providerListFrom(config: LoadedConfig): ProviderList {
+  const root = asObject(getPath(config.data, [PROVIDER_ROOT]))
+  return {
+    path: config.path,
+    exists: config.exists,
+    parsed: true,
+    records: Object.keys(root)
+      .sort()
+      .map((id) => describeRecord(config.data, id)),
+  }
+}
+
+/**
  * A malformed file must never stop the screen rendering, so a parse error is
  * reported on the list rather than thrown. The target is the managed one: a
  * `.jsonc` when it exists, else the `.json`.
@@ -174,16 +191,7 @@ function asObject(value: unknown): JsonObject {
 export async function loadProviders(ctx: Ctx): Promise<ProviderList> {
   const file = await opencodeTarget(ctx.home)
   try {
-    const config = await readConfigFile(file)
-    const root = asObject(getPath(config.data, [PROVIDER_ROOT]))
-    return {
-      path: file.path,
-      exists: config.exists,
-      parsed: true,
-      records: Object.keys(root)
-        .sort()
-        .map((id) => describeRecord(config.data, id)),
-    }
+    return providerListFrom(await readConfigFile(file))
   } catch (err) {
     return {
       path: file.path,

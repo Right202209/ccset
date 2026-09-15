@@ -54,7 +54,9 @@ async function checkSeamPreservation(home: string): Promise<void> {
   const target = await seed(home, { ...UNMANAGED, model: 'old' })
   const result = await executeOperation(agent, { home }, request({ model: 'new' }))
   assert.equal(result.changed, true)
-  assert.equal(result.targets[0]?.backupPath !== null, true)
+  // typeof, not a !== comparison: with no targets, `undefined !== null` is
+  // vacuously true and the backup-path guarantee would go unchecked.
+  assert.equal(typeof result.targets[0]?.backupPath === 'string', true, 'a real write reported no backup path')
   const saved = JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, unknown>
   assert.deepEqual(saved['hooks'], UNMANAGED['hooks'], 'an unmanaged top-level key was lost')
   assert.deepEqual(saved['env'], UNMANAGED['env'], 'an unmanaged env sibling was lost')
@@ -71,7 +73,11 @@ async function checkSeamDeletion(home: string): Promise<void> {
   assert.equal(off.changed, true)
   const afterOff = JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, unknown>
   const env = afterOff['env'] as Record<string, unknown> | undefined
-  assert.equal(env !== undefined && 'HTTPS_PROXY' in env, false, 'proxy off did not delete')
+  assert.equal(
+    env !== undefined && ('HTTPS_PROXY' in env || 'HTTP_PROXY' in env),
+    false,
+    'proxy off did not delete both env keys',
+  )
   const unset = await executeOperation(agent, { home }, request({}, { unsets: ['model'] }))
   assert.equal(unset.changed, true)
   const afterUnset = JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, unknown>
@@ -264,13 +270,15 @@ async function checkProxyToggle(home: string): Promise<void> {
   )
   assert.equal(on.code, 0, `--proxy on was refused: ${on.stderr}`)
   const saved = JSON.parse(await fs.readFile(target, 'utf8')) as { env?: Record<string, string> }
-  assert.equal(saved.env?.HTTPS_PROXY, 'http://p.example', 'proxy on did not set both keys')
+  assert.equal(saved.env?.HTTPS_PROXY, 'http://p.example', 'proxy on did not set HTTPS_PROXY')
+  assert.equal(saved.env?.HTTP_PROXY, 'http://p.example', 'proxy on did not set HTTP_PROXY')
   const off = await runCli(['--agent', 'claude-code', 'global', 'set', '--proxy', 'off'], {
     CCSET_HOME: home,
   })
   assert.equal(off.code, 0, `--proxy off was refused: ${off.stderr}`)
   const after = JSON.parse(await fs.readFile(target, 'utf8')) as { env?: Record<string, string> }
-  assert.equal('HTTPS_PROXY' in (after.env ?? {}), false, 'proxy off did not delete both keys')
+  assert.equal('HTTPS_PROXY' in (after.env ?? {}), false, 'proxy off did not delete HTTPS_PROXY')
+  assert.equal('HTTP_PROXY' in (after.env ?? {}), false, 'proxy off did not delete HTTP_PROXY')
   await expectUsage(['--agent', 'claude-code', 'global', 'set', '--proxy', 'true'], 'expects one of')
 }
 

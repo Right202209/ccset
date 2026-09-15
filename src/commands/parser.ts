@@ -98,6 +98,8 @@ function matchDeclaration(
   throw usage('cli.usage.unknownCommand', { command: requested })
 }
 
+/** A following flag is never an option's value -- the same rule `--agent`
+ *  applies: swallowing the next option writes a dashed token silently. */
 function optionValue(
   ctx: ReaderContext,
   option: string,
@@ -105,7 +107,7 @@ function optionValue(
 ): { value: string; next: number } {
   if (inline !== undefined) return { value: inline, next: ctx.index + 1 }
   const value = ctx.tokens[ctx.index + 1]
-  if (value === undefined) throw usage('cli.usage.missingValue', { option })
+  if (value === undefined || value.startsWith('--')) throw usage('cli.usage.missingValue', { option })
   return { value, next: ctx.index + 2 }
 }
 
@@ -121,6 +123,8 @@ function normalizedValue(field: CommandFieldSpec, option: string, raw: string): 
   if (problem !== null && problem !== undefined) {
     throw new CcsetError(problem, EXIT_USAGE, { option })
   }
+  // A NaN would slip past an optional validator into the patch otherwise.
+  if (field.type === 'int' && Number.isNaN(Number(raw))) throw usage('cli.usage.notInteger', { option, value: raw })
   return field.type === 'int' ? Number(raw) : raw
 }
 

@@ -4,7 +4,7 @@ import stringWidth from 'string-width'
 import type { FieldSpec, FieldValue, MessageTone } from '../types.js'
 import { maskSecret } from '../core/mask.js'
 import { t } from '../i18n/index.js'
-import { focusGutter, markerGutter, useTerminal } from './terminal.js'
+import { focusColor, focusGutter, markerGutter, useTerminal } from './terminal.js'
 import { useViewport } from './Viewport.js'
 import { TextField } from './TextField.js'
 
@@ -177,7 +177,7 @@ function BooleanValue({ value, focused }: FieldRowProps): React.ReactElement {
   const on = value === true
   const { colors, fold } = useTerminal()
   return (
-    <Text color={focused ? colors.focus : on ? colors.tone.success : undefined}>
+    <Text color={focusColor(colors, focused, on ? 'success' : undefined)}>
       {fold(on ? t('choice.on') : t('choice.off'))}
       <Text dimColor>{focused ? fold(t('hint.toggle')) : ''}</Text>
     </Text>

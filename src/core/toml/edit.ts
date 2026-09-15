@@ -172,7 +172,10 @@ function inlinePairs(text: string, entry: TomlEntry): InlinePair[] | null {
  */
 function convertInlineToDotted(text: string, doc: TomlDoc, entry: TomlEntry): string {
   const pairs = inlinePairs(text, entry)
-  if (pairs === null || pairs.length === 0) {
+  // null is the walk giving up, so the line stays as it is; only a genuinely
+  // empty inline table is dropped for the insert to recreate as a header.
+  if (pairs === null) return text
+  if (pairs.length === 0) {
     return `${text.slice(0, entry.lineStart)}${text.slice(entry.lineEnd)}`
   }
   const context = entry.tableIndex >= 0 ? (doc.tables[entry.tableIndex]?.path ?? []) : []

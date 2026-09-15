@@ -1,7 +1,7 @@
 import { countBackups, countPartialBackups } from '../../core/backup.js'
 import { readConfigFile } from '../../core/config-file.js'
 import { JsonParseError } from '../../core/errors.js'
-import { fileExists, readMode } from '../../core/json-file.js'
+import { fileExists, isPlainObject, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
@@ -178,12 +178,19 @@ async function providerStatuses(ctx: { home: string }, data: JsonObject): Promis
 
 type Line = KeyedStatusSection['lines'][number]
 
+/** Members of a managed array render by their `id`, like the TUI does; models
+ *  arrive as the `{ id }` objects models.json stores, not as plain strings. */
+function memberLabel(item: JsonValue): string {
+  if (isPlainObject(item) && typeof item['id'] === 'string') return item['id']
+  return String(item)
+}
+
 function lineOf(id: string, labelKey: string, managed: Record<string, JsonValue | undefined>): Line {
   const value = managed[id]
   if (value === undefined) return { labelKey, valueKey: 'status.unset' }
   return {
     labelKey,
-    value: Array.isArray(value) ? value.map((item) => String(item)).join(', ') : String(value),
+    value: Array.isArray(value) ? value.map(memberLabel).join(', ') : String(value),
   }
 }
 

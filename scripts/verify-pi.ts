@@ -6,11 +6,13 @@ import { MAX_BACKUPS } from '../src/core/constants.js'
 import { backupsDirFor } from '../src/core/paths.js'
 import { countBackups } from '../src/core/backup.js'
 import { readConfigFile, renderConfigFile } from '../src/core/config-file.js'
-import type { Ctx, FormValues } from '../src/types.js'
+import { isPlainObject } from '../src/core/json-file.js'
+import type { Ctx, FormValues, JsonObject, JsonValue } from '../src/types.js'
 import { piDir, modelsFile, modelsPath, settingsPath } from '../src/agents/pi/paths.js'
 import {
   emitProvider,
   loadProviders,
+  memberIdOf,
   modelWrites,
   saveProvider,
 } from '../src/agents/pi/providers.js'
@@ -53,13 +55,27 @@ async function writeModels(home: string, text: string): Promise<void> {
   await fs.writeFile(target, text, { mode: 0o600 })
 }
 
-async function modelsOf(home: string): Promise<Record<string, any>> {
+/** An object view of a parsed-JSON value, typed for the managed-Json domain:
+ *  unlike the harness's `asRecord` (unknown in, Record<string, unknown> out)
+ *  this keeps `JsonObject`, which the write seam (modelWrites) takes. A
+ *  non-object becomes an empty one, which the assertions then fail on. */
+function asObject(value: JsonValue | undefined): JsonObject {
+  return isPlainObject(value) ? value : {}
+}
+
+/** The models.json document, line comments stripped the way pi reads it. */
+async function modelsOf(home: string): Promise<JsonObject> {
   const raw = await fs.readFile(modelsPath(home), 'utf8')
   const withoutLineComments = raw
     .split('\n')
     .filter((line) => !line.trim().startsWith('//'))
     .join('\n')
-  return JSON.parse(withoutLineComments) as Record<string, any>
+  return JSON.parse(withoutLineComments) as JsonObject
+}
+
+/** One provider block by id; an unknown id reads as an empty block. */
+async function providerBlockOf(home: string, id: string): Promise<JsonObject> {
+  return asObject(asObject(asObject(await modelsOf(home))['providers'])[id])
 }
 
 /** The form domain is strings; blanks mean the field was left empty. */
@@ -84,19 +100,31 @@ async function checkModelsMerge(home: string): Promise<void> {
   )
   const raw = await fs.readFile(modelsPath(home), 'utf8')
   assert.match(raw, /comments stripped/, 'a comment was lost')
-  const block = (await modelsOf(home))['providers']['router']
+  const block = await providerBlockOf(home, 'router')
   assert.deepEqual(block['headers'], { 'x-custom': 'keep' }, 'unmanaged provider keys were lost')
   assert.equal(block['apiKey'], SECRET, 'the key was disturbed by an edit that resubmitted it')
-  const withId = block['models'].filter((member: any) => typeof member['id'] === 'string')
-  const byId = new Map<string, any>(withId.map((member: any) => [member['id'], member]))
+  const models = Array.isArray(block['models']) ? block['models'] : []
+  const byId = new Map<string, JsonObject>()
+  for (const member of models) {
+    const id = memberIdOf(member)
+    if (id !== '') byId.set(id, asObject(member))
+  }
   assert.equal(byId.size, 2, 'the models list did not follow the form')
-  assert.equal(byId.get('m1')?.['cost']?.['input'], 1, 'a member lost its unmanaged cost')
+  assert.equal(asObject(asObject(byId.get('m1'))['cost'])['input'], 1, 'a member lost its unmanaged cost')
   assert.equal(byId.get('m2'), undefined, 'a dropped model survived')
-  assert.equal(byId.get('m3')?.['id'], 'm3', 'a new model was not added')
-  const idless = block['models'].filter((member: any) => member['id'] === undefined)
+  assert.equal(asObject(byId.get('m3'))['id'], 'm3', 'a new model was not added')
+  const idless = models.filter((member) => memberIdOf(member) === '')
   assert.equal(idless.length, 1, 'a member without an id was not passed through')
   // An unchanged save must not rewrite the models span at all.
   assert.deepEqual(modelWrites('router', ['m1', 'm3'], await modelsOf(home)), [], 'an unchanged list produced a write')
+  // A duplicated csv id must materialize one member per id, whichever branch
+  // the write takes: a fresh provider has no models array yet.
+  await saveProvider(
+    ctx,
+    valuesOf({ id: 'dup', baseUrl: 'https://d.example/v1', api: 'openai-completions', apiKey: SECRET, models: 'x, x' }),
+  )
+  const dupBlock = await providerBlockOf(home, 'dup')
+  assert.deepEqual(dupBlock['models'], [{ id: 'x' }], 'a duplicated csv id appended twice')
 }
 
 async function checkBlankOmitsKey(home: string): Promise<void> {
@@ -106,7 +134,7 @@ async function checkBlankOmitsKey(home: string): Promise<void> {
   )
   const ctx: Ctx = { home }
   await saveProvider(ctx, valuesOf({ id: 'router', baseUrl: 'https://r.example/v2' }))
-  const block = (await modelsOf(home))['providers']['router']
+  const block = await providerBlockOf(home, 'router')
   assert.equal(block['baseUrl'], 'https://r.example/v2')
   assert.equal('api' in block, false, 'a blank choice wrote a value instead of omitting the key')
   assert.equal('apiKey' in block, false, 'a blank secret wrote a value instead of omitting the key')
@@ -136,7 +164,7 @@ async function checkExternalEditBetweenOpenAndSave(home: string): Promise<void> 
     ctx,
     valuesOf({ id: 'router', baseUrl: 'https://n.example/v1', api: 'openai-completions', apiKey: 'k-0123456789', models: 'm1' }),
   )
-  const block = (await modelsOf(home))['providers']['router']
+  const block = await providerBlockOf(home, 'router')
   assert.equal(block['baseUrl'], 'https://n.example/v1', 'the form edit did not land')
   assert.deepEqual(block['headers'], { 'x-newcomer': 'keep' }, 'a change made after the form opened was clobbered')
 }
@@ -162,8 +190,8 @@ async function checkModelsJsonCorpus(home: string): Promise<void> {
   await writeModels(home, corpus)
   const file = modelsFile(home)
   const base = await readConfigFile(file)
-  const providers = base.data['providers'] as Record<string, any>
-  assert.equal(providers['router']['baseUrl'], 'https://r.example/v1', 'the corpus did not parse')
+  const providers = asObject(base.data['providers'])
+  assert.equal(asObject(providers['router'])['baseUrl'], 'https://r.example/v1', 'the corpus did not parse')
   assert.equal(renderConfigFile(file, base, []), corpus, 'an empty write list disturbed the bytes')
   const sameValue = renderConfigFile(file, base, [
     { path: ['providers', 'router', 'baseUrl'], value: 'https://r.example/v1' },
@@ -180,14 +208,14 @@ async function checkSettings(home: string): Promise<void> {
     ctx,
     valuesOf({ defaultProvider: 'router', defaultModel: 'm1', defaultThinkingLevel: 'high' }),
   )
-  const config = JSON.parse(await fs.readFile(settings, 'utf8')) as Record<string, any>
+  const config = JSON.parse(await fs.readFile(settings, 'utf8')) as Record<string, unknown>
   assert.equal(config['theme'], 'dark', 'an unmanaged settings key was lost')
   assert.equal(config['quietStartup'], true)
   assert.equal(config['defaultProvider'], 'router')
   assert.equal(config['defaultModel'], 'm1')
   assert.equal(config['defaultThinkingLevel'], 'high')
   await saveSettings(ctx, valuesOf({ defaultProvider: '', defaultModel: '', defaultThinkingLevel: '' }))
-  const cleared = JSON.parse(await fs.readFile(settings, 'utf8')) as Record<string, any>
+  const cleared = JSON.parse(await fs.readFile(settings, 'utf8')) as Record<string, unknown>
   assert.equal('defaultProvider' in cleared, false, 'a blank settings field kept its key')
   assert.deepEqual(emitSettings(valuesOf({ defaultThinkingLevel: '' }))[0]?.value, undefined)
   assert.equal(Object.keys(seedSettings({})).length, 3, 'the settings seed drifted')

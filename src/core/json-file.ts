@@ -26,11 +26,16 @@ function serialize(codec: Codec, data: JsonObject): string {
   return `${JSON.stringify(data, null, 2)}\n`
 }
 
-/** Turns "... at position 42" into the human line/column both codecs use. */
+/**
+ * Turns "... at position 42" into the human line/column both codecs use. When
+ * the engine's message carries no offset, it is dropped, not echoed: newer V8
+ * quotes document text in the message, and that excerpt can reach a token's
+ * bytes, which the "secrets never appear in errors" rule forbids.
+ */
 function describeJsonErrorPosition(err: unknown, raw: string): string {
   const message = err instanceof Error ? err.message : ''
   const match = /position (\d+)/.exec(message)
-  if (match?.[1] === undefined) return message.slice(0, 80)
+  if (match?.[1] === undefined) return 'unknown position'
   return describePosition(raw, Number(match[1]))
 }
 

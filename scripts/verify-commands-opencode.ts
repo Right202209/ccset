@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { backupsDir, opencodeConfigPath, opencodeJsoncPath } from '../src/agents/opencode/paths.js'
 import { EXIT_INVALID_CONFIG, EXIT_USAGE } from '../src/core/errors.js'
-import { runCli as spawnCli, type RunResult } from './cli-harness.js'
+import { asRecord, runCli as spawnCli, type RunResult } from './cli-harness.js'
 
 /**
  * M3.4: opencode status and global set, across the process seam. The one
@@ -40,8 +40,8 @@ async function seed(home: string): Promise<string> {
   return target
 }
 
-async function configOf(home: string): Promise<Record<string, any>> {
-  return JSON.parse(await fs.readFile(opencodeConfigPath(home), 'utf8'))
+async function configOf(home: string): Promise<Record<string, unknown>> {
+  return JSON.parse(await fs.readFile(opencodeConfigPath(home), 'utf8')) as Record<string, unknown>
 }
 
 async function checkGlobalSet(home: string): Promise<void> {
@@ -67,7 +67,7 @@ async function checkGlobalSet(home: string): Promise<void> {
   assert.equal(config['autoupdate'], false, 'autoupdate was not a real boolean')
   assert.equal(config['share'], 'disabled')
   assert.deepEqual(config['disabled_providers'], ['openai', 'google'])
-  const options = config['provider']['router']['options']
+  const options = asRecord(asRecord(asRecord(config['provider'])['router'])['options'])
   assert.equal(options['apiKey'], API_KEY, 'a provider secret was disturbed by a global patch')
   assert.deepEqual(options['headers'], { 'x-custom': 'keep' }, 'unmanaged provider keys four levels deep were lost')
   assert.equal((await fs.stat(target)).mode & 0o777, 0o600)

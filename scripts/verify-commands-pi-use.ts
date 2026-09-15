@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { modelsPath, settingsPath } from '../src/agents/pi/paths.js'
-import { EXIT_INVALID_CONFIG, EXIT_USAGE } from '../src/core/errors.js'
+import { EXIT_INVALID_CONFIG, EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
 import { runCli as spawnCli, withHome, type RunResult } from './cli-harness.js'
 
 /**
@@ -26,8 +26,8 @@ async function writeSettings(home: string, text: string): Promise<void> {
   await fs.writeFile(target, text, { mode: 0o600 })
 }
 
-async function settingsOf(home: string): Promise<Record<string, any>> {
-  return JSON.parse(await fs.readFile(settingsPath(home), 'utf8')) as Record<string, any>
+async function settingsOf(home: string): Promise<Record<string, unknown>> {
+  return JSON.parse(await fs.readFile(settingsPath(home), 'utf8')) as Record<string, unknown>
 }
 
 async function checkGlobalSet(home: string): Promise<void> {
@@ -71,12 +71,12 @@ async function checkProviderUse(home: string): Promise<void> {
   assert.equal(envelope.warnings[0]?.code, 'pi.warning.modelNotInList', 'an off-list model did not warn')
 
   const noModels = await runCli(['--agent', 'pi', 'provider', 'use', 'empty', '--json'], home)
-  assert.equal(noModels.code, 1, 'a provider without models was accepted without --model')
+  assert.equal(noModels.code, EXIT_RUNTIME, 'a provider without models was accepted without --model')
   assert.match(noModels.stdout, /pi\.validate\.providerModelRequired/)
 
   await writeModels(home, '{ broken\n')
   const unreadable = await runCli(['--agent', 'pi', 'provider', 'use', 'router', '--json'], home)
-  assert.equal(unreadable.code, 1, 'an unreadable models.json was accepted for default resolution')
+  assert.equal(unreadable.code, EXIT_RUNTIME, 'an unreadable models.json was accepted for default resolution')
   assert.match(unreadable.stdout, /pi\.validate\.modelsUnreadable/)
   const explicitStill = await runCli(['--agent', 'pi', 'provider', 'use', 'router', '--model', 'm1', '--json'], home)
   assert.equal(explicitStill.code, 0, 'an explicit --model should not need models.json')
