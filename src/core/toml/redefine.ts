@@ -21,8 +21,6 @@
  * uses, because a quoted key may contain any other character.
  */
 
-import { scanKeyPath } from './scan.js'
-
 const SEP = '\u0000'
 
 function join(path: string[]): string {
@@ -38,20 +36,21 @@ function hasPrefixIn(path: string[], set: Set<string>): boolean {
   return false
 }
 
-/** Hands one construct's path to the tracker: the syntax has already passed,
- *  so the key is present. True when the header or assignment redefines. */
+/** Hands one construct's full key path to the tracker: the syntax has already
+ *  passed, so the key is present, and an assignment path carries the table it
+ *  sits in. `tableDepth` is how many leading segments the enclosing table
+ *  contributed -- only the key's own dotted segments create tables that a
+ *  header may never redefine. True when the header or assignment redefines. */
 export function recordDefinition(
   definitions: DefinitionCheck,
-  text: string,
-  start: number,
+  path: string[],
   isHeader: boolean,
+  isArray: boolean,
+  tableDepth: number,
 ): boolean {
-  const isArray = isHeader && text.startsWith('[[', start)
-  const key = scanKeyPath(text, start + (isArray ? 2 : isHeader ? 1 : 0))
-  if (key === null) return false
   return isHeader
-    ? definitions.noteHeader(key.path, isArray)
-    : definitions.noteAssignment(key.path)
+    ? definitions.noteHeader(path, isArray)
+    : definitions.noteAssignment(path, tableDepth)
 }
 
 interface DefinitionState {
@@ -68,7 +67,7 @@ interface DefinitionState {
   instanceDotted: Set<string>
 }
 
-function noteAssignment(state: DefinitionState, path: string[]): boolean {
+function noteAssignment(state: DefinitionState, path: string[], tableDepth: number): boolean {
   const key = join(path)
   if (state.instanceLeaves.has(key) || state.instanceDotted.has(key) || state.singleTables.has(key)) {
     return true
@@ -76,7 +75,10 @@ function noteAssignment(state: DefinitionState, path: string[]): boolean {
   if (hasPrefixIn(path, state.leaves)) return true
   state.instanceLeaves.add(key)
   state.leaves.add(key)
-  for (let depth = 1; depth < path.length; depth += 1) {
+  // The table the assignment sits in was opened by a header (or an enclosing
+  // dotted key elsewhere); only the key's own dotted segments are tables a
+  // header may never redefine later.
+  for (let depth = tableDepth + 1; depth < path.length; depth += 1) {
     const prefix = join(path.slice(0, depth))
     state.instanceDotted.add(prefix)
     state.dotted.add(prefix)
@@ -100,8 +102,9 @@ function noteHeader(state: DefinitionState, path: string[], isArray: boolean): b
 }
 
 export interface DefinitionCheck {
-  /** Records one `key = value` line; true when it redefines something. */
-  noteAssignment: (path: string[]) => boolean
+  /** Records one `key = value` line under the table it sits in; true when it
+   *  redefines something. `tableDepth` is the enclosing table's path length. */
+  noteAssignment: (path: string[], tableDepth: number) => boolean
   /** Records one `[table]` or `[[array]]` header; true when it redefines. */
   noteHeader: (path: string[], isArray: boolean) => boolean
 }
@@ -116,7 +119,7 @@ export function trackDefinitions(): DefinitionCheck {
     instanceDotted: new Set(),
   }
   return {
-    noteAssignment: (path) => noteAssignment(state, path),
+    noteAssignment: (path, tableDepth) => noteAssignment(state, path, tableDepth),
     noteHeader: (path, isArray) => noteHeader(state, path, isArray),
   }
 }

@@ -75,6 +75,10 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:pi-screens` | pi screen string resolution: every action run and descended, labels/help/details/choices against the catalog |
 | `npm run verify:commands-pi` | pi provider patches, models merge and secret sources (stdin and `CCSET_TOKEN`), unset/dry-run refusals, secret-free status, malformed recovery, dry-run/no-op zero writes, exit codes |
 | `npm run verify:commands-pi-use` | pi global patching and provider use writing both startup leaves, off-list model warning, unreadable-models and no-model refusals |
+| `npm run verify:grok-build` | grok-build settings/provider saves through the TUI seam, TOML preservation, blank-field omission, external-modification re-read, byte-identical corpus, backup rotation and modes, detection, `GROK_HOME` rule, status masking |
+| `npm run verify:grok-build-screens` | grok-build screen string resolution: every action run and descended, labels/help/details/choices against the catalog |
+| `npm run verify:commands-grok-build` | grok-build provider patches, built-in-override shape, secret sources (stdin and `CCSET_TOKEN`), unset/dry-run refusals, secret-free status, malformed recovery, dry-run/no-op zero writes, exit codes |
+| `npm run verify:commands-grok-build-use` | grok-build global patching and provider use writing `models.default`, unknown-id warning, built-in id through free text, unreadable-config refusal |
 | `npm run verify:commands-codex` | Codex status/global commands, TOML preservation, typed integers, environment findings and replacement backups |
 | `npm run verify:commands-codex-provider` | Provider invariants, Auth profile preservation, credential-source refusals, untouched live auth |
 | `npm run verify:commands-codex-use` | Switch ordering, adoption/replacement choices, idempotence, environment preconditions, partial failures |
