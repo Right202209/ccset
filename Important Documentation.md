@@ -2378,11 +2378,16 @@ end with exit 0; `verify:code-gates` passed over 231 files (now including
 `npm pack --dry-run` lists LICENSE, both READMEs, `dist/cli.js`, and
 `package.json` only; `git diff --check` passed.
 
-**Pending, recorded honestly:** CI evidence for `Pages CI` and the root
-`CI` matrix on the PR is not yet collected (branch not pushed at the time
-of writing); the one-time Pages enablement
+**Pending, recorded honestly:** the one-time Pages enablement
 (`gh api -X POST repos/Right202209/ccset/pages -f build_type=workflow`)
 needs the maintainer's explicit go-ahead because it changes repository
 settings; the post-merge `curl` checks against
 `https://right202209.github.io/ccset/` and the append of the post-merge
 evidence here happen after merge.
+
+**CI on the PR (Right202209/ccset#68), recorded after the run:** the new
+`Pages CI` job (install, typecheck, Vitest with coverage, build, smoke on
+ubuntu-latest, Node 24) passed in 24 s, and the root `CI` matrix passed on
+all nine jobs — ubuntu-latest, macos-latest, windows-latest × Node.js
+18.x/20.x/22.x, including the full fixture suite on ubuntu and macOS and
+`npm pack --dry-run` everywhere.
