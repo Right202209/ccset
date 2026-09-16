@@ -30,10 +30,11 @@ runtime evidence was added.
 List the affected English docs and Chinese docs where they cover the changed
 behavior, or explain why no user-facing documentation update is needed.
 
-## TUI evidence
+## TUI or website evidence
 
-For a significant TUI change, include terminal screenshots. Otherwise write "Not
-applicable" and explain why.
+For a significant TUI change, include terminal screenshots. For a visible
+website (`pages/`) change, include desktop and mobile screenshots. Otherwise
+write "Not applicable" and explain why.
 
 ## Integration and maintenance impact
 

@@ -203,7 +203,8 @@ compatibility window.
 ## 7. Code-quality gates
 
 Apply these rules to changed TypeScript code. `npm run verify:code-gates`
-(inside `npm test`) scans TypeScript files under `src/` and `scripts/`: files
+(inside `npm test`) scans TypeScript files under `src/`, `scripts/`, and
+`pages/`: files
 ≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10 per function,
 measured through the TypeScript AST. Nesting, parameter counts, and constant
 placement remain manual review checks. Functions over a limit in files
