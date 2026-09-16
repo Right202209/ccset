@@ -42,8 +42,13 @@ export function TerminalDemo({ stepMs = REPLAY_STEP_MS }: { stepMs?: number }) {
       <pre className="terminal-body">
         {lines.slice(0, shown).map((line, index) => (
           <div key={index} className={`terminal-line terminal-${line.kind}`}>
+            <span className="terminal-num" aria-hidden="true">
+              {index + 1}
+            </span>
             {line.kind === 'command' && <span className="terminal-prompt">$ </span>}
-            {line.text}
+            {line.kind === 'command' ? <span className="terminal-cmd">{line.text}</span> : null}
+            {line.kind === 'field' ? <span className="terminal-label">{line.text}</span> : null}
+            {line.kind === 'text' || line.kind === 'accent' ? line.text : null}
             {line.suffix !== undefined && <span className="terminal-suffix"> {line.suffix}</span>}
           </div>
         ))}

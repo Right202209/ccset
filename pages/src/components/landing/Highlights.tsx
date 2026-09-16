@@ -1,4 +1,5 @@
 import { useLanguage } from '../../i18n/index.js'
+import { Stats } from './Stats.js'
 
 const HIGHLIGHTS = [
   'agents',
@@ -15,6 +16,7 @@ export function Highlights() {
     <section className="landing-section" id="highlights">
       <div className="container">
         <h2 className="landing-heading">{t('highlights.title')}</h2>
+        <Stats />
         <div className="highlight-grid">
           {HIGHLIGHTS.map((key) => (
             <article key={key} className="highlight-card">

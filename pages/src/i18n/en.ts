@@ -24,6 +24,10 @@ export const en: Catalog = {
 
   /* ------------------------------------------------------------- highlights */
   'highlights.title': 'Why ccset',
+  'stats.agents': 'Supported agents',
+  'stats.languages': 'Interface languages',
+  'stats.backups': 'Backups per file',
+  'stats.mode': 'POSIX write mode',
   'highlight.agents.title': 'Five agents',
   'highlight.agents.body': 'Claude Code, opencode, Codex CLI, pi, and Grok Build, each with its own paths and rules.',
   'highlight.cli.title': 'TUI and scriptable CLI',

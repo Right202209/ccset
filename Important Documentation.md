@@ -2391,3 +2391,50 @@ ubuntu-latest, Node 24) passed in 24 s, and the root `CI` matrix passed on
 all nine jobs — ubuntu-latest, macos-latest, windows-latest × Node.js
 18.x/20.x/22.x, including the full fixture suite on ubuntu and macOS and
 `npm pack --dry-run` everywhere.
+
+### 9.47 Website visual refresh after the open-code-review design (2026-09-17)
+
+**Scope:** `pages/` only — a restyle of the landing and docs surfaces to the
+dark, green-accented language of Alibaba's `alibaba/open-code-review` site
+(near-black slate surfaces, emerald accent, glow effects), with no changes to
+the CLI, the docs content, the registry, or the workflows.
+
+**Changes:** `tokens.css` gained a dark palette (white-alpha borders, raised
+card colours) plus terminal colour tokens (`--term-cmd`, `--term-path`,
+`--term-action`, `--term-dim`) and glow/float shadow tokens; `index.html`'s
+critical CSS and `theme-color` follow `--color-bg`/`--color-fg` (`#05070a`/
+`#e7eaf0`); the favicon flips to the dark tile with the green chevron; the
+navbar is translucent dark with a 10 px backdrop blur and green active links;
+primary buttons are green with near-black text and a hover glow. The hero
+gets green radial glow fields with a fade to the background, a gradient-text
+title, dotted agent badges, and a `$` prompt on the install pill. The
+terminal demo renders dim line numbers, gold command text, green accent
+lines, dim labels with blue values; the landing adds a stat band (5 agents /
+2 languages / 10 backups / 0600 mode — grounded in the README; the mode is
+rendered verbatim because it is an octal mode, not a quantity) with an
+ease-out count-up driven by IntersectionObserver + requestAnimationFrame;
+feature cards carry inline stroke icons; highlight/safety cards and the
+agents table gain hover states; quick-start steps are numbered by CSS
+counters with green circles. Section headings carry a green rule. New i18n
+keys `stats.agents`/`stats.languages`/`stats.backups`/`stats.mode` shipped in
+both catalogs. New files: `src/components/landing/Stats.tsx` (+
+`Stats.test.tsx`).
+
+**Site checks, Linux x64, Node.js 24.21.0 (local Node 20.19.5 is below the
+site's jsdom 30 floor; Node 24 was unpacked to `~/.local/node24` and used for
+every command):** `tsc --noEmit` clean; Vitest 14 files / 66 tests passing
+with v8 coverage lines 92.2 %, statements 88.86 %, functions 90.79 %,
+branches 77.09 % (thresholds 80/80/80/70); `vite build` (82 modules; CSS
+19.66 kB / 4.35 kB gzip; main chunk 214.31 kB / 70.71 kB gzip; lazy Docs
+chunk 215.26 kB / 79.36 kB gzip); `scripts/smoke.mjs` passed (3 assets, all
+routes and the gzip budget OK). Headless Chromium (Playwright) over
+`vite preview` captured the landing and `/docs/user-guide` at 1280×900 and
+390×844 in English and zh-Hans; all five captures passed the visual review
+(dark theme applied consistently, terminal segments and stat band render,
+mobile stacks without overflow). `npm`/`npx` from the Node 24 distribution
+crash on this machine ("Class extends value undefined" in its bundled
+minipass), so Vitest/Vite were invoked through their `node_modules` entry
+points with Node 24 directly.
+
+**Root checks:** `verify:code-gates` passed over 234 files (18 baseline
+exceptions, no new ones).
