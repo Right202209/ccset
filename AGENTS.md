@@ -34,6 +34,7 @@ This is an ESM TypeScript CLI/TUI built with Ink and React.
 | `src/types.ts`, `src/ctx.ts` | Shared interfaces and runtime context |
 | `src/cli.tsx`, `src/registry.ts` | Process boundary and static Agent registration |
 | `scripts/` | Executable verification fixtures and their harnesses |
+| `pages/` | Website source; own `package.json` and Node 22+ toolchain; checks run from `pages/` |
 
 `dist/` and `.verify/` are generated output; edit their sources instead.
 
@@ -45,6 +46,7 @@ Read these guides for the corresponding work:
 | Non-interactive commands | [Command specification](docs/milestone-3-non-interactive.md), [implemented CLI behavior](docs/user-guide.md#cli) |
 | New Agent | [Coding-assistant workflow (中文)](docs/agents/add-agent-workflow.md), [Adding an Agent](docs/adding-an-agent.md), [contribution requirements](CONTRIBUTING.md#new-agents) |
 | Tests, build, CI, or release evidence | [Verification guide](docs/verification.md), [verification register](<Important Documentation.md>) |
+| Website (`pages/`) | [Site dev guide](pages/README.md), [ADR 0015](docs/adr/0015-render-the-website-from-the-repository-markdown.md), [verification guide](docs/verification.md) |
 | User-facing behavior | [User guide](docs/user-guide.md), [README.md](README.md), [README.zh-CN.md](README.zh-CN.md) |
 | Terms or design decisions | [Domain documentation guide](docs/agents/domain.md) |
 | Issue or PR tracking | [Issue tracker](docs/agents/issue-tracker.md), [triage labels](docs/agents/triage-labels.md) |
@@ -87,12 +89,12 @@ TypeScript imports. Use `camelCase` for variables/functions, `PascalCase` for
 components/types, and lowercase kebab-case Agent directory IDs. TypeScript is
 strict with `noUncheckedIndexedAccess`; narrow indexed values before use.
 
-The executable quality gate checks TypeScript under `src/` and `scripts/`:
-files ≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10. Existing
-violations are tracked in `scripts/verify-code-gates.ts`; remove entries when
-fixed and do not add exceptions to hide new violations. Review nesting ≤ 3 and
-positional parameters ≤ 3 manually. Keep constants with the module that owns
-them; only shared constants belong in `src/core/constants.ts`.
+The executable quality gate checks TypeScript under `src/`, `scripts/`, and
+`pages/`: files ≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10.
+Existing violations are tracked in `scripts/verify-code-gates.ts`; remove
+entries when fixed and do not add exceptions to hide new violations. Review
+nesting ≤ 3 and positional parameters ≤ 3 manually. Keep constants with the
+module that owns them; only shared constants belong in `src/core/constants.ts`.
 
 ## Verification and handoff
 

@@ -203,7 +203,8 @@ compatibility window.
 ## 7. Code-quality gates
 
 Apply these rules to changed TypeScript code. `npm run verify:code-gates`
-(inside `npm test`) scans TypeScript files under `src/` and `scripts/`: files
+(inside `npm test`) scans TypeScript files under `src/`, `scripts/`, and
+`pages/`: files
 ≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10 per function,
 measured through the TypeScript AST. Nesting, parameter counts, and constant
 placement remain manual review checks. Functions over a limit in files
@@ -2298,3 +2299,95 @@ in `verify:malformed-dirty` (`waitFor('❯ Save')` hit the harness's 5 s
 PTY timeout); the job passed unchanged on rerun and every other matrix
 entry passed first try, so it is recorded as runner timing, the family
 §9.43 documents, not a merge regression.
+
+### 9.46 Website under pages/ and GitHub Pages deployment (2026-09-17)
+
+The repository gained a website (`pages/`), deployed to
+`https://right202209.github.io/ccset/` by the new `deploy-pages.yml`
+workflow on every push to `master`; `pages-ci.yml` runs the same checks on
+PRs touching the site or its content sources. The site renders the
+repository's own Markdown (`?raw` imports, links rewritten to `/docs/<slug>`
+routes or GitHub blob URLs, GitHub-compatible heading ids), carries `en` and
+`zh-Hans` catalogs with a parity test, and serves a 404 SPA fallback for
+deep links. Design decisions are in ADR 0015; the site's dev guide is
+`pages/README.md`. The §7 gate now walks `pages/` too. The site keeps its
+own `package.json`/lockfile (its toolchain needs Node 22.22+/24.15+/26+) —
+no workspaces, root `package-lock.json` untouched, `npm pack --dry-run`
+still lists exactly 5 files with no `pages/` entry.
+
+**Site checks, Linux x64 (Gentoo), Node.js 24.15.0, npm 11.12.1, from
+`pages/` (the CLI's Node 20.19.5 cannot run the site toolchain; Vitest 5
+and jsdom 30 require 22.12+/22.22+):** `npm ci`, `npm run typecheck`,
+`npm test` (Vitest: 13 files, 64 tests, all passing across three
+consecutive runs; v8 coverage
+lines 89.55 %, statements 93.17 %, functions 91.39 %, branches 76.09 % —
+thresholds are 80/80/80/70), `npm run build` (80 modules; index.html
+1.04 kB; main chunk 211 kB / 69.9 kB gzip; lazy Docs chunk 213 kB /
+78.8 kB gzip; 404.html emitted as a copy of the built index.html), and
+`npm run smoke` (vite preview on /ccset/: `/`, `/docs/user-guide`, and an
+unknown deep route all serve the SPA shell, all asset URLs are
+base-prefixed and fetch 200, 404.html matches index.html, gzip within the
+500 kB budget). `npm run dev`'s manual pass was exercised against the
+built site instead: headless Chromium (Playwright) over `vite preview`
+captured the landing and `/docs/user-guide` at 1280×900 and 390×844 in
+English and zh-Hans, following the browser hint and an explicit
+`localStorage` choice; the terminal demo replays to the
+`claude --settings …` line with a masked token, and the docs page shows
+sidebar groups, search, an active-heading TOC, and the GitHub source link.
+
+**Two-axis review pass.** A security review (HTML sanitisation, link
+rewriting, secrets, CDN, workflows) found no must-fix items: the only HTML
+producer is `renderMarkdown` with DOMPurify as the final gate,
+`javascript:`/`data:` hrefs cannot survive `resolveRepoLink` plus the
+sanitizer's URI allow-list, all `target="_blank"` anchors carry
+`rel="noopener noreferrer"`, storage holds only the `ccset-lang` key and a
+constant reload flag, there are no third-party requests, and the workflows
+use minimal permissions with no `pull_request_target` and no secrets. Two
+low-severity hardening suggestions were applied with regression tests:
+digit-leading fragments (`#1-intro`) now resolve through `CSS.escape`
+instead of a hand-rolled selector escape that threw, and DOMPurify forbids
+`<img>`/`<style>`/`style` outright so the first-party-assets guarantee
+survives future doc edits.
+
+**A TypeScript-standards review pass over `pages/src` reported 2 must-fix
+and 6 low findings; all 8 are applied.** The must-fixes: delegated link
+clicks now bail on modifier keys and non-left buttons so ctrl/cmd/shift
+click keeps the browser's open-in-new-tab (previously every internal link
+click was hijacked into same-tab navigation), and absolute GitHub blob URLs
+are resolved against the repository root rather than the containing
+document's directory — a `blob/master/README.md` link from a `docs/` page
+used to miss the registry and emit a blob URL for the nonexistent
+`docs/README.md`. Lows fixed: search and snippets share one
+`normalizeForSearch` (previously differing character strips could yield a
+match with an empty snippet), `extractHeadings` walks the full token tree
+and slugs every heading so TOC ids equal rendered ids even for nested or
+cross-level duplicate headings, `useCopy` clears its reset timer on
+unmount, two dead effects/calls removed (`DocPage`'s slug-change effect,
+`Landing`'s discarded `useLanguage()`), and four module-only constants are
+no longer exported. Both must-fixes have regression tests. One test
+flaked once under coverage (a lazy `Docs` chunk import exceeding
+`findByRole`'s 1 s default in jsdom); the affected queries now carry
+explicit timeouts, and the suite then passed three consecutive full runs
+(13 files, 64 tests; coverage lines 89.55 %, statements 93.17 %,
+functions 91.39 %, branches 76.09 %).
+
+**Root checks, Linux x64, Node.js 20.19.5, npm 10.8.2:** `npm run
+typecheck`, `npm run build`, and the full `npm test` chain passed end to
+end with exit 0; `verify:code-gates` passed over 231 files (now including
+`pages/`) with the same 18 baseline exceptions and no new ones;
+`npm pack --dry-run` lists LICENSE, both READMEs, `dist/cli.js`, and
+`package.json` only; `git diff --check` passed.
+
+**Pending, recorded honestly:** the one-time Pages enablement
+(`gh api -X POST repos/Right202209/ccset/pages -f build_type=workflow`)
+needs the maintainer's explicit go-ahead because it changes repository
+settings; the post-merge `curl` checks against
+`https://right202209.github.io/ccset/` and the append of the post-merge
+evidence here happen after merge.
+
+**CI on the PR (Right202209/ccset#68), recorded after the run:** the new
+`Pages CI` job (install, typecheck, Vitest with coverage, build, smoke on
+ubuntu-latest, Node 24) passed in 24 s, and the root `CI` matrix passed on
+all nine jobs — ubuntu-latest, macos-latest, windows-latest × Node.js
+18.x/20.x/22.x, including the full fixture suite on ubuntu and macOS and
+`npm pack --dry-run` everywhere.

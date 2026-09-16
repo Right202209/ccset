@@ -14,7 +14,9 @@ import ts from 'typescript'
  * touched". They are listed in BASELINE, the ratchet that keeps the debt
  * visible instead of forgotten: every entry must still match a live violation,
  * so fixing one forces the entry's removal, and a new violation with no entry
- * fails the gate.
+ * fails the gate. The walk covers the CLI (`src/`, `scripts/`) and the website
+ * (`pages/`); the site's own toolchain types it separately, but the gates need
+ * no site dependencies -- the TypeScript AST parser is already there.
  */
 
 const MAX_FILE_LINES = 300
@@ -57,7 +59,7 @@ const BRANCH_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
   ts.SyntaxKind.BarBarToken,
 ])
 
-const SKIP_DIRECTORIES = new Set(['node_modules', 'dist', '.verify', '.scratch'])
+const SKIP_DIRECTORIES = new Set(['node_modules', 'dist', 'coverage', '.verify', '.scratch'])
 
 function walk(dir: string): string[] {
   const files: string[] = []
@@ -147,7 +149,7 @@ function checkFile(file: string): Violation[] {
 }
 
 function main(): void {
-  const files = [...walk('src'), ...walk('scripts')]
+  const files = [...walk('src'), ...walk('scripts'), ...walk('pages')]
   assert.ok(files.length > 50, `the walk found only ${files.length} files`)
   const found: Violation[] = files.flatMap((file) => checkFile(file))
   const used = new Set<string>()

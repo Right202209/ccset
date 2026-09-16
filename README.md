@@ -7,6 +7,9 @@ Configure third-party API providers for **Claude Code**, **opencode**,
 commands. ccset preserves unmanaged settings and backs up existing files before
 changing them.
 
+Documentation, guides, and this introduction are also available as a website:
+[right202209.github.io/ccset](https://right202209.github.io/ccset/).
+
 ## Quick start
 
 Requires **Node.js 18+**.

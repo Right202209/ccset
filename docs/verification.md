@@ -13,6 +13,7 @@ holds manual scenarios, release requirements, unknowns, and recorded evidence.
 | Shared writes, codecs, credentials, or behavior used by multiple Agents/surfaces | The runtime checks plus `npm test`; cover the affected manual data-safety scenarios. |
 | Dependencies, build configuration, package contents, or test/CI wiring | `npm run typecheck`, `npm run build`, and `npm test`; inspect the artifact and affected CI jobs. |
 | TUI layout, navigation, or input | The runtime checks and relevant UI fixtures; manually exercise the changed flow in a real terminal, including narrow/resize behavior when affected. |
+| Website (`pages/`) | From `pages/` with Node 22.22+/24.15+/26+: `npm run typecheck`, `npm test` (Vitest with enforced coverage), `npm run build`, `npm run smoke`; manually check the dev server at desktop and mobile widths. See [pages/README.md](../pages/README.md). |
 | Release | All requirements in the register's §6, including automated fixtures and the applicable platform evidence. |
 
 Run focused fixtures while developing. Before merging runtime or tooling changes,
@@ -83,7 +84,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:commands-codex` | Codex status/global commands, TOML preservation, typed integers, environment findings and replacement backups |
 | `npm run verify:commands-codex-provider` | Provider invariants, Auth profile preservation, credential-source refusals, untouched live auth |
 | `npm run verify:commands-codex-use` | Switch ordering, adoption/replacement choices, idempotence, environment preconditions, partial failures |
-| `npm run verify:code-gates` | TypeScript file/function size and complexity, plus stale or new baseline violations |
+| `npm run verify:code-gates` | TypeScript file/function size and complexity over `src/`, `scripts/`, and `pages/`, plus stale or new baseline violations |
 | `npm run verify:release-artifact` | Build, pack, temporary install, allowed package contents, executable/shebang and CLI smoke |
 
 All `verify:commands` / `verify:commands-*` scripts build before running and
@@ -151,6 +152,15 @@ typecheck, build, a built-CLI smoke, and `npm pack --dry-run` on Ubuntu, macOS,
 and Windows with Node 18/20/22. The smoke requires non-empty `--version` output
 without ANSI escapes and a non-TTY interactive refusal with exit 2 and no ANSI.
 Ubuntu and macOS also run `npm test`; Windows skips the POSIX fixture suite.
+
+The website has its own pair of workflows. [pages-ci.yml](../.github/workflows/pages-ci.yml)
+runs the site's checks (install, typecheck, Vitest, build, smoke) on pull
+requests touching `pages/**`, `docs/**`, root `*.md`, or either workflow.
+[deploy-pages.yml](../.github/workflows/deploy-pages.yml) runs the same checks
+on every push to `master` (no path filter, so doc edits never leave the site
+stale) and on `workflow_dispatch`, then deploys `pages/dist` through the
+official Pages actions; the build takes its base path from
+`actions/configure-pages`. Root `ci.yml` does not build the site.
 
 Release checks and platform exceptions are defined in the register's §6 and
 [SUPPORT.md](../SUPPORT.md). Platform-specific path, permission, or terminal
