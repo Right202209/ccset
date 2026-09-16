@@ -19,6 +19,9 @@ jobs:
     if: github.repository == 'Right202209/ccset'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Least privilege: only the deploy job may touch Pages or the OIDC token.
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: pages

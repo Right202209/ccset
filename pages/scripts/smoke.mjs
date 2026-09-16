@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import zlib from 'node:zlib'
 
 /**
@@ -14,7 +15,7 @@ import zlib from 'node:zlib'
 
 const BASE_PATH = process.env.PAGES_BASE_PATH || '/ccset/'
 const PORT = 4173
-const ROOT = path.dirname(new URL(import.meta.url).pathname)
+const ROOT = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(ROOT, '..', 'dist')
 const GZIP_BUDGET_BYTES = 500 * 1024
 
