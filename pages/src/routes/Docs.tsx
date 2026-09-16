@@ -37,10 +37,6 @@ function DocPage({ doc }: { doc: DocContent }) {
     document.title = `${title} — ccset`
   }, [title])
 
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [doc.entry.slug])
-
   return (
     <div className="docs container">
       <aside className={`docs-sidebar${menuOpen ? ' is-open' : ''}`}>

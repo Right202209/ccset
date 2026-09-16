@@ -1,4 +1,3 @@
-import { useLanguage } from '../i18n/index.js'
 import { FadeInSection } from '../components/FadeInSection.js'
 import { Agents } from '../components/landing/Agents.js'
 import { Features } from '../components/landing/Features.js'
@@ -9,7 +8,6 @@ import { QuickStart } from '../components/landing/QuickStart.js'
 
 /** The landing route: hero plus one section per landing component. */
 export function Landing() {
-  useLanguage()
   return (
     <>
       <Hero />

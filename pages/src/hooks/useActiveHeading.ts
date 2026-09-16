@@ -18,7 +18,7 @@ export function useActiveHeading(
       return undefined
     }
     const targets = headings
-      .map((heading) => root.querySelector(`#${cssEscape(heading.id)}`))
+      .map((heading) => root.querySelector(`#${CSS.escape(heading.id)}`))
       .filter((element): element is Element => element !== null)
     if (targets.length === 0) return undefined
     const observer = new IntersectionObserver(
@@ -34,8 +34,4 @@ export function useActiveHeading(
   }, [headings, container])
 
   return activeId
-}
-
-function cssEscape(value: string): string {
-  return value.replace(/([^a-zA-Z0-9_\u00A0-\uFFFF-])/g, '\\$1')
 }

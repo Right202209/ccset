@@ -67,8 +67,9 @@ function scrollToId(root: HTMLElement | null, id: string): void {
 
 function findHeading(root: HTMLElement | null, id: string): Element | null {
   if (root === null || id === '') return null
-  const escaped = id.replace(/([^a-zA-Z0-9_\u00A0-\uFFFF-])/g, '\\$1')
-  return root.querySelector(`#${escaped}`)
+  // CSS.escape over manual escaping: heading ids can start with a digit
+  // ("1. Intro" slugs to "1-intro"), which a plain "#id" selector rejects.
+  return root.querySelector(`#${CSS.escape(id)}`)
 }
 
 interface ClickContext {
@@ -76,11 +77,20 @@ interface ClickContext {
   copy: (text: string) => Promise<boolean>
 }
 
+function isPlainLeftClick(event: ReactMouseEvent<HTMLDivElement>): boolean {
+  return (
+    event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+  )
+}
+
 function delegateClick(
   event: ReactMouseEvent<HTMLDivElement>,
   root: HTMLElement | null,
   context: ClickContext,
 ): void {
+  // Left click with no modifiers only: ctrl/cmd/shift/alt-click and middle
+  // click keep the browser's open-in-new-tab (or scroll) behavior.
+  if (!isPlainLeftClick(event)) return
   const target = event.target as HTMLElement
   const copyButton = target.closest('button.code-copy')
   if (copyButton !== null) {
@@ -88,7 +98,7 @@ function delegateClick(
     return
   }
   const anchor = target.closest('a')
-  if (anchor === null) return
+  if (anchor === null || event.defaultPrevented) return
   const href = anchor.getAttribute('href') ?? ''
   if (href.startsWith('/')) {
     event.preventDefault()

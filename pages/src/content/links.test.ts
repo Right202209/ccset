@@ -21,6 +21,12 @@ describe('resolveRepoLink', () => {
     expect(resolveRepoLink(href, '')).toBe('/docs/user-guide#cli')
   })
 
+  it('resolves blob URLs against the repo root, not the containing directory', () => {
+    expect(resolveRepoLink('https://github.com/Right202209/ccset/blob/master/README.md', 'docs')).toBe(
+      '/docs/overview',
+    )
+  })
+
   it('sends unregistered repo paths (autolinks included) to GitHub', () => {
     const encoded = '../Important%20Documentation.md'
     expect(resolveRepoLink(encoded, 'docs')).toBe(repoBlobUrl('Important Documentation.md'))

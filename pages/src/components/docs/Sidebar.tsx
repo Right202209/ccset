@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useLanguage } from '../../i18n/index.js'
 import { DOC_ENTRIES, type DocEntry, type DocGroup } from '../../content/registry.js'
 
-export const GROUP_ORDER: readonly DocGroup[] = ['getting-started', 'reference', 'project']
+const GROUP_ORDER: readonly DocGroup[] = ['getting-started', 'reference', 'project']
 
 /** The docs sidebar: the three groups in registry order, registry labels. */
 export function Sidebar() {

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface CopyResult {
   copied: boolean
@@ -9,6 +9,13 @@ export interface CopyResult {
 export function useCopy(resetMs = 1600): CopyResult {
   const [copied, setCopied] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(
+    () => () => {
+      if (timer.current !== null) clearTimeout(timer.current)
+    },
+    [],
+  )
 
   const copy = useCallback(
     async (text: string): Promise<boolean> => {

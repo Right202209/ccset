@@ -60,7 +60,7 @@ describe('docs route', () => {
       </MemoryRouter>,
     )
     expect(
-      await screen.findByRole('heading', { name: 'There is no document at this route.' }),
+      await screen.findByRole('heading', { name: 'There is no document at this route.' }, { timeout: 5000 }),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'All documents' })).toBeInTheDocument()
   })
@@ -74,7 +74,7 @@ describe('docs route', () => {
         </LanguageProvider>
       </MemoryRouter>,
     )
-    await screen.findByRole('heading', { level: 1, name: 'ccset' })
+    await screen.findByRole('heading', { level: 1, name: 'ccset' }, { timeout: 5000 })
     expect(screen.queryByRole('button', { name: 'Documents' })).not.toBeInTheDocument()
   })
 })

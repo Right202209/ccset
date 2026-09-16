@@ -26,7 +26,9 @@ export function renderMarkdown(markdown: string, sourceDir: string): string {
   }
   const marked = new Marked({ gfm: true, renderer })
   const html = marked.parse(markdown, { async: false })
-  return DOMPurify.sanitize(html)
+  // Raw HTML in docs is sanitized; img/style are forbidden outright so the
+  // site's no-third-party-request guarantee survives future doc edits.
+  return DOMPurify.sanitize(html, { FORBID_TAGS: ['img', 'style'], FORBID_ATTR: ['style'] })
 }
 
 /** Attribute-safe href: slugs and routes are safe, passthrough URLs may not be. */

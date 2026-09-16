@@ -1,9 +1,9 @@
 import { DOC_ENTRIES } from './registry.js'
 
 /** Where every non-route repository link lands. */
-export const REPO_OWNER = 'Right202209'
-export const REPO_NAME = 'ccset'
-export const REPO_BRANCH = 'master'
+const REPO_OWNER = 'Right202209'
+const REPO_NAME = 'ccset'
+const REPO_BRANCH = 'master'
 
 const BLOB_BASE = `https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${REPO_BRANCH}/`
 
@@ -47,7 +47,8 @@ export function resolveRepoLink(rawHref: string, sourceDir: string): string {
   if (href.startsWith('#') || /^mailto:/i.test(href)) return href
   if (/^https?:\/\//i.test(href)) {
     if (href.startsWith(BLOB_BASE)) {
-      return resolveRepoLink(decodeRest(href.slice(BLOB_BASE.length)), sourceDir)
+      // Blob URLs are repo-root-absolute regardless of the containing document.
+      return resolveRepoLink(decodeRest(href.slice(BLOB_BASE.length)), '')
     }
     return href
   }

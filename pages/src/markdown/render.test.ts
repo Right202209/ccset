@@ -10,6 +10,16 @@ describe('renderMarkdown', () => {
     expect(html).not.toContain('onerror')
   })
 
+  it('keeps the site first-party: no img, style tags, or style attributes', () => {
+    const html = renderMarkdown(
+      '<img src="https://badge.example/x.png"><style>p{color:red}</style>\n\n<span style="color:red">x</span>',
+      '',
+    )
+    expect(html).not.toContain('<img')
+    expect(html).not.toContain('<style')
+    expect(html).not.toContain('style=')
+  })
+
   it('gives headings GitHub-compatible ids', () => {
     const html = renderMarkdown('## What it will not do to your files\n\n### 功能\n', '')
     expect(html).toContain('id="what-it-will-not-do-to-your-files"')
