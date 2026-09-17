@@ -18,8 +18,11 @@ export function sourceDirOf(repoPath: string): string {
   return index === -1 ? '' : repoPath.slice(0, index)
 }
 
+/** A path is registered when it is an entry's English repoPath or any locale's source. */
 function registeredSlug(repoPath: string): string | undefined {
-  return DOC_ENTRIES.find((entry) => entry.repoPath === repoPath)?.slug
+  return DOC_ENTRIES.find(
+    (entry) => entry.repoPath === repoPath || Object.values(entry.sources).includes(repoPath),
+  )?.slug
 }
 
 /** Resolves `..`/`.` segments lexically against the source file's directory. */

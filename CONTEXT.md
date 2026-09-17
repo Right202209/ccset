@@ -1,5 +1,7 @@
 # ccset
 
+[简体中文](CONTEXT.zh-CN.md) | English
+
 ccset is a public configuration tool for developers who use coding agents with
 third-party API services. Its language distinguishes configuration generation,
 compatibility evidence, and maintenance commitments.

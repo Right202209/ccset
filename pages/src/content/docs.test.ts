@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { docTitle, getDoc, homeSlug, neighbors } from './docs.js'
 import { DOC_ENTRIES, DOC_ORDER } from './registry.js'
 import { searchDocs } from './search.js'
+import { LOCALES } from '../i18n/types.js'
 
 describe('registry', () => {
   it('has unique slugs and source files that exist', () => {
@@ -22,10 +23,14 @@ describe('getDoc', () => {
     }
   })
 
-  it('falls back to the English source for zh-Hans readers', () => {
-    const doc = getDoc('user-guide', 'zh-Hans')
-    expect(doc?.sourcePath).toBe('docs/user-guide.md')
-    expect(doc?.locale).toBe('zh-Hans')
+  it('serves every listed source in its locale', () => {
+    for (const entry of DOC_ENTRIES) {
+      for (const locale of LOCALES) {
+        const sourcePath = entry.sources[locale]
+        if (sourcePath === undefined) continue
+        expect(getDoc(entry.slug, locale)?.sourcePath, `${entry.slug} (${locale})`).toBe(sourcePath)
+      }
+    }
   })
 
   it('shows the Chinese-only workflow doc in both languages', () => {
