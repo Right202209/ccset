@@ -16,6 +16,8 @@ and decisions, identify the intended behavior, implement through the existing
 interfaces, verify the change, and report the evidence. The
 [architecture guide](docs/architecture.md) explains the runtime boundaries; the
 [verification guide](docs/verification.md) maps change areas to executable checks.
+Website changes follow [pages/README.md](pages/README.md), whose checks run from
+`pages/` with their own toolchain.
 
 ## Pull requests
 

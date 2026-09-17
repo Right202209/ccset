@@ -1,0 +1,47 @@
+/* Design tokens for the website. index.html's inline critical CSS must keep
+   its background and foreground colours in sync with --color-bg/--color-fg.
+   Dark slate surfaces with a green accent, after the open-code-review site. */
+:root {
+  --color-bg: #05070a;
+  --color-fg: #e7eaf0;
+  --color-muted: #9aa4b2;
+  --color-border: rgb(255 255 255 / 0.09);
+  --color-border-strong: rgb(255 255 255 / 0.16);
+  --color-card: #0c1118;
+  --color-card-raised: #111823;
+  --color-accent: #22c55e;
+  --color-accent-strong: #4ade80;
+  --color-accent-deep: #16a34a;
+  --color-accent-soft: rgb(34 197 94 / 0.12);
+  --color-code-bg: #131a23;
+  --color-terminal-bg: #080b0f;
+  --color-terminal-fg: #e4e7eb;
+  --color-terminal-accent: #4ade80;
+  --term-cmd: #e2ba64;
+  --term-path: #67bafa;
+  --term-action: #d553f6;
+  --term-dim: rgb(228 231 235 / 0.55);
+  --color-ok: #48aa84;
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-float: 0 16px 48px rgb(0 0 0 / 0.55);
+  --shadow-glow: 0 0 32px rgb(34 197 94 / 0.22);
+  --content-width: 72rem;
+}

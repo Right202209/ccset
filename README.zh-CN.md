@@ -4,6 +4,8 @@
 
 一个用于正确写入编程 Agent 设置文件的终端界面工具，也是一条可脚本化的命令行。
 
+文档与指南也有配套网站：[right202209.github.io/ccset](https://right202209.github.io/ccset/)（英文/简体中文）。
+
 将编程 Agent 指向第三方 API 端点时，手动编辑 JSON 容易因字段名拼写错误而导致配置静默失效。ccset 会生成和编辑这些文件，并显示磁盘上已有的配置。
 
 目前支持五个 Agent：**Claude Code**、**opencode**、**Codex CLI**、**pi** 和 **Grok Build**。ccset 会询问你要配置哪一个，可以用 `--agent <id>` 指定，也可以无界面地执行单条命令——见 [命令行](#cli)。
