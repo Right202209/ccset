@@ -28,6 +28,9 @@ export function Hero() {
             ))}
           </ul>
           <div className="hero-install">
+            <span className="hero-install-prompt" aria-hidden="true">
+              $
+            </span>
             <code>{INSTALL_COMMAND}</code>
             <CopyButton text={INSTALL_COMMAND} />
           </div>

@@ -20,6 +20,10 @@ export const zhHans: Catalog = {
 
   /* ------------------------------------------------------------- highlights */
   'highlights.title': '为什么选择 ccset',
+  'stats.agents': '支持的 Agent',
+  'stats.languages': '界面语言',
+  'stats.backups': '每个文件的备份',
+  'stats.mode': 'POSIX 写入权限',
   'highlight.agents.title': '五个 Agent',
   'highlight.agents.body': 'Claude Code、opencode、Codex CLI、pi 和 Grok Build，各自的路径与规则互不干扰。',
   'highlight.cli.title': 'TUI 与可脚本化 CLI',

@@ -5,6 +5,9 @@ a viewer for the repository's own documentation, in English and Simplified
 Chinese. It renders the repository Markdown in place (`?raw` imports, links
 rewritten to routes or GitHub URLs) — never copy doc text here. Decisions are
 recorded in [ADR 0015](../docs/adr/0015-render-the-website-from-the-repository-markdown.md).
+The visual language (dark surfaces, green accent, glow hero) follows Alibaba's
+[open-code-review](https://github.com/alibaba/open-code-review) site; all
+colours live in [src/styles/tokens.css](src/styles/tokens.css).
 
 ## Toolchain
 
