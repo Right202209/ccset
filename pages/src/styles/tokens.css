@@ -2,11 +2,15 @@
    its background and foreground colours in sync with --color-bg/--color-fg.
    Dark slate surfaces with a green accent, after the open-code-review site. */
 :root {
+  color-scheme: dark;
   --color-bg: #05070a;
   --color-fg: #e7eaf0;
+  --color-fg-strong: #f8fafc;
   --color-muted: #9aa4b2;
+  --color-faint: #6b7686;
   --color-border: rgb(255 255 255 / 0.09);
   --color-border-strong: rgb(255 255 255 / 0.16);
+  --color-border-accent: rgb(34 197 94 / 0.45);
   --color-card: #0c1118;
   --color-card-raised: #111823;
   --color-accent: #22c55e;
@@ -21,7 +25,12 @@
   --term-path: #67bafa;
   --term-action: #d553f6;
   --term-dim: rgb(228 231 235 / 0.55);
+  --term-dot-close: #ff5f57;
+  --term-dot-minimize: #febc2e;
+  --term-dot-zoom: #28c840;
   --color-ok: #48aa84;
+  --gradient-accent: linear-gradient(120deg, #4ade80, #86efac 55%, #5eead4);
+  --gradient-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent 45%);
   --font-sans:
     system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
@@ -32,16 +41,25 @@
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
   --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
+  --space-20: 5rem;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
+  --radius-xl: 22px;
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-float: 0 16px 48px rgb(0 0 0 / 0.55);
   --shadow-glow: 0 0 32px rgb(34 197 94 / 0.22);
+  --shadow-terminal:
+    0 30px 80px rgb(0 0 0 / 0.6),
+    0 0 0 1px rgb(255 255 255 / 0.04),
+    0 0 60px rgb(34 197 94 / 0.08);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --content-width: 72rem;
+  --navbar-height: 3.75rem;
 }

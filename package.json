@@ -1,6 +1,6 @@
 {
   "name": "@droite/ccset",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "description": "Terminal UI and CLI that generate and edit Claude Code, opencode, Codex CLI, pi, and Grok Build configuration files for third-party API providers.",
   "type": "module",
   "bin": {

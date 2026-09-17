@@ -1,5 +1,6 @@
 import { useLanguage } from '../../i18n/index.js'
 import { CopyButton } from '../CopyButton.js'
+import { SectionHeading } from './SectionHeading.js'
 
 /** Install and first commands, straight from the README's quick start. */
 export function QuickStart() {
@@ -7,7 +8,7 @@ export function QuickStart() {
   return (
     <section className="landing-section" id="quick-start">
       <div className="container">
-        <h2 className="landing-heading">{t('quickStart.title')}</h2>
+        <SectionHeading title={t('quickStart.title')} />
         <ol className="quickstart-steps">
           <Step
             title={t('quickStart.run.title')}
@@ -40,11 +41,24 @@ function Step({ title, body, command }: { title: string; body: string; command: 
         <p>{body}</p>
       </div>
       <div className="code-pill">
-        <pre>
-          <code>{command}</code>
-        </pre>
+        <CommandLines command={command} />
         <CopyButton text={command} />
       </div>
     </li>
+  )
+}
+
+/** One line per command so each gets its own `$` prompt from CSS. */
+function CommandLines({ command }: { command: string }) {
+  return (
+    <pre>
+      <code>
+        {command.split('\n').map((line, index) => (
+          <span key={index} className="code-line">
+            {line}
+          </span>
+        ))}
+      </code>
+    </pre>
   )
 }

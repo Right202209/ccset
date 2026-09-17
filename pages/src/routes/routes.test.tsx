@@ -71,4 +71,9 @@ describe('NotFound', () => {
     expect(screen.getByRole('heading', { name: 'Not found' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to the homepage' })).toBeInTheDocument()
   })
+
+  it('keeps the decorative status code out of the accessible tree', () => {
+    renderWith(<NotFound />)
+    expect(screen.getByText('404')).toHaveAttribute('aria-hidden', 'true')
+  })
 })

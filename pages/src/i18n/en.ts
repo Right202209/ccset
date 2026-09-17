@@ -14,9 +14,15 @@ export const en: Catalog = {
   /* ------------------------------------------------------------------ hero */
   'hero.tagline':
     'Configure third-party API providers for Claude Code, opencode, Codex CLI, pi, and Grok Build with an interactive terminal UI or scriptable commands. ccset preserves unmanaged settings and backs up existing files before changing them.',
+  'hero.eyebrow': 'Open source · MIT license',
+  'hero.headline': 'Writes coding-agent settings files.',
+  'hero.headlineAccent': 'Activation stays yours.',
   'hero.quickStart': 'Quick start',
   'hero.docs': 'Documentation',
   'hero.demoTitle': 'A ccset session',
+  'hero.meta.node': 'Node.js 18+',
+  'hero.meta.platforms': 'macOS and Linux; Windows best effort',
+  'hero.meta.languages': 'English / 简体中文',
 
   /* ------------------------------------------------------------------ copy */
   'copy.copy': 'Copy',
@@ -117,6 +123,9 @@ export const en: Catalog = {
   'doc.security': 'Security',
 
   /* ---------------------------------------------------------------- footer */
+  'footer.docs': 'Documentation',
+  'footer.project': 'Project',
+  'footer.tagline': 'Writes coding-agent settings files. Activation stays yours.',
   'footer.npm': 'npm package',
   'footer.license': 'MIT License',
   'footer.builtFrom': 'The site is built from the repository’s own Markdown.',

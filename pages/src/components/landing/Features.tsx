@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { useLanguage } from '../../i18n/index.js'
+import { SectionHeading } from './SectionHeading.js'
 
 const FEATURES = ['tui', 'commands', 'patch', 'switch', 'secrets', 'activate'] as const
 
@@ -11,8 +12,8 @@ export function Features() {
   return (
     <section className="landing-section" id="features">
       <div className="container">
-        <h2 className="landing-heading">{t('features.title')}</h2>
-        <div className="feature-grid">
+        <SectionHeading title={t('features.title')} />
+        <div className="feature-grid stagger">
           {FEATURES.map((key) => (
             <article key={key} className="feature-card">
               <span className="feature-icon" aria-hidden="true">

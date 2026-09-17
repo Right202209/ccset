@@ -70,7 +70,7 @@ function StatValue({ value, count, active }: { value: string; count: boolean; ac
 function useCountUp(target: number, active: boolean): number {
   const [current, setCurrent] = useState(0)
   useEffect(() => {
-    if (!active || target === 0) {
+    if (!active || target === 0 || prefersReducedMotion()) {
       setCurrent(target)
       return undefined
     }
@@ -87,4 +87,13 @@ function useCountUp(target: number, active: boolean): number {
 
 function easeOutQuad(progress: number): number {
   return 1 - (1 - progress) * (1 - progress)
+}
+
+/** Reduced-motion readers get the final figure at once instead of a count. */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
 }

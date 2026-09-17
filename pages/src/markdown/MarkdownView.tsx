@@ -28,7 +28,8 @@ export function MarkdownView({ markdown, sourceDir }: Props) {
     const node = containerRef.current
     if (node === null) return
     node.innerHTML = html
-    injectCopyButtons(node, t('copy.copy'))
+    decorateCodeBlocks(node, t('copy.copy'))
+    wrapTables(node)
   }, [html, t])
 
   useEffect(() => {
@@ -48,8 +49,11 @@ export function MarkdownView({ markdown, sourceDir }: Props) {
   )
 }
 
-function injectCopyButtons(root: HTMLElement, label: string): void {
+/** Labels each fence with its language (for CSS) and adds a copy button. */
+function decorateCodeBlocks(root: HTMLElement, label: string): void {
   for (const pre of root.querySelectorAll('pre')) {
+    const lang = pre.querySelector('code')?.className.match(/language-(\S+)/)?.[1]
+    if (lang !== undefined) pre.dataset.lang = lang
     if (pre.querySelector('.code-copy') !== null) continue
     const button = document.createElement('button')
     button.type = 'button'
@@ -57,6 +61,16 @@ function injectCopyButtons(root: HTMLElement, label: string): void {
     button.textContent = label
     button.setAttribute('aria-label', label)
     pre.appendChild(button)
+  }
+}
+
+/** Wide tables scroll inside a rounded wrapper instead of the article. */
+function wrapTables(root: HTMLElement): void {
+  for (const table of root.querySelectorAll('table')) {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'table-scroll'
+    table.replaceWith(wrapper)
+    wrapper.append(table)
   }
 }
 

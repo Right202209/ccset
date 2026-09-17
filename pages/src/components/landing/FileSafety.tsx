@@ -1,4 +1,5 @@
 import { useLanguage } from '../../i18n/index.js'
+import { SectionHeading } from './SectionHeading.js'
 
 const RULES = ['preserve', 'atomic', 'confirm', 'mask', 'backups'] as const
 
@@ -8,8 +9,8 @@ export function FileSafety() {
   return (
     <section className="landing-section" id="file-safety">
       <div className="container">
-        <h2 className="landing-heading">{t('fileSafety.title')}</h2>
-        <ul className="safety-list">
+        <SectionHeading title={t('fileSafety.title')} />
+        <ul className="safety-list stagger">
           {RULES.map((key) => (
             <li key={key} className="safety-item">
               <ShieldIcon />

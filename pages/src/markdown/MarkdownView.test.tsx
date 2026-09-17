@@ -22,6 +22,10 @@ const DOC = [
   '',
   'Body.',
   '',
+  '| Menu | Touches |',
+  '| --- | --- |',
+  '| Status | Nothing |',
+  '',
 ].join('\n')
 
 function renderDoc(): void {
@@ -58,6 +62,14 @@ describe('MarkdownView rendering', () => {
     expect(screen.getByRole('heading', { name: 'Section one' })).toHaveAttribute('id', 'section-one')
     const copy = document.querySelector('pre button.code-copy')
     expect(copy?.textContent).toBe('Copy')
+  })
+
+  it('labels fences with their language and wraps tables for scrolling', () => {
+    renderDoc()
+    expect(document.querySelector('pre')?.dataset.lang).toBe('bash')
+    const table = screen.getByRole('table')
+    expect(table.parentElement).toHaveClass('table-scroll')
+    expect(table.parentElement?.parentElement).toHaveClass('markdown')
   })
 })
 

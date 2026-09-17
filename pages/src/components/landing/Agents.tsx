@@ -1,4 +1,5 @@
 import { useLanguage } from '../../i18n/index.js'
+import { SectionHeading } from './SectionHeading.js'
 
 interface AgentRow {
   name: string
@@ -19,12 +20,13 @@ const AGENTS: readonly AgentRow[] = [
   { name: 'Grok Build', id: 'grok-build', config: '~/.grok/config.toml' },
 ]
 
+/** Cells carry their column label in data-label for the narrow card layout. */
 export function Agents() {
   const { t } = useLanguage()
   return (
     <section className="landing-section" id="agents">
       <div className="container">
-        <h2 className="landing-heading">{t('agents.title')}</h2>
+        <SectionHeading title={t('agents.title')} />
         <div className="table-wrap">
           <table className="agent-table">
             <thead>
@@ -37,11 +39,11 @@ export function Agents() {
             <tbody>
               {AGENTS.map((agent) => (
                 <tr key={agent.id}>
-                  <td>{agent.name}</td>
-                  <td>
+                  <td data-label={t('agents.agentHeader')}>{agent.name}</td>
+                  <td data-label={t('agents.idHeader')}>
                     <code>{agent.id}</code>
                   </td>
-                  <td>
+                  <td data-label={t('agents.configHeader')}>
                     <code>{agent.config}</code>
                   </td>
                 </tr>

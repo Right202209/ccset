@@ -10,9 +10,15 @@ export const zhHans: Catalog = {
   /* ------------------------------------------------------------------ hero */
   'hero.tagline':
     '为 Claude Code、opencode、Codex CLI、pi 和 Grok Build 配置第三方 API 服务，既可以用交互式终端界面，也可以用可脚本化的命令。ccset 保留未被管理的设置，并在改动前备份现有文件。',
+  'hero.eyebrow': '开源 · MIT 许可证',
+  'hero.headline': '为编程 Agent 写入设置文件。',
+  'hero.headlineAccent': '启用权在你手中。',
   'hero.quickStart': '快速开始',
   'hero.docs': '文档',
   'hero.demoTitle': '一次 ccset 会话',
+  'hero.meta.node': 'Node.js 18+',
+  'hero.meta.platforms': 'macOS 与 Linux；Windows 尽力支持',
+  'hero.meta.languages': 'English / 简体中文',
 
   /* ------------------------------------------------------------------ copy */
   'copy.copy': '复制',
@@ -113,6 +119,9 @@ export const zhHans: Catalog = {
   'doc.security': '安全',
 
   /* ---------------------------------------------------------------- footer */
+  'footer.docs': '文档',
+  'footer.project': '项目',
+  'footer.tagline': '为编程 Agent 写入设置文件，启用权在你手中。',
   'footer.npm': 'npm 包',
   'footer.license': 'MIT 许可证',
   'footer.builtFrom': '本站点由仓库自带的 Markdown 构建。',

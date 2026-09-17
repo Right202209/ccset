@@ -11,8 +11,11 @@ function renderStats(): void {
   )
 }
 
+const originalMatchMedia = window.matchMedia
+
 afterEach(() => {
   vi.useRealTimers()
+  window.matchMedia = originalMatchMedia
 })
 
 describe('Stats', () => {
@@ -31,5 +34,14 @@ describe('Stats', () => {
     renderStats()
     expect(screen.getByText('0600')).toBeInTheDocument()
     expect(screen.getByText('POSIX write mode')).toBeInTheDocument()
+  })
+
+  it('shows the final figures at once under prefers-reduced-motion', () => {
+    vi.useFakeTimers()
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia
+    renderStats()
+    expect(screen.getByText('5')).toBeInTheDocument()
+    expect(screen.getByText('10')).toBeInTheDocument()
+    expect(window.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)')
   })
 })

@@ -1,4 +1,5 @@
 import { useLanguage } from '../../i18n/index.js'
+import { GitHubIcon } from '../GitHubIcon.js'
 import { repoBlobUrl } from '../../content/links.js'
 import type { DocEntry } from '../../content/registry.js'
 
@@ -14,6 +15,7 @@ export function DocHeader({ entry }: { entry: DocEntry }) {
         target="_blank"
         rel="noopener noreferrer"
       >
+        <GitHubIcon size={14} />
         {t('docs.viewSource')}
       </a>
     </div>

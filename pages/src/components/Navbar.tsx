@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useLanguage } from '../i18n/index.js'
+import { GitHubIcon } from './GitHubIcon.js'
 import { LanguageMenu } from './LanguageMenu.js'
 
 /** Sticky site header: brand, docs link, GitHub link, language switcher. */
@@ -22,6 +23,7 @@ export function Navbar() {
             target="_blank"
             rel="noopener noreferrer"
           >
+            <GitHubIcon />
             {t('nav.github')}
           </a>
           <LanguageMenu />

@@ -10,12 +10,13 @@ interface Props {
 export function CopyButton({ text, className }: Props) {
   const { t } = useLanguage()
   const { copied, copy } = useCopy()
+  const label = copied ? t('copy.copied') : t('copy.copy')
   return (
     <button
       type="button"
-      className={className ?? 'copy-button'}
-      title={copied ? t('copy.copied') : t('copy.copy')}
-      aria-label={copied ? t('copy.copied') : t('copy.copy')}
+      className={`${className ?? 'copy-button'}${copied ? ' is-copied' : ''}`}
+      title={label}
+      aria-label={label}
       onClick={() => {
         void copy(text)
       }}
