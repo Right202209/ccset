@@ -29,6 +29,10 @@ A product-changing pull request must:
 - include terminal screenshots for significant TUI changes; and
 - describe executable manual verification scenarios.
 
+Reviews apply the [code review rules](docs/agents/code-review.md): findings are
+graded on the data-loss and credential-exposure scale, and a Blocker or High
+finding stops a merge until fixed.
+
 Implementation proposals are triaged like issues. Draft pull requests are welcome
 when the direction is still being demonstrated, but only complete changes are
 eligible to merge.

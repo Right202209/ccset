@@ -48,6 +48,7 @@ Read these guides for the corresponding work:
 | User-facing behavior | [User guide](docs/user-guide.md), [README.md](README.md), [README.zh-CN.md](README.zh-CN.md) |
 | Terms or design decisions | [Domain documentation guide](docs/agents/domain.md) |
 | Issue or PR tracking | [Issue tracker](docs/agents/issue-tracker.md), [triage labels](docs/agents/triage-labels.md) |
+| Reviewing a change, PR, or the whole repository | [Code review rules](docs/agents/code-review.md) |
 
 ## Boundaries and guarantees
 
