@@ -1,5 +1,7 @@
 # Support Policy
 
+[简体中文](SUPPORT.zh-CN.md) | English
+
 ccset is a best-effort, single-maintainer open source project. It does not provide
 response-time, fix-time, release-date, or long-term version-support guarantees.
 Only the latest version published to npm is supported.

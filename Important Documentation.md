@@ -2438,3 +2438,137 @@ points with Node 24 directly.
 
 **Root checks:** `verify:code-gates` passed over 234 files (18 baseline
 exceptions, no new ones).
+
+### 9.48 Chinese sources for every English-only registry doc (2026-09-18)
+
+**Scope:** documentation plus the site's content layer — Simplified Chinese
+translations for the docs the viewer's registry listed with an English-only
+source, and per-locale registration in `pages/src/content/registry.ts`. No
+CLI or runtime behavior change.
+
+**Changes:** New translations `docs/user-guide.zh-CN.md`,
+`docs/milestone-3-non-interactive.zh-CN.md`, `docs/architecture.zh-CN.md`,
+`docs/verification.zh-CN.md`, and `docs/adding-an-agent.zh-CN.md`, each with
+the `[English](…) | 简体中文` switcher line, hrefs and code blocks preserved
+byte-for-byte (only prose comments inside fences translated), and headings
+translated per the project's existing Chinese-doc convention — anchor
+targets that other docs cross-link keep their English slugs where natural
+(`## CLI`), while translated targets such as CONTRIBUTING.zh-CN.md's
+`## 新 Agent` behave like the pre-existing translations. The four root
+translations written on 2026-09-17 (`CONTEXT.zh-CN.md`,
+`CONTRIBUTING.zh-CN.md`, `SUPPORT.zh-CN.md`, `SECURITY.zh-CN.md`) are now
+registered too; all nine Chinese files were reviewed against their English
+sources with heading/fence/link counts matching. The five English docs under
+`docs/` gained the reciprocal `[简体中文](<name>.zh-CN.md) | English`
+switcher line after their H1, matching what the root policy files and
+README.md already carry. `pages/src/content/
+sources.ts` imports all nine Chinese sources; `registry.ts` adds a
+`zh-Hans` source to every entry except the Chinese-only workflow doc;
+`docs.ts`'s fallback comment was updated. `docs.test.ts` replaces the
+user-guide English-fallback assertion (no longer true) with a
+registry-wide "serves every listed source in its locale" check.
+`src/test/setup.ts` raises the Testing Library `asyncUtilTimeout` to 4 s:
+the `/docs` overview test raced the lazy Docs chunk under a full worker
+pool and failed intermittently before this change.
+
+**Site checks, Linux x64, Node.js 22.23.2 (local Node 20.19.5 is below the
+site's jsdom 30 floor; Node 22 was unpacked to `~/.local/opt/
+node-v22.23.2-linux-x64` and used for every command):** `tsc --noEmit`
+clean; Vitest 14 files / 71 tests passing with v8 coverage statements
+89.31 %, branches 77.46 %, functions 91.47 %, lines 92.68 % (thresholds
+80/70/80/80); `vite build` OK (CSS 32.20 kB / 6.76 kB gzip; main chunk
+218.38 kB / 72.02 kB gzip; lazy Docs chunk 305.03 kB / 114.12 kB gzip);
+`scripts/smoke.mjs` passed (3 assets, all routes and the gzip budget OK);
+the built Docs chunk contains the translated prose (10 matches for
+用户指南/验证指南/里程碑 3). `git diff --check` clean. Root code gates are
+unaffected (Markdown only plus `pages/src` TS within limits).
+
+### 9.49 Refined Chinese prose in the uncommitted doc translations (2026-09-18)
+
+**Scope:** the nine untracked Simplified Chinese translations from §9.48
+(`CONTEXT.zh-CN.md`, `CONTRIBUTING.zh-CN.md`, `SECURITY.zh-CN.md`,
+`SUPPORT.zh-CN.md`, and the five under `docs/`). Prose only; no CLI, site
+code, or English source changed. Work followed the humanizer pass: mark the
+AI/translationese tells, rewrite the sentence rather than patching phrases,
+then re-check that no fact, link, or code byte moved.
+
+**Changes:** Removed the tells that survived the first translation pass —
+translationese connectors (`使其`, `以便` used as glue), stiff pronouns (`该`,
+`其`) where Chinese drops them, and em-dashes the English source does not
+have (the three added dashes in the milestone doc are gone). Fixed outright
+mistranslations: `catalog` was rendered as `目录` (directory) in the
+architecture doc and in `CONTEXT.zh-CN.md`'s Locale preference entry, now
+`文案目录`; `CODEX_HOME is reported, not followed` read `只会被提示，不会被
+采用`, now `只被报告，不会被跟随`; `XDG_CONFIG_HOME`/`PI_CODING_AGENT_DIR`/
+`GROK_HOME` lead-ins now say only the real home follows them. Translated the
+`CONTEXT.zh-CN.md` section headings (`## Language`, `### Scope and
+maintenance`, `### Interface` → `## 用语`, `### 范围与维护`, `### 界面`) and
+its `_Avoid_:` labels (`_避免_:`), keeping the canonical English term names
+and the Chinese glosses. Dropped the trailing `以及`/`或` list glue that
+reads as machine English. `docs/user-guide.zh-CN.md` was already close to the
+committed `README.zh-CN.md` wording and needed only the CODEX_HOME and
+real-home fixes plus `受管叶子节点` → `受管叶子`.
+
+**Preservation checks:** heading, fence, and link counts still match each
+English source (4/4, 6/6, 2/2, 4/4, 15/15, 6/6, 18/18, 13/13, 7/7 headings;
+fences 0/1/0/0/3/0/7/1/2; links 1/8/2/1/7/8/12/2/10). Every fenced block is
+byte-identical to its English counterpart except the translated prose
+comments in `docs/adding-an-agent.zh-CN.md` and the CLI comments in
+`docs/user-guide.zh-CN.md`; stripping comments leaves the code identical.
+Every link target matches the English source except the switcher's
+`*.zh-CN.md` → `*.md` reciprocal. `git diff --check` clean.
+
+**Site checks, Linux x64, Node.js 22.23.2 (`~/.local/opt/
+node-v22.23.2-linux-x64`, local Node 20.19.5 below the jsdom 30 floor):**
+`tsc --noEmit` clean; Vitest 14 files / 71 tests passing with v8 coverage
+statements 89.31 %, branches 77.46 %, functions 91.47 %, lines 92.68 %
+(thresholds 80/70/80/80); `vite build` OK (CSS 32.20 kB / 6.76 kB gzip; main
+chunk 218.38 kB / 72.02 kB gzip; lazy Docs chunk 305.28 kB / 114.24 kB gzip);
+`scripts/smoke.mjs` passed (3 assets, all routes and the gzip budget OK); the
+built Docs chunk contains the new headings (`用语`, `范围与维护`) and three
+`文案目录` matches. Root code gates are unaffected (Markdown only).
+
+**Known limitation, unchanged:** cross-doc fragments in the Chinese docs
+(`verification.md#fixture-map`, `adding-an-agent.md#prove-it`) resolve to the
+localized route on the site, whose heading slug is the Chinese heading, so the
+fragment does not scroll. This is the pre-existing pattern in
+`docs/agents/add-agent-workflow.md`; fixing it needs a link-resolver change,
+not a translation edit.
+
+### 9.50 In-site routes for the Chinese switcher links (2026-09-18)
+
+**Scope:** `pages/src/content/links.ts`, `pages/src/content/links.test.ts`,
+and `pages/src/content/docs.test.ts` — fixes for the two findings the
+pre-commit two-axis review raised against the uncommitted translation change
+of §9.48/§9.49. No CLI or runtime behavior change.
+
+**Changes:** The review found that `registeredSlug` matched only the English
+`repoPath`, so on the site the new `[简体中文](x.zh-CN.md)` switchers resolved
+to GitHub blob URLs while English links routed in-site. `registeredSlug` now
+also matches any registered locale source, so a switcher click lands on the
+doc's `/docs/<slug>` route, which serves the reader's current locale (every
+registered doc has a zh-Hans source except the Chinese-only workflow doc).
+`links.test.ts` gained a case mapping `user-guide.zh-CN.md` and
+`../CONTEXT.zh-CN.md` to their site routes. `docs.test.ts` reuses the
+exported `LOCALES` constant instead of restating the locale list.
+Corrections to §9.48's record: the timeout change lives in
+`pages/src/test/setup.ts` (not `src/test/setup.ts`), and the root policy
+files' switcher lines are added by this same change rather than already
+carried (README.md's switcher differs in label and form: `中文说明` with an
+absolute URL). §9.49's known limitation still stands — this change fixes
+which route a cross-doc link targets, not fragment matching against
+translated heading slugs, so `verification.md#fixture-map` still does not
+scroll under zh-Hans.
+
+**Left out of the commit:** the working-tree `.gitignore` addition
+(`.zcode/`, `.scratch/`) is unrelated to this change and stays uncommitted;
+the OCR review drafts (`OCR.md`, `OCR_1.md`, `OCR_output.md`) and
+`plan_pages.md` remain untracked scratch files.
+
+**Site checks, Linux x64, Node.js 22.23.2 (`~/.local/opt/
+node-v22.23.2-linux-x64`):** `tsc --noEmit` clean; Vitest 14 files / 72
+tests passing with v8 coverage statements 89.31 %, branches 77.62 %,
+functions 91.47 %, lines 92.69 % (thresholds 80/70/80/80); `vite build` OK
+(CSS 32.20 kB / 6.76 kB gzip; main chunk 218.42 kB / 72.03 kB gzip; lazy
+Docs chunk 305.28 kB / 114.24 kB gzip); `scripts/smoke.mjs` passed (3
+assets, all routes and the gzip budget OK). `git diff --check` clean.

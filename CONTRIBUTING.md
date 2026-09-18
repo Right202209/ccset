@@ -1,5 +1,7 @@
 # Contributing to ccset
 
+[简体中文](CONTRIBUTING.zh-CN.md) | English
+
 ccset accepts bug fixes, documentation, tests, and product changes from external
 contributors. A pull request may be both the proposal and the implementation; a
 preceding issue is optional.

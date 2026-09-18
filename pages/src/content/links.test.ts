@@ -16,6 +16,11 @@ describe('resolveRepoLink', () => {
     expect(resolveRepoLink('docs/adding-an-agent.md', '')).toBe('/docs/adding-an-agent')
   })
 
+  it('maps a registered localized source to the same site route', () => {
+    expect(resolveRepoLink('user-guide.zh-CN.md', 'docs')).toBe('/docs/user-guide')
+    expect(resolveRepoLink('../CONTEXT.zh-CN.md', 'docs')).toBe('/docs/glossary')
+  })
+
   it('maps absolute blob links to registered docs to the same route', () => {
     const href = 'https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#cli'
     expect(resolveRepoLink(href, '')).toBe('/docs/user-guide#cli')

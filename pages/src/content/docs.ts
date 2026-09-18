@@ -15,8 +15,8 @@ export interface DocContent {
 
 /**
  * Reads a document for a locale. A doc without a source in the requested
- * locale falls back to whichever source exists — an English-only doc shows
- * English to zh-Hans readers, and the one Chinese-only workflow doc shows in
+ * locale falls back to whichever source exists — every registered doc now
+ * carries both locales except the Chinese-only workflow doc, which shows in
  * both languages (ADR 0015).
  */
 export function getDoc(slug: string, locale: Locale): DocContent | undefined {

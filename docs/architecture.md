@@ -1,5 +1,7 @@
 # Architecture
 
+[简体中文](architecture.zh-CN.md) | English
+
 Read [AGENTS.md](../AGENTS.md) for the change workflow and
 [CONTEXT.md](../CONTEXT.md) for the domain vocabulary. This guide explains the
 runtime boundaries and the reasons behind the guarantees contributors must

@@ -1,5 +1,7 @@
 # Verification guide
 
+[简体中文](verification.zh-CN.md) | English
+
 Use this guide to choose checks for a change. [AGENTS.md](../AGENTS.md) defines
 the shared workflow; [Important Documentation.md](<../Important Documentation.md>)
 holds manual scenarios, release requirements, unknowns, and recorded evidence.
