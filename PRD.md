@@ -120,8 +120,9 @@ At startup, ccset detects registered Agents in parallel using each module's
 filesystem-only `detect()` check. The agent-selection screen contains only
 Agents detected in the user's local home. When exactly one local Agent is
 detected, ccset enters it directly; when none are detected, it explains that
-there is nothing local to configure. An explicit `--agent <id>` bypasses this
-TUI discovery so a user can create a first configuration deliberately.
+there is nothing local to configure and names `ccset --agent <id>`. An
+explicit `--agent <id>` bypasses this TUI discovery so a user can create a
+first configuration deliberately.
 
 ### 4.2 Functional Details (Claude Code)
 

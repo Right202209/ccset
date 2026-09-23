@@ -20,6 +20,8 @@ export const zhHans: Record<string, string> = {
   'key.change': '切换', 'key.next': '下一项', 'key.save': '保存', 'key.cancel': '取消', 'key.continue': '继续', 'key.choose': '选择', 'key.confirm': '确认',
   'menu.notDetected': '该 Agent 尚无配置 — ccset 会创建所需的文件。',
   'menu.noDetectedAgents': '未检测到受支持的本地 Agent。',
+  'menu.noDetectedAgentsHint': '如需首次配置，请运行 ccset --agent <id>。',
+  'menu.noAgentsTitle': '没有本地 Agent',
   'menu.agentTitle': '选择 Agent',
 
   /* --------------------------------------------------------------- actions */

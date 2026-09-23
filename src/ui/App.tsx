@@ -17,12 +17,16 @@ export interface AppProps {
   viewport?: Viewport
 }
 
-/** An explicit target bypasses discovery; the interactive path discovers first. */
+/**
+ * An explicit target bypasses discovery; without one, the App discovers first
+ * even when a single Agent is registered, so an undetected one is never entered.
+ */
 function initialAgent(agents: Agent[], agentId?: string): Agent | null {
-  if (agentId !== undefined) return agents.find((agent) => agent.id === agentId) ?? null
-  return agents.length === 1 ? agents[0] ?? null : null
+  if (agentId === undefined) return null
+  return agents.find((agent) => agent.id === agentId) ?? null
 }
 
+/** Filesystem-only checks, run in parallel; one that throws counts as absent. */
 async function discoverAgents(agents: Agent[], ctx: Ctx): Promise<Agent[]> {
   const results = await Promise.all(
     agents.map(async (candidate) => {
@@ -59,7 +63,7 @@ export function App({
   const screens = useScreens()
 
   useEffect(() => {
-    if (agentId !== undefined || agents.length === 1) return
+    if (agentId !== undefined) return
     let active = true
     void discoverAgents(agents, ctx).then((found) => {
       if (!active) return
@@ -172,7 +176,7 @@ export function App({
             <Header
               segments={headerSegments(
                 screens.frames.map((frame) => frame.screen.title),
-                agent,
+                rootTitle(agent, availableAgents),
                 prompt,
               )}
             />
@@ -184,14 +188,21 @@ export function App({
   )
 }
 
+/** The header with no Frame open: the Agent, or the question the App is asking. */
+function rootTitle(agent: Agent | null, availableAgents: Agent[] | null): string {
+  if (agent !== null) return t('app.agent', { name: agent.name })
+  if (availableAgents?.length === 0) return t('menu.noAgentsTitle')
+  return t('menu.agentTitle')
+}
+
 function headerSegments(
   frameTitles: string[],
-  agent: Agent | null,
+  root: string,
   prompt: PromptKind | null,
 ): string[] {
   if (prompt !== null) return [t(`prompt.${prompt}Title`)]
   if (frameTitles.length > 0) return frameTitles
-  return [agent === null ? t('menu.agentTitle') : t('app.agent', { name: agent.name })]
+  return [root]
 }
 
 function Header({ segments }: { segments: string[] }): React.ReactElement {

@@ -60,8 +60,8 @@ interface AgentSelectProps {
 }
 
 /**
- * Only rendered once a second local agent is detected; with one detected agent
- * ccset enters it directly rather than asking a question with one answer.
+ * Rendered when two or more local agents are detected; with one, ccset enters
+ * it directly rather than asking a question with one answer.
  * The App header already paints "Select an agent" for this frame, so no title
  * of its own: the SelectList default budget assumes MainMenu's chrome, and an
  * extra row here would push the list past the viewport once the agent count
@@ -90,6 +90,11 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
   )
 }
 
+/**
+ * Nothing detected in this home. An undetected Agent is reachable only through
+ * an explicit --agent (ADR 0016), so the Screen names it rather than leaving
+ * the user at a dead end; the App header carries the title.
+ */
 export function NoAgents({ onExit }: { onExit: () => void }): React.ReactElement {
   const { colors, fold } = useTerminal()
   useInput((_input, key) => {
@@ -98,6 +103,7 @@ export function NoAgents({ onExit }: { onExit: () => void }): React.ReactElement
   return (
     <Box flexDirection="column">
       <Text color={colors.tone.warn}>{fold(t('menu.noDetectedAgents'))}</Text>
+      <Text>{fold(t('menu.noDetectedAgentsHint'))}</Text>
       <Box marginTop={1}>
         <Text dimColor>{fold(helpFor('message'))}</Text>
       </Box>

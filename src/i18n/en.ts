@@ -19,6 +19,8 @@ export const en: Record<string, string> = {
   'key.change': 'change', 'key.next': 'next', 'key.save': 'save', 'key.cancel': 'cancel', 'key.continue': 'continue', 'key.choose': 'choose', 'key.confirm': 'confirm',
   'menu.notDetected': 'No config for this agent yet — ccset will create what it needs.',
   'menu.noDetectedAgents': 'No supported local agents were detected.',
+  'menu.noDetectedAgentsHint': 'To configure one for the first time, run ccset --agent <id>.',
+  'menu.noAgentsTitle': 'No local agents',
   'menu.agentTitle': 'Select an agent',
 
   /* --------------------------------------------------------------- actions */

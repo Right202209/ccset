@@ -133,9 +133,11 @@ async function assertRenderedPaint(): Promise<void> {
   const home = await mkdtemp(path.join(tmpdir(), 'ccset-zh-'))
   try {
     setLocale('zh-Hans')
+    // An empty home detects no Agent, so the paint is the empty state.
     const session = new UiSession(home, UNICODE_TERMINAL)
     try {
-      await session.waitFor('选择 Agent')
+      await session.waitFor('没有本地 Agent')
+      await session.waitFor('未检测到受支持的本地 Agent')
       await session.waitFor('设置文件')
       session.assertAlive()
     } finally {

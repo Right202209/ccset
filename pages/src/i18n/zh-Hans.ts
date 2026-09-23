@@ -50,7 +50,7 @@ export const zhHans: Catalog = {
   /* -------------------------------------------------------------- features */
   'features.title': '面向真实的工作流',
   'feature.tui.title': '交互式核心流程',
-  'feature.tui.body': '选择 Agent，查看其设置并保存。方向键移动，Enter 选择，Esc 返回，Ctrl+S 保存表单。',
+  'feature.tui.body': '从本机检测到的 Agent 中选择一个，查看其设置并保存。方向键移动，Enter 选择，Esc 返回，Ctrl+S 保存表单。',
   'feature.commands.title': '可脚本化命令',
   'feature.commands.body': '每条命令都需要 --agent；用 --dry-run 预览而不写入，用 --json 得到结构化输出。',
   'feature.patch.title': '补丁而非替换',
@@ -78,7 +78,7 @@ export const zhHans: Catalog = {
   /* ------------------------------------------------------------- quickstart */
   'quickStart.title': '快速开始',
   'quickStart.run.title': '直接运行',
-  'quickStart.run.body': '需要 Node.js 18+。选择 Agent，查看其设置并保存。',
+  'quickStart.run.body': '需要 Node.js 18+。从本机检测到的 Agent 中选择一个，查看其设置并保存。',
   'quickStart.install.title': '安装命令',
   'quickStart.install.body': '然后用 Agent id 直接运行。',
   'quickStart.cli.title': '写入脚本',

@@ -9,8 +9,9 @@ import { authPath, configPath, grokDir } from './paths.js'
  * Detection is filesystem-only, for the reason the other agent modules give:
  * shelling out to `grok --version` is a cross-platform hazard for no gain. An
  * explicit --agent still supports a first configuration when no Grok Build
- * files exist. Any one of the agent directory, config.toml or auth.json counts as detection -- credentials
- * alone mean there is a Grok home here even with no ccset-managed file yet.
+ * files exist. Any one of the agent directory, config.toml or auth.json counts
+ * as detection -- credentials alone mean there is a Grok home here even with
+ * no ccset-managed file yet.
  */
 async function detect(ctx: Ctx): Promise<boolean> {
   const [dir, config, auth] = await Promise.all([

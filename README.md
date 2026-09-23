@@ -18,9 +18,12 @@ Requires **Node.js 18+**.
 npx @droite/ccset
 ```
 
-Choose an agent, review its settings, and save. The first interactive run asks
-for English or Simplified Chinese and remembers your choice. Arrow keys move,
-Enter selects, Esc goes back, and Ctrl+S saves a form.
+ccset asks which agent to configure, listing only the agents it finds on this
+machine; when it finds one, it opens it directly. Review the settings and
+save. To set up an agent that has no files here yet, run
+`ccset --agent <id>`. The first interactive run asks for English or Simplified
+Chinese and remembers your choice. Arrow keys move, Enter selects, Esc goes
+back, and Ctrl+S saves a form.
 
 To install the `ccset` command:
 

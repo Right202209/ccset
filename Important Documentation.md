@@ -2595,3 +2595,38 @@ creation path.
 `verify:malformed-dirty` PTY fixture passed, `npm test` completed with exit 0 on
 Linux x64 with Node.js 26.9.0 and npm 12.0.2. This included the release-artifact
 check; no live Provider request was made.
+
+### 9.52 Local Agent discovery review fixes (2026-09-23)
+
+**Scope:** review findings on the §9.51 change. The App now always runs
+discovery without `--agent`, including when a single Agent is registered, so
+the code matches ADR 0016 and F8. The empty state has its own header title
+(`menu.noAgentsTitle`) and names `ccset --agent <id>`
+(`menu.noDetectedAgentsHint`). The README, README.zh-CN, and the website
+copy now say that ccset lists only the Agents found on this machine.
+
+**Fixtures:** the new `scripts/verify-agent-discovery.ts`, run inside
+`verify:ui-render` under both glyph sets, pins three behaviors, each shown red
+against a deliberate mutation and then restored: dropping the single-detected
+auto-select times out waiting for `Agent: Claude Code`; making a throwing
+`detect()` count as found fails "An Agent whose detect() threw was offered";
+removing the empty-state title fails the header assertion. The agent-select
+drive now takes its names from `LOCAL_AGENTS` instead of registry positions,
+and `verify:i18n-zh` asserts the zh-Hans empty state its empty home actually
+paints. Fixtures built on one synthetic Agent pass `agentId`, which mounts the
+menu at once as `--agent` does; without it the menu mounts after discovery and
+a key sent on its first paint could land before its input handler attached
+(observed in `verify:header-path`). The ASCII glyph assertions moved to
+`scripts/ui-assertions.ts`, which keeps `verify-ui-render.ts` under the
+300-line gate with its comments restored. `verify:first-run-locale` waits on
+the empty-state title its Agent-free scratch homes settle on, instead of the
+selector title that only paints while detection runs.
+
+**Verification:** `npm run typecheck`, `npm run verify:code-gates`,
+`verify:ui-render` (four consecutive passes), `verify:i18n-zh`,
+`verify:header-path`, `verify:error-recovery`, and `verify:review-form`
+passed on Linux x64 (WSL2) with Node.js 26.8.1, then the full `npm test`
+completed with exit 0 in the same environment, including
+`verify:first-run-locale` and the release-artifact check; no live Provider
+request was made. `pages`: `npm run typecheck` and `npm test` (72 tests)
+passed.

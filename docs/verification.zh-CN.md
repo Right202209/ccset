@@ -75,7 +75,7 @@ npm 脚本使用 POSIX shell 语法。PTY fixture 需要 `python3` 及其 POSIX 
 
 所有 `verify:commands` / `verify:commands-*` 脚本先构建再运行，演练的是 `dist/cli.js`；其中一些还会直接对 operation 接缝做断言。`verify:malformed-dirty`、`verify:first-run-locale`、`verify:status-terminal` 和 `verify:i18n-zh` 也先构建。release-artifact fixture 在内部完成构建，把 tarball 打包并安装到一个临时项目中；它不执行发布。其他 fixture 导入源码模块，由 tsup 打包后执行。
 
-并非每个 `scripts/verify-*.ts` 文件都能独立运行。Codec 语料与 Codex 恢复辅助模块运行在 Agent fixture 内部；`verify-viewport.ts` 运行在 `verify:ui-render` 内部。`ui-session.ts` 与 `ui-assertions.ts` 驱动组件测试；`pty-session.ts` 驱动真实终端；`cli-harness.ts` 以隔离 home 运行命令；`kill-harness.ts` 支撑 `verify:write-safety`。
+并非每个 `scripts/verify-*.ts` 文件都能独立运行。Codec 语料与 Codex 恢复辅助模块运行在 Agent fixture 内部；`verify-viewport.ts` 与 `verify-agent-discovery.ts` 运行在 `verify:ui-render` 内部。`ui-session.ts` 与 `ui-assertions.ts` 驱动组件测试；`pty-session.ts` 驱动真实终端；`cli-harness.ts` 以隔离 home 运行命令；`kill-harness.ts` 支撑 `verify:write-safety`。
 
 ## 新增或扩展验证
 

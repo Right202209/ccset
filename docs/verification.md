@@ -97,9 +97,9 @@ packs and installs the tarball into a temporary project; it does not publish.
 Other fixtures import source modules and are bundled for execution by tsup.
 
 Not every `scripts/verify-*.ts` file is independently runnable. Codec corpora and
-Codex recovery helpers run inside the Agent fixtures; `verify-viewport.ts` runs
-inside `verify:ui-render`. `ui-session.ts` and `ui-assertions.ts` drive component
-tests; `pty-session.ts` drives a real terminal; `cli-harness.ts` runs commands with
+Codex recovery helpers run inside the Agent fixtures; `verify-viewport.ts` and
+`verify-agent-discovery.ts` run inside `verify:ui-render`. `ui-session.ts` and
+`ui-assertions.ts` drive component tests; `pty-session.ts` drives a real terminal; `cli-harness.ts` runs commands with
 isolated homes; `kill-harness.ts` supports `verify:write-safety`.
 
 ## Add or extend verification

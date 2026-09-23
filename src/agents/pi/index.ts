@@ -9,9 +9,9 @@ import { authPath, modelsPath, piDir, settingsPath } from './paths.js'
  * Detection is filesystem-only, for the reason the other agent modules give:
  * shelling out to `pi --version` is a cross-platform hazard for no gain. An
  * explicit --agent still supports a first configuration when no pi files exist.
- * Any one of the agent directory, settings.json, models.json or auth.json counts as detection --
- * credentials alone mean there is a pi home here even with no ccset-managed
- * file yet.
+ * Any one of the agent directory, settings.json, models.json or auth.json
+ * counts as detection -- credentials alone mean there is a pi home here even
+ * with no ccset-managed file yet.
  */
 async function detect(ctx: Ctx): Promise<boolean> {
   const [dir, settings, models, auth] = await Promise.all([

@@ -54,7 +54,7 @@ export const en: Catalog = {
   /* -------------------------------------------------------------- features */
   'features.title': 'Built for real workflows',
   'feature.tui.title': 'Interactive core flow',
-  'feature.tui.body': 'Choose an agent, review its settings, and save. Arrow keys move, Enter selects, Esc goes back, Ctrl+S saves a form.',
+  'feature.tui.body': 'Pick one of the agents found on this machine, review its settings, and save. Arrow keys move, Enter selects, Esc goes back, Ctrl+S saves a form.',
   'feature.commands.title': 'Scriptable commands',
   'feature.commands.body': 'Every command requires --agent; use --dry-run to preview without writing and --json for structured output.',
   'feature.patch.title': 'Patches, not replacements',
@@ -82,7 +82,7 @@ export const en: Catalog = {
   /* ------------------------------------------------------------- quickstart */
   'quickStart.title': 'Quick start',
   'quickStart.run.title': 'Run it',
-  'quickStart.run.body': 'Requires Node.js 18+. Choose an agent, review its settings, and save.',
+  'quickStart.run.body': 'Requires Node.js 18+. Pick one of the agents found on this machine, review its settings, and save.',
   'quickStart.install.title': 'Install the command',
   'quickStart.install.body': 'Then run it directly with an agent id.',
   'quickStart.cli.title': 'Script it',
