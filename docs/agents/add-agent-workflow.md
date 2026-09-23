@@ -120,7 +120,8 @@ create-only 状态文件、Codex 的整文件凭据替换，以及现有 Anthrop
    字符串在 `messages.ts` 同时提供 `en` 和 `zh-Hans`，使用唯一命名空间。
 5. **模块入口与注册。** 按 [`Agent`](../../src/types.ts) 实现 `id`、`name`、
    `messages`、`detect(ctx)`、`getActions()` 及选定的 `commands`。检测仅查文件，
-   不捆绑或执行目标 Agent；尚无配置也能进入创建流程。静态注册仅增加 import 和
+   不捆绑或执行目标 Agent；交互式启动会并行检测所有注册 Agent，并只展示检测为真的
+   选项。显式 `--agent` 仍可进入尚无配置的创建流程。静态注册仅增加 import 和
    `AGENTS` 数组项，不做动态扫描；保持导入与检测轻量，检查对既有 Agent 启动的影响。
 
 实现中逐项保持以下语义：

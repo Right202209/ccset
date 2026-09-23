@@ -7,8 +7,9 @@ import { codexAuthPath, codexConfigPath, codexDir } from './paths.js'
 
 /**
  * Detection is filesystem-only, for the reason the other two modules give:
- * shelling out to `codex --version` is a cross-platform hazard for no gain, and
- * ccset can write this config before Codex has ever run.
+ * shelling out to `codex --version` is a cross-platform hazard for no gain. An
+ * explicit --agent still supports a first configuration when no Codex files
+ * exist.
  *
  * `auth.json` counts on its own. A user who has logged in to Codex but never
  * edited config.toml has the directory and the credential and no settings file,

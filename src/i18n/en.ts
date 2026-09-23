@@ -9,6 +9,7 @@ export const en: Record<string, string> = {
   'app.tagline': 'Writes coding-agent settings files. Activation stays yours.',
   'app.agent': 'Agent: {name}',
   'app.busy': 'Working…',
+  'app.detectingAgents': 'Detecting local agents…',
   'app.busyConnecting': 'Connecting to {host}…',
   'app.busyWriting': 'Writing {path}…',
 
@@ -17,6 +18,7 @@ export const en: Record<string, string> = {
   'key.moveUp': 'move up', 'key.moveDown': 'move down', 'key.jump': 'jump', 'key.select': 'select', 'key.back': 'back',
   'key.change': 'change', 'key.next': 'next', 'key.save': 'save', 'key.cancel': 'cancel', 'key.continue': 'continue', 'key.choose': 'choose', 'key.confirm': 'confirm',
   'menu.notDetected': 'No config for this agent yet — ccset will create what it needs.',
+  'menu.noDetectedAgents': 'No supported local agents were detected.',
   'menu.agentTitle': 'Select an agent',
 
   /* --------------------------------------------------------------- actions */

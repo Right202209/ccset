@@ -135,7 +135,7 @@ full security session.
 | F5 | Review screen seeding. | Values come from the existing file, **not** template defaults; a config lacking proxy vars is not silently offered proxy vars as if pre-existing. |
 | F6 | Free-text model. | `Kiro-5-claude-opus-4-8` accepted verbatim, no coercion to a known alias. |
 | F7 | Blank Advanced fields. | Omitted from output entirely — no `null`, no `""`. |
-| F8 | Single registered agent. | Agent-selection screen is skipped. |
+| F8 | Single locally detected agent. | Agent-selection screen is skipped; undetected registered Agents never appear in it. |
 | F9 | Success message. | Contains absolute path, resulting mode, and a `claude --settings <abs-path>` line that runs as printed. |
 | F10 | Exit with unsaved edits / without. | Confirms only in the former case. |
 | F11 | Save fails against an unusable target after fields were typed. | The failure is a Screen of its own naming the path and required mode; `esc` returns to the form still holding every typed value, token masked; fixing the cause and saving again succeeds without retyping. |
@@ -2572,3 +2572,26 @@ functions 91.47 %, lines 92.69 % (thresholds 80/70/80/80); `vite build` OK
 (CSS 32.20 kB / 6.76 kB gzip; main chunk 218.42 kB / 72.03 kB gzip; lazy
 Docs chunk 305.28 kB / 114.24 kB gzip); `scripts/smoke.mjs` passed (3
 assets, all routes and the gzip budget OK). `git diff --check` clean.
+
+### 9.51 Filter the TUI Agent selector by local detection (2026-09-22)
+
+**Scope:** `src/ui/App.tsx`, `src/ui/Menu.tsx`, both shell catalogs, the UI
+render fixture, the user guide, and the matching PRD/architecture/ADR
+documentation. The interactive App now runs all registered Agents'
+filesystem-only `detect()`
+checks in parallel before selection, shows only positive results, selects one
+positive result automatically, and shows an empty state when none are found.
+Explicit `--agent` and all Non-interactive command behavior remain unchanged.
+
+**Verification:** `npm run typecheck`, `npm run build`,
+`npm run verify:code-gates`, and `npm run verify:ui-render` passed on Linux x64
+with Node.js 26.9.0 and npm 12.0.2. The UI fixture covers two detected local
+Agents, omits the other registered Agents, and verifies an empty home exposes
+no Agent options. The older §9.2 note that called `detect()` advisory is
+superseded for the TUI selector by ADR 0016; explicit targets retain the old
+creation path.
+
+**Full-suite follow-up:** after an independent rerun of the existing
+`verify:malformed-dirty` PTY fixture passed, `npm test` completed with exit 0 on
+Linux x64 with Node.js 26.9.0 and npm 12.0.2. This included the release-artifact
+check; no live Provider request was made.

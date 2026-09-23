@@ -10,6 +10,7 @@ export const zhHans: Record<string, string> = {
   'app.tagline': '写入编码 Agent 的设置文件。是否启用由你决定。',
   'app.agent': 'Agent：{name}',
   'app.busy': '处理中…',
+  'app.detectingAgents': '正在检测本地 Agent…',
   'app.busyConnecting': '正在连接 {host}…',
   'app.busyWriting': '正在写入 {path}…',
 
@@ -18,6 +19,7 @@ export const zhHans: Record<string, string> = {
   'key.moveUp': '上移', 'key.moveDown': '下移', 'key.jump': '跳转', 'key.select': '选择', 'key.back': '返回',
   'key.change': '切换', 'key.next': '下一项', 'key.save': '保存', 'key.cancel': '取消', 'key.continue': '继续', 'key.choose': '选择', 'key.confirm': '确认',
   'menu.notDetected': '该 Agent 尚无配置 — ccset 会创建所需的文件。',
+  'menu.noDetectedAgents': '未检测到受支持的本地 Agent。',
   'menu.agentTitle': '选择 Agent',
 
   /* --------------------------------------------------------------- actions */

@@ -7,6 +7,7 @@ import { claudeCodeActions } from '../src/agents/claude-code/actions.js'
 import { FILE_MODE } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import { claudeDir, claudeStatePath, globalSettingsPath, providerSettingsPath } from '../src/agents/claude-code/paths.js'
+import { opencodeDir } from '../src/agents/opencode/paths.js'
 import {
   ASCII_GLYPHS,
   ASCII_TERMINAL,
@@ -22,25 +23,11 @@ import { DOWN, ENTER, ESC, UiSession } from './ui-session.js'
 import { assertPaintsFit } from './ui-assertions.js'
 import { verifyViewportScenarios } from './verify-viewport.js'
 
-/**
- * The one gate that renders. The other five assert on data and on the CLI
- * boundary, which left every interface change unverifiable; this one drives the
- * real component tree through simulated key input and asserts on the Rendered
- * paints it produces.
- *
- * The whole drive runs once per glyph set. A glyph the terminal cannot draw is
- * not a cosmetic difference -- focus is read off the marker the set chose -- so
- * the ASCII set has to satisfy the same invariants as the Unicode one.
- */
-
-/** A drive that paints less than this did not reach the interface at all. */
 const MIN_PAINTS = 12
 
-/** Menu and list rows are addressed by their printed number (PRD 5.4). */
 const MENU_PROVIDERS = '2'
 const MENU_STATUS = '3'
 const LIST_PROVIDER_ROW = '2'
-/** Provider name -> Base URL -> Auth token. */
 const STEPS_TO_TOKEN_ROW = 2
 
 const PROVIDER = 'acme'
@@ -48,10 +35,11 @@ const BASE_URL = 'https://provider.example'
 const TOKEN = 'UI-RENDER-GATE-TOKEN-0123456789'
 const TEST_LIBRARY = 'ink-testing-library'
 const VIEWPORT: Viewport = { rows: 12, columns: 80 }
+const LOCAL_AGENT_IDS = ['claude-code', 'opencode']
 
-/** Real files, not in-memory fixtures: the gate reads what ccset would read. */
 async function seedHome(home: string): Promise<void> {
   await fs.mkdir(claudeDir(home), { recursive: true })
+  await fs.mkdir(opencodeDir(home), { recursive: true })
   const write = (target: string, data: unknown): Promise<void> =>
     fs.writeFile(target, `${JSON.stringify(data, null, 2)}\n`, { mode: FILE_MODE })
   // Present, so Status offers only the non-destructive item and the drive can
@@ -95,32 +83,42 @@ async function assertBusyLabelsAreSpecificAndSecretFree(home: string): Promise<v
   assert.equal(confirm.busyLabel.includes(TOKEN), false, 'The token reached the connection label')
 }
 
-/* ------------------------------------------------------------------ drive */
-
 function assertPainted(paint: string, text: string, missing: string): void {
   assert.ok(paint.includes(text), `${missing}:\n${paint}`)
 }
 
-/**
- * The agent-selection Screen, which only exists once a second agent is
- * registered (PRD 4.1) and so was unreachable until opencode landed. Row 1 is
- * Claude Code, which the rest of this drive goes on to configure. The list is
- * windowed to the session viewport, so the first paint holds only the leading
- * rows: walk the focus down through every row (an Exit row sits below the
- * agents), assert every agent painted in some frame, then jump straight back
- * to row 1, which the 1-9 jump reaches from any scroll position.
- */
 async function driveAgentSelect(session: UiSession): Promise<void> {
-  const paint = await session.waitFor(t('menu.agentTitle'))
+  const paint = await session.waitFor(AGENTS[1]?.name ?? '')
   session.assertSingleFocus(paint, 'agent select')
   assertPainted(paint, `${session.focusedRow('1.')} ${AGENTS[0]?.name ?? ''}`,
     'The agent list does not focus row 1')
-  await session.sendEach(DOWN, AGENTS.length + 1)
+  await session.sendEach(DOWN, LOCAL_AGENT_IDS.length + 1)
   const walked = session.paints().join('\n')
+  for (const id of LOCAL_AGENT_IDS) {
+    const agent = AGENTS.find((candidate) => candidate.id === id)
+    assert.ok(agent !== undefined, `The fixture names unknown local agent ${id}`)
+    assertPainted(walked, agent.name, `The agent list omits ${id}`)
+  }
   for (const agent of AGENTS) {
-    assertPainted(walked, agent.name, `The agent list omits ${agent.id}`)
+    if (!LOCAL_AGENT_IDS.includes(agent.id)) {
+      assert.equal(walked.includes(agent.name), false, `The agent list exposed undetected ${agent.id}`)
+    }
   }
   await session.send('1')
+}
+
+async function verifyEmptyHomeDoesNotShowAgents(terminal: Terminal): Promise<void> {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-ui-empty-'))
+  const session = new UiSession(home, terminal, { viewport: VIEWPORT })
+  try {
+    const paint = await session.waitFor(t('menu.noDetectedAgents'))
+    for (const agent of AGENTS) {
+      assert.equal(paint.includes(agent.name), false, `Empty home exposed ${agent.id}`)
+    }
+  } finally {
+    session.stop()
+    await fs.rm(home, { recursive: true, force: true })
+  }
 }
 
 async function driveMenu(session: UiSession): Promise<void> {
@@ -145,7 +143,6 @@ async function driveProviderForm(session: UiSession): Promise<void> {
   assertPainted(paint, session.focusedRow(t('field.providerName')), 'The form does not focus row 1')
 }
 
-/** Focused, the same field becomes an editor -- which masks every character. */
 async function driveTokenEditor(session: UiSession, terminal: Terminal): Promise<void> {
   await session.sendEach(DOWN, STEPS_TO_TOKEN_ROW)
   const paint = await session.waitFor(session.focusedRow(t('field.token')))
@@ -165,7 +162,6 @@ async function driveStatus(session: UiSession): Promise<void> {
   session.assertSingleFocus(paint, 'Status')
 }
 
-/** Never confirmed: the cursor is read, then Esc backs out, so no backup is cleared. */
 async function driveConfirm(session: UiSession): Promise<void> {
   await session.send(ENTER)
   const paint = await session.waitFor(t('confirm.clear'))
@@ -176,12 +172,6 @@ async function driveConfirm(session: UiSession): Promise<void> {
   await session.waitFor(t('claudeCode.status.stateTitle'))
 }
 
-/* ------------------------------------------------------------- invariants */
-
-/**
- * A token never reaches a Rendered paint. Asserted over every paint rather than
- * the visited ones, so a transitional paint cannot leak what a settled one hides.
- */
 function assertTokenNeverPainted(paints: string[], terminal: Terminal): void {
   for (const paint of paints) {
     assert.equal(paint.includes(TOKEN), false, `The token reached a Rendered paint:\n${paint}`)
@@ -287,6 +277,7 @@ async function main(): Promise<void> {
     await assertBusyLabelsAreSpecificAndSecretFree(home)
     // The drive never confirms anything, so both runs read the same seeded home.
     for (const [set, terminal] of GLYPH_SETS) {
+      await verifyEmptyHomeDoesNotShowAgents(terminal)
       await verifyRenderedPaints(home, set, terminal)
     }
     await verifyViewportScenarios(home, VIEWPORT)

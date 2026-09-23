@@ -60,7 +60,7 @@ interface AgentSelectProps {
 }
 
 /**
- * Only rendered once a second agent is registered (PRD 4.1); with one agent
+ * Only rendered once a second local agent is detected; with one detected agent
  * ccset enters it directly rather than asking a question with one answer.
  * The App header already paints "Select an agent" for this frame, so no title
  * of its own: the SelectList default budget assumes MainMenu's chrome, and an
@@ -85,6 +85,21 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
       />
       <Box marginTop={1}>
         <Text dimColor>{fold(helpFor('list'))}</Text>
+      </Box>
+    </Box>
+  )
+}
+
+export function NoAgents({ onExit }: { onExit: () => void }): React.ReactElement {
+  const { colors, fold } = useTerminal()
+  useInput((_input, key) => {
+    if (key.return) onExit()
+  })
+  return (
+    <Box flexDirection="column">
+      <Text color={colors.tone.warn}>{fold(t('menu.noDetectedAgents'))}</Text>
+      <Box marginTop={1}>
+        <Text dimColor>{fold(helpFor('message'))}</Text>
       </Box>
     </Box>
   )

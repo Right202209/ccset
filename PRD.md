@@ -116,8 +116,12 @@ Main menu (generated from the registry, §4.3):
 | Test connection | Opt-in network check (§4.2.6) |
 | Exit | |
 
-When the registry holds exactly one agent, ccset skips the agent-selection screen
-and enters it directly. The screen appears only when a second agent is registered.
+At startup, ccset detects registered Agents in parallel using each module's
+filesystem-only `detect()` check. The agent-selection screen contains only
+Agents detected in the user's local home. When exactly one local Agent is
+detected, ccset enters it directly; when none are detected, it explains that
+there is nothing local to configure. An explicit `--agent <id>` bypasses this
+TUI discovery so a user can create a first configuration deliberately.
 
 ### 4.2 Functional Details (Claude Code)
 

@@ -61,7 +61,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:write-safety` | Create-only state, atomic writes under SIGKILL, backup integrity, permission failures |
 | `npm run verify:opencode` | Global/provider semantics, per-key models merging, JSONC corpus and target selection, masking and backups |
 | `npm run verify:codex` | TOML corpus, provider invariants, Auth profiles, switching/adoption, recovery failures, screen string resolution |
-| `npm run verify:ui-render` | Full Ink component flow, focus, masking, Unicode/ASCII paints, short viewports and scrolling |
+| `npm run verify:ui-render` | Full Ink component flow, local Agent filtering, focus, masking, Unicode/ASCII paints, short viewports and scrolling |
 | `npm run verify:header-path` | Frame titles on push/back and path elision at narrow widths |
 | `npm run verify:review-form` | Changed rows, hints, Advanced toggle, `ctrl+s`, long-value cursor visibility |
 | `npm run verify:error-recovery` | Failed-save draft retention and partial-backup listing/cleanup |

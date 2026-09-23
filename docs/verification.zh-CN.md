@@ -45,7 +45,7 @@ npm 脚本使用 POSIX shell 语法。PTY fixture 需要 `python3` 及其 POSIX 
 | `npm run verify:write-safety` | 仅创建状态、SIGKILL 下的原子写入、备份完整性、权限失败 |
 | `npm run verify:opencode` | Global/provider 语义、models 映射按条目合并、JSONC 语料与目标选择、遮罩与备份 |
 | `npm run verify:codex` | TOML 语料、provider 不变量、Auth profile、切换/采纳、恢复失败、Screen 文案解析 |
-| `npm run verify:ui-render` | 完整的 Ink 组件流程、焦点、遮罩、Unicode/ASCII 绘制、短视口与滚动 |
+| `npm run verify:ui-render` | 完整的 Ink 组件流程、本地 Agent 过滤、焦点、遮罩、Unicode/ASCII 绘制、短视口与滚动 |
 | `npm run verify:header-path` | 压栈/返回时的 Frame 标题，以及窄宽度下的路径省略 |
 | `npm run verify:review-form` | 变更行、提示、Advanced 开关、`ctrl+s`、长值下的光标可见性 |
 | `npm run verify:error-recovery` | 保存失败时草稿的保留，以及残缺备份的列出/清理 |
