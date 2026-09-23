@@ -24,7 +24,7 @@ async function verifyLongList(home: string, viewport: Viewport): Promise<void> {
     detect: async () => true,
     getActions: () => actions,
   }
-  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], viewport })
+  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], agentId: agent.id, viewport })
   try {
     let paint = await session.waitFor('Long action 1')
     assertPainted(paint, 'Showing 1-4 of 13', 'The long menu has no count line')
@@ -67,7 +67,7 @@ async function verifyLongStatus(home: string, viewport: Viewport): Promise<void>
       }),
     }],
   }
-  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], viewport })
+  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], agentId: agent.id, viewport })
   try {
     await session.waitFor('Long status screen')
     await session.send('1')
@@ -109,7 +109,7 @@ async function verifyShortStatus(home: string): Promise<void> {
       }),
     }],
   }
-  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], viewport })
+  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], agentId: agent.id, viewport })
   try {
     await session.waitFor('Short status screen')
     await session.send('1')
@@ -125,6 +125,7 @@ async function verifyShortStatus(home: string): Promise<void> {
   const oneRowViewport: Viewport = { rows: 1, columns: 80 }
   const oneRowSession = new UiSession(home, UNICODE_TERMINAL, {
     agents: [agent],
+    agentId: agent.id,
     viewport: oneRowViewport,
   })
   try {
@@ -160,7 +161,7 @@ async function verifyNarrowList(home: string): Promise<void> {
       }),
     }],
   }
-  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], viewport })
+  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], agentId: agent.id, viewport })
   try {
     await session.waitFor('Open long list')
     await session.send('1')
@@ -192,7 +193,7 @@ async function verifyLongForm(home: string): Promise<void> {
       }),
     }],
   }
-  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], viewport })
+  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], agentId: agent.id, viewport })
   try {
     await session.waitFor('Open long form')
     await session.send('1')

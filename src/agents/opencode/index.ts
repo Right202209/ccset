@@ -7,8 +7,9 @@ import { opencodeConfigPath, opencodeDir, opencodeJsoncPath } from './paths.js'
 
 /**
  * Detection is filesystem-only, for the reason the Claude Code module gives:
- * shelling out to `opencode --version` is a cross-platform hazard for no gain,
- * and ccset can write this config before opencode has ever run.
+ * shelling out to `opencode --version` is a cross-platform hazard for no gain.
+ * An explicit --agent still supports a first configuration when no opencode
+ * files exist.
  *
  * The JSONC variant counts as detection on its own: when it exists it is the
  * one file ccset manages, so its presence alone means there is a config here.

@@ -8,7 +8,7 @@
 
 将编程 Agent 指向第三方 API 端点时，手动编辑 JSON 容易因字段名拼写错误而导致配置静默失效。ccset 会生成和编辑这些文件，并显示磁盘上已有的配置。
 
-目前支持五个 Agent：**Claude Code**、**opencode**、**Codex CLI**、**pi** 和 **Grok Build**。ccset 会询问你要配置哪一个，可以用 `--agent <id>` 指定，也可以无界面地执行单条命令——见 [命令行](#cli)。
+目前支持五个 Agent：**Claude Code**、**opencode**、**Codex CLI**、**pi** 和 **Grok Build**。ccset 会询问你要配置哪一个，但只列出本机检测到的 Agent（只检测到一个时直接进入）；也可以用 `--agent <id>` 指定（包括本机尚无配置文件的 Agent），或无界面地执行单条命令——见 [命令行](#cli)。
 
 **ccset 只生成配置，不会启用配置。** 对 Claude Code，启用时请运行 `claude --settings <path>`，每次成功写入后 ccset 都会打印该命令。opencode、Codex、pi 和 Grok Build 在启动时自行读取配置文件，无需启用命令——ccset 会如实说明，而不是编造一条命令。
 

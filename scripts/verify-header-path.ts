@@ -63,7 +63,7 @@ async function verify(
   expected: string,
   forbidden: string,
 ): Promise<void> {
-  const session = new UiSession(HOME, terminal, { agents: [agent], viewport })
+  const session = new UiSession(HOME, terminal, { agents: [agent], agentId: agent.id, viewport })
   try {
     const top = await session.waitFor(t('action.global'))
     const topHeader = top.split('\n').find((line) => line.includes('Agent: Header path')) ?? ''

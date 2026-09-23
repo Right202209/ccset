@@ -7,8 +7,8 @@ import { claudeCodeMessages } from './messages.js'
 
 /**
  * Detection is filesystem-only. Shelling out to `claude --version` would be a
- * cross-platform hazard for no gain: ccset can configure Claude Code before it
- * has ever run, and an absent directory is not a reason to hide the menu.
+ * cross-platform hazard for no gain. An explicit --agent still supports a
+ * first configuration when no Claude Code files exist.
  */
 async function detect(ctx: Ctx): Promise<boolean> {
   const [dir, state] = await Promise.all([

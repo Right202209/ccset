@@ -62,13 +62,14 @@ export class UiSession {
   constructor(
     home: string,
     terminal: Terminal,
-    options: { agents?: Agent[]; viewport?: Viewport } = {},
+    options: { agents?: Agent[]; agentId?: string; viewport?: Viewport } = {},
   ) {
     this.marker = terminal.glyphs.focus
     this.instance = render(
       createElement(App, {
         ctx: { home },
         agents: options.agents ?? AGENTS,
+        agentId: options.agentId,
         terminal,
         viewport: options.viewport,
       }),

@@ -87,6 +87,13 @@ presentation can share reads while keeping their output contracts separate.
 dynamic imports. It merges Agent catalogs at module load and rejects duplicate
 keys. Fixtures resolving Agent strings must import the registry too.
 
+The interactive App runs every registered Agent's filesystem-only `detect(ctx)`
+check in parallel before rendering Agent selection, and passes only positive
+results to that list. A single positive result is selected automatically. An
+explicit `--agent` skips this discovery so first-time configuration remains a
+deliberate option; Non-interactive commands always retain their explicit
+`--agent` contract and never infer a target from detection.
+
 The PRD's extension boundary allows multiple files inside
 an Agent module. Fixtures, package wiring, and docs are additional expected
 changes. A new shared capability needs an explicit core/interface change with

@@ -18,8 +18,9 @@ import { CliSession, CTRL_C, ESC, KEY_DELAY_MS, terminalEnv } from './pty-sessio
 
 const CLI = 'dist/cli.js'
 const PROMPT_TITLE = 'Language / 语言'
-const ZH_AGENT_MENU = '选择 Agent'
-const EN_AGENT_MENU = 'Select an agent'
+/** Scratch homes hold no Agent files, so the TUI settles on the empty state. */
+const ZH_EMPTY_TITLE = '没有本地 Agent'
+const EN_EMPTY_TITLE = 'No local agents'
 /** 简体中文 is the prompt's second option; SelectList's 1-9 jump takes a digit. */
 const ZH_OPTION_KEY = '2'
 /** Like E3: a mode-based permission drive says nothing under root. */
@@ -89,13 +90,13 @@ async function verifyPickThenRemember(): Promise<void> {
       assert.ok(prompt.includes('简体中文'), prompt)
       await sleep(KEY_DELAY_MS)
       first.send(ZH_OPTION_KEY)
-      await first.waitFor(ZH_AGENT_MENU)
+      await first.waitFor(ZH_EMPTY_TITLE)
       assert.deepEqual(await readSettings(home), { version: 1, locale: 'zh-Hans' })
       await assertModes(home)
 
       const second = startSession(home)
       try {
-        await second.waitFor(ZH_AGENT_MENU)
+        await second.waitFor(ZH_EMPTY_TITLE)
         assert.equal(second.snapshot().includes(PROMPT_TITLE), false, 'the second run prompted')
       } finally {
         await second.stop()
@@ -111,7 +112,7 @@ async function verifyOverrideNeverPersists(): Promise<void> {
   await withHome(async (home) => {
     const zh = startSession(home, { CCSET_LOCALE: 'zh-Hans' })
     try {
-      await zh.waitFor(ZH_AGENT_MENU)
+      await zh.waitFor(ZH_EMPTY_TITLE)
       assert.equal(zh.snapshot().includes(PROMPT_TITLE), false, 'the override prompted')
       await assertNoSettings(home)
     } finally {
@@ -120,7 +121,7 @@ async function verifyOverrideNeverPersists(): Promise<void> {
 
     const empty = startSession(home, { CCSET_LOCALE: '' })
     try {
-      await empty.waitFor(EN_AGENT_MENU)
+      await empty.waitFor(EN_EMPTY_TITLE)
       assert.equal(empty.snapshot().includes(PROMPT_TITLE), false, 'the empty override prompted')
       await assertNoSettings(home)
     } finally {
@@ -138,7 +139,7 @@ async function verifyOverrideBeatsSaved(): Promise<void> {
     await writeSettings(home, `${JSON.stringify({ version: 1, locale: 'en' })}\n`)
     const zh = startSession(home, { CCSET_LOCALE: 'zh-Hans' })
     try {
-      await zh.waitFor(ZH_AGENT_MENU)
+      await zh.waitFor(ZH_EMPTY_TITLE)
       assert.equal(zh.snapshot().includes(PROMPT_TITLE), false, 'the override prompted')
       assert.deepEqual(await readSettings(home), { version: 1, locale: 'en' })
     } finally {
@@ -148,7 +149,7 @@ async function verifyOverrideBeatsSaved(): Promise<void> {
     await writeSettings(home, `${JSON.stringify({ version: 1, locale: 'zh-Hans' })}\n`)
     const en = startSession(home, { CCSET_LOCALE: 'en' })
     try {
-      await en.waitFor(EN_AGENT_MENU)
+      await en.waitFor(EN_EMPTY_TITLE)
       assert.deepEqual(await readSettings(home), { version: 1, locale: 'zh-Hans' })
     } finally {
       await en.stop()
@@ -190,7 +191,7 @@ async function verifyPersistFailureKeepsChoice(): Promise<void> {
       await session.waitFor(PROMPT_TITLE)
       await sleep(KEY_DELAY_MS)
       session.send(ZH_OPTION_KEY)
-      await session.waitFor(ZH_AGENT_MENU)
+      await session.waitFor(ZH_EMPTY_TITLE)
       assert.match(session.snapshot(), /无法将语言选择保存到/, 'the persist warn never appeared')
       // The warn only helps if it survives the prompt screen being cleared: in
       // the raw byte stream it must land after the clear sequence. Scrollback
@@ -228,7 +229,7 @@ async function verifyUnchosenReasks(): Promise<void> {
         await session.waitFor(PROMPT_TITLE)
         await sleep(KEY_DELAY_MS)
         session.send(ZH_OPTION_KEY)
-        await session.waitFor(ZH_AGENT_MENU)
+        await session.waitFor(ZH_EMPTY_TITLE)
         assert.deepEqual(await readSettings(home), { version: 1, locale: 'zh-Hans' })
       } finally {
         await session.stop()

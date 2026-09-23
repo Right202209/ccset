@@ -4,6 +4,13 @@
 
 [返回 README](../README.md)
 
+## Agent 选择
+
+交互式程序启动时，会并行检查已注册 Agent 的本地文件，只把当前 home 中
+检测到的 Agent 列入选项。只检测到一个 Agent 时会自动进入。如果尚未检测到
+任何 Agent，可以显式使用 `--agent <id>` 有意打开首次配置；非交互命令始终
+要求显式提供这个选择器。
+
 ## Agent 配置
 
 ### Claude Code

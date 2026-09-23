@@ -84,7 +84,11 @@ async function checkOtherAgentsSurfacePartials(home: string): Promise<void> {
  * saving again has to succeed without retyping anything.
  */
 async function checkFailedSaveKeepsTheForm(home: string): Promise<void> {
-  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [claudeCode], viewport: VIEWPORT })
+  const session = new UiSession(home, UNICODE_TERMINAL, {
+    agents: [claudeCode],
+    agentId: claudeCode.id,
+    viewport: VIEWPORT,
+  })
   try {
     await session.waitFor(t('action.status'))
     await session.send('2')
@@ -146,7 +150,11 @@ async function checkPartialIsClearable(home: string): Promise<void> {
   await fs.writeFile(claudeStatePath(home), '{}\n', { mode: FILE_MODE })
   await seedBackups(backupsDir(home))
 
-  const session = new UiSession(home, UNICODE_TERMINAL, { agents: [claudeCode], viewport: VIEWPORT })
+  const session = new UiSession(home, UNICODE_TERMINAL, {
+    agents: [claudeCode],
+    agentId: claudeCode.id,
+    viewport: VIEWPORT,
+  })
   try {
     await session.waitFor(t('action.status'))
     await session.send('3')

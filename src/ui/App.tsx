@@ -3,7 +3,7 @@ import { Box, Text, useApp, useInput } from 'ink'
 import stringWidth from 'string-width'
 import type { Action, Agent, ConfirmScreen, Ctx, FormValues, ListItem, Viewport } from '../types.js'
 import { t } from '../i18n/index.js'
-import { AgentSelect, MainMenu } from './Menu.js'
+import { AgentSelect, MainMenu, NoAgents } from './Menu.js'
 import { TerminalContext, useTerminal, type Terminal } from './terminal.js'
 import { Busy, Prompt, ScreenView, type ScreenHandlers } from './Views.js'
 import { useScreens } from './useScreens.js'
@@ -17,10 +17,27 @@ export interface AppProps {
   viewport?: Viewport
 }
 
-/** One registered agent means no question to ask (PRD 4.1). */
+/**
+ * An explicit target bypasses discovery; without one, the App discovers first
+ * even when a single Agent is registered, so an undetected one is never entered.
+ */
 function initialAgent(agents: Agent[], agentId?: string): Agent | null {
-  if (agentId !== undefined) return agents.find((agent) => agent.id === agentId) ?? null
-  return agents.length === 1 ? agents[0] ?? null : null
+  if (agentId === undefined) return null
+  return agents.find((agent) => agent.id === agentId) ?? null
+}
+
+/** Filesystem-only checks, run in parallel; one that throws counts as absent. */
+async function discoverAgents(agents: Agent[], ctx: Ctx): Promise<Agent[]> {
+  const results = await Promise.all(
+    agents.map(async (candidate) => {
+      try {
+        return (await candidate.detect(ctx)) ? candidate : null
+      } catch {
+        return null
+      }
+    }),
+  )
+  return results.filter((candidate): candidate is Agent => candidate !== null)
 }
 
 /** Only unsaved edits ever raise the prompt; the unreachable exit variant and
@@ -37,10 +54,26 @@ export function App({
   const { exit } = useApp()
   const viewport = useTerminalViewport(explicitViewport)
   const [agent, setAgent] = useState<Agent | null>(() => initialAgent(agents, agentId))
+  const [availableAgents, setAvailableAgents] = useState<Agent[] | null>(() =>
+    agentId === undefined ? null : agents,
+  )
   const [detected, setDetected] = useState<boolean | null>(null)
   const [prompt, setPrompt] = useState<PromptKind | null>(null)
   const [dirty, setDirty] = useState(false)
   const screens = useScreens()
+
+  useEffect(() => {
+    if (agentId !== undefined) return
+    let active = true
+    void discoverAgents(agents, ctx).then((found) => {
+      if (!active) return
+      setAvailableAgents(found)
+      if (found.length === 1) setAgent(found[0] ?? null)
+    })
+    return () => {
+      active = false
+    }
+  }, [agentId, agents, ctx])
 
   useEffect(() => {
     let active = true
@@ -102,7 +135,11 @@ export function App({
 
   function body(): React.ReactElement {
     if (screens.busy) return <Busy label={screens.busyLabel} />
-    if (agent === null) return <AgentSelect agents={agents} onSelect={setAgent} onExit={exit} />
+    if (agent === null) {
+      if (availableAgents === null) return <Busy label={t('app.detectingAgents')} />
+      if (availableAgents.length === 0) return <NoAgents onExit={exit} />
+      return <AgentSelect agents={availableAgents} onSelect={setAgent} onExit={exit} />
+    }
     const screen = screens.current
     if (screen === undefined) {
       return (
@@ -139,7 +176,7 @@ export function App({
             <Header
               segments={headerSegments(
                 screens.frames.map((frame) => frame.screen.title),
-                agent,
+                rootTitle(agent, availableAgents),
                 prompt,
               )}
             />
@@ -151,14 +188,21 @@ export function App({
   )
 }
 
+/** The header with no Frame open: the Agent, or the question the App is asking. */
+function rootTitle(agent: Agent | null, availableAgents: Agent[] | null): string {
+  if (agent !== null) return t('app.agent', { name: agent.name })
+  if (availableAgents?.length === 0) return t('menu.noAgentsTitle')
+  return t('menu.agentTitle')
+}
+
 function headerSegments(
   frameTitles: string[],
-  agent: Agent | null,
+  root: string,
   prompt: PromptKind | null,
 ): string[] {
   if (prompt !== null) return [t(`prompt.${prompt}Title`)]
   if (frameTitles.length > 0) return frameTitles
-  return [agent === null ? t('menu.agentTitle') : t('app.agent', { name: agent.name })]
+  return [root]
 }
 
 function Header({ segments }: { segments: string[] }): React.ReactElement {
