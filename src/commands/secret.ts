@@ -45,6 +45,7 @@ export function secretFromEnv(raw: string | undefined): Secret | null {
 }
 
 export async function secretFromStdin(): Promise<Secret> {
+  if (process.stdin.isTTY) fail('cli.secret.ttyInput')
   const chunks: Buffer[] = []
   let total = 0
   for await (const chunk of process.stdin) {

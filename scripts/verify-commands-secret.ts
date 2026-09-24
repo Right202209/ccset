@@ -5,6 +5,8 @@ import path from 'node:path'
 import { claudeDir, providerSettingsPath } from '../src/agents/claude-code/paths.js'
 import { EXIT_INVALID_CONFIG, EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
 import { runCli as spawnCli, type RunResult } from './cli-harness.js'
+import { CcsetError } from '../src/core/errors.js'
+import { secretFromStdin } from '../src/commands/secret.js'
 
 /**
  * M3.3: secure Secret sources and Claude Code provider set, across the
@@ -59,6 +61,40 @@ async function checkRejectedSources(home: string): Promise<void> {
     assert.equal(result.code, EXIT_USAGE, `${args.join(' ')} did not exit 64`)
     assert.match(result.stderr, stderr, `${args.join(' ')} refused with the wrong wording`)
     assert.equal(await fs.access(providerSettingsPath(home, 'acme')).then(() => true, () => false), false)
+  }
+}
+
+async function checkUsageErrorsAreRedacted(home: string): Promise<void> {
+  const cases = [
+    [...SET, TOKEN, '--json'],
+    ['--agent', 'claude-code', 'unknown-command', TOKEN, '--json'],
+    ['--agent', TOKEN, 'provider', 'set', 'acme', '--json'],
+    [...SET, '--token', TOKEN, '--json'],
+    [...SET, `--token=${TOKEN}`, '--json'],
+  ]
+  for (const [index, args] of cases.entries()) {
+    const result = await runCli(args, home)
+    assert.notEqual(result.code, 0, `usage case ${index} was unexpectedly accepted`)
+    assert.equal(`${result.stdout}${result.stderr}`.includes(TOKEN), false, `usage case ${index} printed the token`)
+    if (result.stdout.trim().startsWith('{')) {
+      const envelope = JSON.parse(result.stdout) as { error?: { params?: Record<string, string> } }
+      assert.equal(JSON.stringify(envelope.error?.params ?? {}).includes(TOKEN), false, 'JSON params leaked the token')
+    }
+  }
+}
+
+async function checkTokenStdinRefusesTty(): Promise<void> {
+  const descriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY')
+  Object.defineProperty(process.stdin, 'isTTY', { configurable: true, value: true })
+  try {
+    await assert.rejects(
+      secretFromStdin(),
+      (error: Error) => error instanceof CcsetError && error.messageKey === 'cli.secret.ttyInput',
+      'an interactive terminal was allowed to echo a token',
+    )
+  } finally {
+    if (descriptor === undefined) Reflect.deleteProperty(process.stdin, 'isTTY')
+    else Object.defineProperty(process.stdin, 'isTTY', descriptor)
   }
 }
 
@@ -176,6 +212,8 @@ async function withHome(label: string, run: (home: string) => Promise<void>): Pr
 async function main(): Promise<void> {
   await withHome('sources', checkAllowedSources)
   await withHome('reject', checkRejectedSources)
+  await withHome('redacted-usage', checkUsageErrorsAreRedacted)
+  await checkTokenStdinRefusesTty()
   await withHome('values', checkRejectedValues)
   await withHome('patch', checkPatchSemantics)
   await withHome('new', checkNewProviderRules)

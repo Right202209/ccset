@@ -51,6 +51,12 @@ function startSession(home: string, extraEnv: NodeJS.ProcessEnv = {}): CliSessio
   })
 }
 
+async function waitForLanguagePrompt(session: CliSession): Promise<number> {
+  const title = await session.waitFor(PROMPT_TITLE)
+  await session.waitFor('简体中文', title)
+  return title
+}
+
 async function writeSettings(home: string, content: string): Promise<void> {
   await fs.mkdir(path.dirname(settingsFilePath(home)), { recursive: true })
   await fs.writeFile(settingsFilePath(home), content, { mode: 0o600 })
@@ -84,7 +90,7 @@ async function verifyPickThenRemember(): Promise<void> {
   await withHome(async (home) => {
     const first = startSession(home)
     try {
-      const title = await first.waitFor(PROMPT_TITLE)
+      const title = await waitForLanguagePrompt(first)
       const prompt = first.snapshot().slice(title)
       assert.ok(prompt.includes('English'), prompt)
       assert.ok(prompt.includes('简体中文'), prompt)
@@ -162,7 +168,7 @@ async function verifyCancelLeavesNoFile(key: string): Promise<void> {
   await withHome(async (home) => {
     const session = startSession(home)
     try {
-      await session.waitFor(PROMPT_TITLE)
+      await waitForLanguagePrompt(session)
       await sleep(KEY_DELAY_MS)
       session.send(key)
       assert.equal(await session.waitExit(), 0, 'cancellation must exit 0')
@@ -188,7 +194,7 @@ async function verifyPersistFailureKeepsChoice(): Promise<void> {
     await fs.chmod(settingsDir, 0o500)
     const session = startSession(home)
     try {
-      await session.waitFor(PROMPT_TITLE)
+      await waitForLanguagePrompt(session)
       await sleep(KEY_DELAY_MS)
       session.send(ZH_OPTION_KEY)
       await session.waitFor(ZH_EMPTY_TITLE)
@@ -226,7 +232,7 @@ async function verifyUnchosenReasks(): Promise<void> {
       await writeSettings(home, `${content}\n`)
       const session = startSession(home)
       try {
-        await session.waitFor(PROMPT_TITLE)
+        await waitForLanguagePrompt(session)
         await sleep(KEY_DELAY_MS)
         session.send(ZH_OPTION_KEY)
         await session.waitFor(ZH_EMPTY_TITLE)

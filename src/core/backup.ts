@@ -3,13 +3,13 @@ import path from 'node:path'
 import {
   BACKUP_INFIX,
   BACKUP_TEMP_PREFIX,
-  FILE_MODE,
   MAX_BACKUPS,
   MAX_BACKUP_NAME_ATTEMPTS,
 } from './constants.js'
 import { isNotFound, wrapFsError } from './errors.js'
 import { t } from '../i18n/index.js'
 import { ensureDir, fileExists } from './json-file.js'
+import { copyPrivateFile, temporaryPath } from './atomic-file.js'
 import type { StatusSection } from '../types.js'
 
 /**
@@ -30,10 +30,10 @@ export async function backupFile(dir: string, filePath: string): Promise<string 
   await ensureDir(dir)
   const basename = path.basename(filePath)
   const destination = await uniqueBackupPath(dir, basename)
-  const pending = path.join(dir, `${BACKUP_TEMP_PREFIX}${basename}.${process.pid}`)
+  const pendingName = path.basename(temporaryPath(dir, basename, 'partial'))
+  const pending = path.join(dir, `${BACKUP_TEMP_PREFIX}${pendingName}`)
   try {
-    await fs.copyFile(filePath, pending)
-    await fs.chmod(pending, FILE_MODE).catch(() => undefined)
+    await copyPrivateFile(filePath, pending)
     await fs.rename(pending, destination)
   } catch (err) {
     await fs.unlink(pending).catch(() => undefined)

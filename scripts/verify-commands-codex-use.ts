@@ -6,14 +6,9 @@ import { authProfilePath, backupsDir, codexAuthPath, codexConfigPath } from '../
 import { EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
 import type { TargetRecord } from '../src/core/target.js'
 import { runCli as spawnCli, type RunResult } from './cli-harness.js'
+import { verifyFailedAuthMoveRestoresRouting } from './verify-commands-codex-use-failure.js'
 
-/**
- * M3.8: Codex provider use across the process seam. Routing first, then the
- * live credential; an unknown live credential needs exactly one of
- * --adopt-current-as or --replace-current-auth; a byte-identical live profile
- * switches idempotently; a post-routing failure reports partial. Red if the
- * order flips, a conflict is bypassed, or the partial report is lost.
- */
+/** M3.8: Codex provider switching and Auth conflicts across the CLI boundary. */
 
 const ROUTER_KEY = 'CX-ROUTER-KEY-0123456789'
 const LIVE_KEY = 'CX-LIVE-KEY-0123456789'
@@ -293,7 +288,7 @@ async function main(): Promise<void> {
   await checkUnsupported()
   await checkDryRun()
   await checkPartialReport()
+  await verifyFailedAuthMoveRestoresRouting()
   process.stdout.write('codex provider use verification passed.\n')
 }
-
 await main()

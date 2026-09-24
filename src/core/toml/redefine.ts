@@ -17,23 +17,70 @@
  * which is conservative for one exotic shape (a dotted key in an earlier array
  * element, then a sub-table header in a later one). Over-rejecting that sends
  * a file to the confirm the user decides on; under-rejecting would write one
- * Codex refuses. Paths are joined with NUL, the same separator the editor
- * uses, because a quoted key may contain any other character.
+ * Codex refuses.
  */
 
-const SEP = '\u0000'
-
 function join(path: string[]): string {
-  return path.join(SEP)
+  return JSON.stringify(path)
 }
 
-/** True when any proper prefix of the path sits in the set -- a table was
- *  created on the way to a leaf, and one form or the other redefines it. */
-function hasPrefixIn(path: string[], set: Set<string>): boolean {
-  for (let depth = 1; depth < path.length; depth += 1) {
-    if (set.has(join(path.slice(0, depth)))) return true
+/**
+ * Key paths as a prefix-aware set. When an array table repeats, every key
+ * recorded under its path belongs to the previous element and must be cleared.
+ * Scanning every recorded path for that is quadratic in a crafted document
+ * (many unrelated keys, many repeats), so each path is also indexed under each
+ * of its proper prefixes and a clear touches only the real descendants.
+ */
+class PathSet {
+  private readonly paths = new Map<string, string[]>()
+  private readonly underPrefix = new Map<string, Set<string>>()
+
+  has(path: string[]): boolean {
+    return this.paths.has(join(path))
   }
-  return false
+
+  add(path: string[]): void {
+    const key = join(path)
+    if (this.paths.has(key)) return
+    this.paths.set(key, [...path])
+    for (let depth = 1; depth < path.length; depth += 1) {
+      const prefix = join(path.slice(0, depth))
+      let bucket = this.underPrefix.get(prefix)
+      if (bucket === undefined) {
+        bucket = new Set()
+        this.underPrefix.set(prefix, bucket)
+      }
+      bucket.add(key)
+    }
+  }
+
+  /** True when any proper prefix of `path` is a member -- a table was created
+   *  on the way to it, so one form or the other redefines that table. */
+  hasPrefix(path: string[]): boolean {
+    for (let depth = 1; depth < path.length; depth += 1) {
+      if (this.paths.has(join(path.slice(0, depth)))) return true
+    }
+    return false
+  }
+
+  clearDescendants(path: string[]): void {
+    const prefix = join(path)
+    const bucket = this.underPrefix.get(prefix)
+    if (bucket === undefined) return
+    this.underPrefix.delete(prefix)
+    for (const descendant of bucket) {
+      const stored = this.paths.get(descendant)
+      this.paths.delete(descendant)
+      if (stored === undefined) continue
+      for (let depth = 1; depth < stored.length; depth += 1) {
+        const parent = join(stored.slice(0, depth))
+        const holder = this.underPrefix.get(parent)
+        if (holder === undefined) continue
+        holder.delete(descendant)
+        if (holder.size === 0) this.underPrefix.delete(parent)
+      }
+    }
+  }
 }
 
 /** Hands one construct's full key path to the tracker: the syntax has already
@@ -55,12 +102,12 @@ export function recordDefinition(
 
 interface DefinitionState {
   /** Every assigned leaf, across all instances. */
-  leaves: Set<string>
+  leaves: PathSet
   /** Tables dotted keys created, across all instances -- headers may never
    *  redefine one, wherever in the document the dotted keys sat. */
-  dotted: Set<string>
-  singleTables: Set<string>
-  arrayTables: Set<string>
+  dotted: PathSet
+  singleTables: PathSet
+  arrayTables: PathSet
   /** Per table instance: an array of tables repeats its keys per element, and
    *  a single table's keys cannot repeat only because its header cannot. */
   instanceLeaves: Set<string>
@@ -69,33 +116,38 @@ interface DefinitionState {
 
 function noteAssignment(state: DefinitionState, path: string[], tableDepth: number): boolean {
   const key = join(path)
-  if (state.instanceLeaves.has(key) || state.instanceDotted.has(key) || state.singleTables.has(key)) {
+  if (state.instanceLeaves.has(key) || state.instanceDotted.has(key) || state.singleTables.has(path)) {
     return true
   }
-  if (hasPrefixIn(path, state.leaves)) return true
+  if (state.leaves.hasPrefix(path)) return true
   state.instanceLeaves.add(key)
-  state.leaves.add(key)
+  state.leaves.add(path)
   // The table the assignment sits in was opened by a header (or an enclosing
   // dotted key elsewhere); only the key's own dotted segments are tables a
   // header may never redefine later.
   for (let depth = tableDepth + 1; depth < path.length; depth += 1) {
-    const prefix = join(path.slice(0, depth))
-    state.instanceDotted.add(prefix)
+    const prefix = path.slice(0, depth)
+    state.instanceDotted.add(join(prefix))
     state.dotted.add(prefix)
   }
   return false
 }
 
 function noteHeader(state: DefinitionState, path: string[], isArray: boolean): boolean {
-  const key = join(path)
   const known =
-    state.singleTables.has(key) ||
-    state.dotted.has(key) ||
-    state.leaves.has(key) ||
-    (!isArray && state.arrayTables.has(key))
-  if (known || hasPrefixIn(path, state.leaves)) return true
-  if (isArray) state.arrayTables.add(key)
-  else state.singleTables.add(key)
+    state.singleTables.has(path) ||
+    state.dotted.has(path) ||
+    state.leaves.has(path) ||
+    (!isArray && state.arrayTables.has(path))
+  if (known || state.leaves.hasPrefix(path)) return true
+  if (isArray && state.arrayTables.has(path)) {
+    state.leaves.clearDescendants(path)
+    state.dotted.clearDescendants(path)
+    state.singleTables.clearDescendants(path)
+    state.arrayTables.clearDescendants(path)
+  }
+  if (isArray) state.arrayTables.add(path)
+  else state.singleTables.add(path)
   state.instanceLeaves = new Set()
   state.instanceDotted = new Set()
   return false
@@ -111,10 +163,10 @@ export interface DefinitionCheck {
 
 export function trackDefinitions(): DefinitionCheck {
   const state: DefinitionState = {
-    leaves: new Set(),
-    dotted: new Set(),
-    singleTables: new Set(),
-    arrayTables: new Set(),
+    leaves: new PathSet(),
+    dotted: new PathSet(),
+    singleTables: new PathSet(),
+    arrayTables: new PathSet(),
     instanceLeaves: new Set(),
     instanceDotted: new Set(),
   }

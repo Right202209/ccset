@@ -27,7 +27,6 @@ const BASELINE: readonly string[] = [
   'src/agents/claude-code/commands.ts:proxyWrites',
   'src/agents/codex/actions.ts:openProviders',
   'src/agents/codex/status-dto.ts:codexStatusFindings',
-  'src/commands/parser.ts:readOption',
   'src/core/toml/value-check.ts:checkBasic',
   'src/core/toml/value-check.ts:checkBare',
   'src/core/toml/edit.ts:findDottedAnchor',

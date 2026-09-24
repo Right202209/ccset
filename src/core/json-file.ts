@@ -4,6 +4,7 @@ import type { Codec, ConfigFile, JsonObject } from '../types.js'
 import { DIR_MODE, FILE_MODE } from './constants.js'
 import { CcsetError, EXIT_RUNTIME, JsonParseError, isNotFound, wrapFsError } from './errors.js'
 import { describePosition } from './position.js'
+import { temporaryPath, writePrivateFile } from './atomic-file.js'
 
 export interface LoadedFile {
   path: string
@@ -70,19 +71,6 @@ export async function ensureDir(dirPath: string): Promise<void> {
   }
 }
 
-/**
- * chmod is advisory on win32 -- it can only toggle the read-only bit and leaves
- * NTFS ACLs untouched -- so a failure there must not abort a valid write. The
- * POSIX 0600 guarantee is stated as POSIX-only for exactly this reason.
- */
-async function chmodBestEffort(filePath: string): Promise<void> {
-  try {
-    await fs.chmod(filePath, FILE_MODE)
-  } catch {
-    /* platform does not support it; documented in the README */
-  }
-}
-
 async function removeQuietly(filePath: string): Promise<void> {
   try {
     await fs.unlink(filePath)
@@ -102,14 +90,12 @@ async function removeQuietly(filePath: string): Promise<void> {
 export async function writeTextAtomic(filePath: string, contents: string): Promise<void> {
   const dir = path.dirname(filePath)
   await ensureDir(dir)
-  const tempPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.tmp`)
+  const pending = temporaryPath(dir, path.basename(filePath), 'tmp')
   try {
-    await fs.writeFile(tempPath, contents, { mode: FILE_MODE })
-    await chmodBestEffort(tempPath)
-    await fs.rename(tempPath, filePath)
-    await chmodBestEffort(filePath)
+    await writePrivateFile(pending, contents)
+    await fs.rename(pending, filePath)
   } catch (err) {
-    await removeQuietly(tempPath)
+    await removeQuietly(pending)
     throw wrapFsError(err, filePath, 'rw')
   }
 }

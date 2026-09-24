@@ -53,6 +53,25 @@ async function verifyProbeErrorIsSanitized(): Promise<void> {
   }
 }
 
+async function verifyProbeDoesNotFollowRedirects(): Promise<void> {
+  const originalFetch = globalThis.fetch
+  let calls = 0
+  let redirect: RequestRedirect | undefined
+  globalThis.fetch = async (_input, init) => {
+    calls += 1
+    redirect = init?.redirect
+    return new Response(null, { status: 302, headers: { location: 'https://unconfirmed.example/' } })
+  }
+  try {
+    const result = await probeEndpoint({ baseUrl: 'https://confirmed.example/v1', token, model: 'model-a' })
+    assert.equal(result.ok, false, 'a redirect was reported as an accepted token')
+    assert.equal(calls, 1, 'the probe followed a redirect')
+    assert.equal(redirect, 'manual', 'the probe did not disable redirects')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
 async function verifySecretFieldMaskingContract(): Promise<void> {
   const fieldSource = await fs.readFile(path.join(process.cwd(), 'src/ui/Field.tsx'), 'utf8')
   const inputSource = await fs.readFile(path.join(process.cwd(), 'src/ui/TextField.tsx'), 'utf8')
@@ -90,6 +109,8 @@ function checkPlaintextWarning(): void {
   assert.equal(warnsPlaintextHttp('http://localhost:8080/v1'), false, 'localhost warned')
   assert.equal(warnsPlaintextHttp('http://proxy.localhost:3000'), false, 'a .localhost host warned')
   assert.equal(warnsPlaintextHttp('http://127.0.0.1:8081'), false, 'a loopback address warned')
+  assert.equal(warnsPlaintextHttp('http://127.255.255.255:8081'), false, 'the end of 127/8 warned')
+  assert.equal(warnsPlaintextHttp('http://127.attacker.example:8081'), true, 'a lookalike domain skipped the warning')
   assert.equal(warnsPlaintextHttp('http://[::1]/v1'), false, 'an IPv6 loopback warned')
   assert.equal(warnsPlaintextHttp('https://api.example.com/v1'), false, 'https warned')
   assert.equal(warnsPlaintextHttp('not a url'), false, 'an unparseable URL warned')
@@ -142,6 +163,7 @@ async function main(): Promise<void> {
     await verifyMaskThresholds()
     checkPlaintextWarning()
     await verifyProbeErrorIsSanitized()
+    await verifyProbeDoesNotFollowRedirects()
 
     process.stdout.write('Provider settings and credential safety verification passed.\n')
   } finally {

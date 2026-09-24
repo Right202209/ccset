@@ -1,6 +1,8 @@
 import { configFile, readConfigFile, type LoadedConfig } from '../../core/config-file.js'
 import { CcsetError, EXIT_RUNTIME, EXIT_USAGE, PartialCommitError, toCcsetError, ValidationError } from '../../core/errors.js'
 import { fileExists, readMode } from '../../core/json-file.js'
+import { getPath } from '../../core/merge.js'
+import { jsonToText } from '../../core/values.js'
 import { applyPlan, MODE_AFTER_WRITE, planTargets } from '../../operations/commit.js'
 import type { OperationRequest, OperationResult, TargetRecord } from '../../operations/types.js'
 import type { Ctx, ConfigFile } from '../../types.js'
@@ -8,7 +10,7 @@ import { makeKeyNameValidator } from '../../core/validate.js'
 import { activateAuthProfile, keyringInUseIn, loadAuthState, type AuthState } from './auth.js'
 import { MODEL_PROVIDER_PATH } from './manifest.js'
 import { authProfilePath, backupsDir, codexAuthPath, codexHomeOverride, launchCommand } from './paths.js'
-import { codexConfigFile } from './global.js'
+import { codexConfigFile, restoreModelProvider } from './global.js'
 
 /**
  * Codex's provider use over the Non-interactive seam: routing first, then the
@@ -122,19 +124,68 @@ async function withAdoptedProfile(
   return committed
 }
 
-/** The live-auth half of a switch, committed after routing; if the copy fails,
- * the partial report must still name the profile the adoption already wrote. */
+/**
+ * Whether auth.json already holds the target profile's bytes after a failed
+ * move. The replacement is atomic and last, so a failure normally leaves the
+ * old credential and reverting routing is safe; a filesystem that is not
+ * rename-atomic can still leave the new bytes in place, and reverting then
+ * would pair the old endpoint with the new key. Only a positive match -- the
+ * live file is now byte-identical to the profile -- suppresses the revert.
+ */
+async function credentialReplaced(ctx: Ctx, id: string): Promise<boolean> {
+  try {
+    return (await loadAuthState(ctx)).activeName === id
+  } catch {
+    return false
+  }
+}
+
+/** A failed credential move: keep routing and the credential paired, and report
+ *  every path that landed -- the auth.json itself when the move had committed
+ *  before it threw, and the rollback failure when the restore did not take. */
+async function throwAuthMoveFailure(
+  ctx: Ctx,
+  pre: UsePreflight,
+  committed: TargetRecord[],
+  previousProvider: string,
+  err: unknown,
+): Promise<never> {
+  const failure = toCcsetError(err)
+  const replaced = await credentialReplaced(ctx, pre.id)
+  let routingRestored = false
+  let rollback: CcsetError | undefined
+  if (!replaced) {
+    try {
+      await restoreModelProvider(ctx, previousProvider)
+      routingRestored = true
+    } catch (rollbackErr) {
+      rollback = toCcsetError(rollbackErr)
+    }
+  }
+  const changed = routingRestored && !replaced ? [] : committed.filter((record) => record.changed)
+  let partial = await withAdoptedProfile(ctx, pre, changed)
+  if (replaced) {
+    const authPath = codexAuthPath(ctx.home)
+    partial = [...partial, changedRecord(authPath, await readMode(authPath))]
+  }
+  if (partial.length > 0 || rollback !== undefined) {
+    throw new PartialCommitError(partial, failure, rollback)
+  }
+  throw failure
+}
+
+/** The live-auth half of a switch; a failure restores the original routing. */
 async function authMoveRecords(
   ctx: Ctx,
   pre: UsePreflight,
   committed: TargetRecord[],
+  previousProvider: string,
 ): Promise<TargetRecord[]> {
   let report
   try {
     report = await activateAuthProfile(ctx, pre.id, pre.conflicted && pre.adoptAs !== null ? pre.adoptAs : null)
   } catch (err) {
-    // Routing already landed; the envelope has to say so.
-    throw new PartialCommitError(await withAdoptedProfile(ctx, pre, committed), toCcsetError(err))
+    return throwAuthMoveFailure(ctx, pre, committed, previousProvider, err)
   }
   const records: TargetRecord[] = []
   if (report.adoptedPath !== null) {
@@ -185,7 +236,8 @@ export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promi
       // A dry run still plans the credential move it would make.
       targets.push(...(await plannedAuthRecords(ctx, pre)))
     } else {
-      targets.push(...(await authMoveRecords(ctx, pre, outcome.records)))
+      const previousProvider = jsonToText(getPath(pre.configBase.data, MODEL_PROVIDER_PATH))
+      targets.push(...(await authMoveRecords(ctx, pre, outcome.records, previousProvider)))
     }
   }
   return {

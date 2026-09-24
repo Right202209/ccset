@@ -60,55 +60,112 @@ function parsePack(raw: string): PackResult[] {
 async function main(): Promise<void> {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-artifact-'))
   try {
-    run('npm', ['run', 'build'])
-    const packed = parsePack(run('npm', ['pack', '--json', '--pack-destination', temp]))
-    assert.equal(packed.length, 1)
-    const artifact = packed[0]
-    assert.ok(artifact)
-    assert.deepEqual(
-      artifact.files.map((file) => file.path).sort(),
-      expectedFiles,
-    )
-
-    const tarball = path.join(temp, artifact.filename)
-    const install = path.join(temp, 'install')
-    await fs.mkdir(install)
-    run('npm', ['init', '-y'], install)
-    run('npm', ['install', tarball], install)
-
-    const installedPackagePath = path.join(install, 'node_modules', '@droite', 'ccset')
-    const installedPackage = JSON.parse(
-      await fs.readFile(path.join(installedPackagePath, 'package.json'), 'utf8'),
-    ) as typeof packageJson
-    assert.deepEqual(installedPackage.bin, { ccset: './dist/cli.js' })
-    assert.deepEqual(installedPackage.engines, { node: '>=18' })
-    assert.deepEqual(installedPackage.publishConfig, { access: 'public' })
-
-    const bundle = path.join(installedPackagePath, 'dist', 'cli.js')
-    const bundleText = await fs.readFile(bundle, 'utf8')
-    assert.equal(bundleText.startsWith('#!/usr/bin/env node\n'), true)
-    const distFiles = await fs.readdir(path.dirname(bundle))
-    assert.deepEqual(distFiles, ['cli.js'])
-    if (process.platform !== 'win32') {
-      assert.notEqual((await fs.stat(bundle)).mode & 0o111, 0)
-    }
-
-    // The render gate's library is a devDependency, so installing the artifact
-    // must not pull it in: a test renderer has no business on a user's machine.
-    const installedModules = await fs.readdir(path.join(install, 'node_modules'))
-    assert.equal(installedModules.includes('ink-testing-library'), false)
-
-    const bin = path.join(install, 'node_modules', '.bin', 'ccset')
-    assert.equal(run(bin, ['--version'], install).trim(), packageJson.version)
-    const nonTty = spawnSync(bin, [], { cwd: install, input: '', encoding: 'utf8', env: localeFreeEnv() })
-    assert.equal(nonTty.status, 2)
-    assert.match(nonTty.stderr, /interactive.*terminal/is)
-    assert.equal(/\x1b/.test(`${nonTty.stdout}${nonTty.stderr}`), false)
-
+    assert.match(packageJson.scripts.prepublishOnly, /check-release-state\.mjs/)
+    await verifyWorkflowSecurity()
+    await verifyReleaseState(temp)
+    await verifyPackedArtifact(temp)
     process.stdout.write('Release artifact verification passed.\n')
   } finally {
     await fs.rm(temp, { recursive: true, force: true })
   }
+}
+
+async function verifyPackedArtifact(temp: string): Promise<void> {
+  run('npm', ['run', 'build'])
+  const packed = parsePack(run('npm', ['pack', '--json', '--pack-destination', temp]))
+  assert.equal(packed.length, 1)
+  const artifact = packed[0]
+  assert.ok(artifact)
+  assert.deepEqual(artifact.files.map((file) => file.path).sort(), expectedFiles)
+  const install = path.join(temp, 'install')
+  await fs.mkdir(install)
+  run('npm', ['init', '-y'], install)
+  run('npm', ['install', path.join(temp, artifact.filename)], install)
+  await verifyInstalledArtifact(install)
+}
+
+async function verifyInstalledArtifact(install: string): Promise<void> {
+  const installedPackagePath = path.join(install, 'node_modules', '@droite', 'ccset')
+  const installedPackage = JSON.parse(
+    await fs.readFile(path.join(installedPackagePath, 'package.json'), 'utf8'),
+  ) as typeof packageJson
+  assert.deepEqual(installedPackage.bin, { ccset: './dist/cli.js' })
+  assert.deepEqual(installedPackage.engines, { node: '>=18' })
+  assert.deepEqual(installedPackage.publishConfig, { access: 'public' })
+  assert.equal(installedPackage.repository.url, 'https://github.com/Right202209/ccset.git')
+  await verifyInstalledBundle(install, installedPackagePath)
+}
+
+async function verifyInstalledBundle(install: string, packagePath: string): Promise<void> {
+  const bundle = path.join(packagePath, 'dist', 'cli.js')
+  const bundleText = await fs.readFile(bundle, 'utf8')
+  assert.equal(bundleText.startsWith('#!/usr/bin/env node\n'), true)
+  assert.deepEqual(await fs.readdir(path.dirname(bundle)), ['cli.js'])
+  if (process.platform !== 'win32') assert.notEqual((await fs.stat(bundle)).mode & 0o111, 0)
+  const installedModules = await fs.readdir(path.join(install, 'node_modules'))
+  assert.equal(installedModules.includes('ink-testing-library'), false)
+  const bin = path.join(install, 'node_modules', '.bin', 'ccset')
+  assert.equal(run(bin, ['--version'], install).trim(), packageJson.version)
+  const nonTty = spawnSync(bin, [], { cwd: install, input: '', encoding: 'utf8', env: localeFreeEnv() })
+  assert.equal(nonTty.status, 2)
+  assert.match(nonTty.stderr, /interactive.*terminal/is)
+  assert.equal(/\x1b/.test(`${nonTty.stdout}${nonTty.stderr}`), false)
+}
+
+async function verifyWorkflowSecurity(): Promise<void> {
+  const workflowFiles = [
+    '.github/workflows/ci.yml',
+    '.github/workflows/deploy-pages.yml',
+    '.github/workflows/pages-ci.yml',
+    '.github/workflows/publish.yml',
+  ]
+  for (const file of workflowFiles) {
+    const workflow = await fs.readFile(file, 'utf8')
+    for (const line of workflow.split('\n').filter((row) => row.includes('uses:'))) {
+      assert.match(line, /@[0-9a-f]{40}(?:\s|$)/, `${file} has an unpinned action: ${line}`)
+    }
+  }
+  const deploy = await fs.readFile('.github/workflows/deploy-pages.yml', 'utf8')
+  assert.match(deploy, /^permissions: \{\}/m)
+  assert.match(deploy, /persist-credentials: false/)
+  assert.match(deploy, /pages: write/)
+  assert.match(deploy, /id-token: write/)
+  const publish = await fs.readFile('.github/workflows/publish.yml', 'utf8')
+  assert.match(publish, /id-token: write/)
+  assert.match(publish, /npm publish --provenance --access public/)
+}
+
+async function verifyReleaseState(temp: string): Promise<void> {
+  const checkout = path.join(temp, 'release-state')
+  const checkScript = path.join(process.cwd(), 'scripts/check-release-state.mjs')
+  await fs.mkdir(checkout)
+  await fs.writeFile(path.join(checkout, 'package.json'), '{"version":"1.2.3"}\n')
+  await fs.writeFile(path.join(checkout, 'tracked.txt'), 'clean\n')
+  run('git', ['init', '--quiet'], checkout)
+  run('git', ['config', 'user.name', 'ccset verification'], checkout)
+  run('git', ['config', 'user.email', 'verification@example.invalid'], checkout)
+  run('git', ['add', 'package.json', 'tracked.txt'], checkout)
+  run('git', ['commit', '--quiet', '-m', 'fixture'], checkout)
+
+  const runGuard = (tag: string, actions = true): number | null =>
+    spawnSync(process.execPath, [checkScript], {
+      cwd: checkout,
+      encoding: 'utf8',
+      env: {
+        ...installerEnv(),
+        GITHUB_ACTIONS: actions ? 'true' : 'false',
+        GITHUB_REF_NAME: tag,
+      },
+    }).status
+
+  assert.equal(runGuard('v1.2.3'), 0, 'a clean version-matched checkout was rejected')
+  assert.equal(runGuard('v1.2.4'), 1, 'a mismatched release tag was accepted')
+  assert.equal(runGuard('v1.2.3', false), 1, 'a local publish was accepted')
+  await fs.writeFile(path.join(checkout, 'tracked.txt'), 'changed\n')
+  assert.equal(runGuard('v1.2.3'), 1, 'a modified checkout was accepted')
+  await fs.writeFile(path.join(checkout, 'tracked.txt'), 'clean\n')
+  await fs.writeFile(path.join(checkout, 'untracked.txt'), 'untracked\n')
+  assert.equal(runGuard('v1.2.3'), 1, 'an untracked file was accepted')
 }
 
 await main()

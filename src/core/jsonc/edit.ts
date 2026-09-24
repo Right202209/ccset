@@ -1,6 +1,7 @@
 import { parseTree, type Node } from 'jsonc-parser'
 import type { JsonValue } from '../../types.js'
-import { applyManagedWrites, type ManagedWrite } from '../merge.js'
+import { CcsetError, EXIT_RUNTIME } from '../errors.js'
+import { applyManagedWrites, isPrototypeKey, type ManagedWrite } from '../merge.js'
 import { renderJsoncValue, INDENT_UNIT } from './format.js'
 import {
   commaOnLine,
@@ -36,6 +37,11 @@ import {
 
 function parseRoot(text: string): Node | undefined {
   return parseTree(text, [], { allowTrailingComma: true })
+}
+
+function assertSafePath(path: string[]): void {
+  const key = path.find(isPrototypeKey)
+  if (key !== undefined) throw new CcsetError('error.prototypeKey', EXIT_RUNTIME, { key })
 }
 
 /** The property node a key resolves to. JSON.parse reads the last duplicate
@@ -90,6 +96,7 @@ function spliceSpan(text: string, span: Span, content: string): string {
 
 export function setJsoncPath(text: string, path: string[], value: JsonValue): string {
   if (path.length === 0) return text
+  assertSafePath(path)
   const root = parseRoot(text)
   if (root === undefined) return renderFreshDocument([{ path, value }])
   for (let depth = path.length - 1; depth >= 0; depth -= 1) {
@@ -195,6 +202,7 @@ function insertFirstProperty(text: string, container: Node, added: NewProperty):
  */
 export function deleteJsoncPath(text: string, path: string[]): string {
   if (path.length === 0) return text
+  assertSafePath(path)
   let current = text
   for (;;) {
     const removed = removeLiveProperty(current, path)

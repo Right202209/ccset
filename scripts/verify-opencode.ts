@@ -6,12 +6,15 @@ import { saveGlobal } from '../src/agents/opencode/global.js'
 import { loadProviders, saveProvider } from '../src/agents/opencode/providers.js'
 import { buildStatus } from '../src/agents/opencode/status.js'
 import { backupsDir, opencodeConfigPath, opencodeDir } from '../src/agents/opencode/paths.js'
-import { validateProviderId } from '../src/agents/opencode/manifest.js'
+import { validateModelIds, validateProviderId } from '../src/agents/opencode/manifest.js'
 import { applyManagedWrites } from '../src/core/merge.js'
 import { BACKUP_INFIX, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import { verifyJsoncScenarios } from './verify-opencode-jsonc-scenarios.js'
+import { verifyModelIdValidator, verifyRealModelIds } from './verify-opencode-model-ids.js'
 import { verifyJsoncCodec } from './verify-opencode-jsonc.js'
+import { verifyJsoncPrototypeHandling } from './verify-opencode-jsonc-prototype.js'
+import { verifyJsoncDepthLimit } from './verify-opencode-jsonc-depth.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 
 /**
@@ -194,22 +197,28 @@ async function verifyDiscovery(home: string): Promise<void> {
 /**
  * A provider id of `__proto__` would otherwise ride the managed path straight
  * onto Object.prototype: applyManagedWrites follows keys it does not own, and
- * the saved document would carry none of the write it reported.
+ * the saved document would carry none of the write it reported. `constructor`
+ * and `prototype` are ordinary own keys and must stay usable (M-3).
  */
 function verifyPrototypeSensitiveIds(): void {
-  assert.notEqual(
-    validateProviderId('__proto__'),
-    null,
-    'the key-name validator accepted __proto__',
-  )
+  assert.notEqual(validateProviderId('__proto__'), null, 'the provider validator accepted __proto__')
+  assert.notEqual(validateModelIds('__proto__'), null, 'the models list accepted __proto__')
+  for (const key of ['constructor', 'prototype']) {
+    assert.equal(validateProviderId(key), null, `the provider validator rejected ${key}`)
+    assert.equal(validateModelIds(key), null, `the models list rejected ${key}`)
+  }
   const polluted: JsonObject = {}
   const result = applyManagedWrites(polluted, [
     { path: ['__proto__', 'name'], value: 'injected' },
     { path: ['provider', '__proto__', 'x'], value: 1 },
     { path: ['provider', 'real', 'name'], value: 'kept' },
+    { path: ['provider', 'constructor', 'name'], value: 'own' },
   ])
   assert.equal(({} as JsonObject)['name'], undefined, 'Object.prototype was polluted')
-  assert.deepEqual(JSON.stringify(result), '{"provider":{"real":{"name":"kept"}}}')
+  assert.deepEqual(
+    JSON.stringify(result),
+    '{"provider":{"real":{"name":"kept"},"constructor":{"name":"own"}}}',
+  )
   assert.equal(
     JSON.stringify(Object.getOwnPropertyDescriptor(result, '__proto__') === undefined),
     'true',
@@ -250,12 +259,16 @@ async function main(): Promise<void> {
     await fs.writeFile(target, `${JSON.stringify(ORIGINAL, null, 2)}\n`, { mode: 0o600 })
 
     await verifyProviderMerge(home)
+    await verifyRealModelIds(home)
+    verifyModelIdValidator()
     await verifyBlankOmits(home)
     await verifyGlobalTypes(home)
     await verifyDiscovery(home)
     await verifyBackupsAndMasking(home)
 
     verifyPrototypeSensitiveIds()
+    verifyJsoncPrototypeHandling()
+    verifyJsoncDepthLimit()
     verifyXdgConfigHomeIsHonoured()
     verifyJsoncCodec()
     await verifyJsoncScenarios(providerValues, API_KEY)

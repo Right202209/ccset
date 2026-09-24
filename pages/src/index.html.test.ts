@@ -23,4 +23,12 @@ describe('index.html critical CSS', () => {
   it('foreground matches --color-fg', () => {
     expect(indexHtml).toContain(`color: ${tokenValue('color-fg')};`)
   })
+
+  it('enforces the first-party content security policy', () => {
+    expect(indexHtml).toMatch(/http-equiv="Content-Security-Policy"/)
+    expect(indexHtml).toContain("default-src 'self'")
+    expect(indexHtml).toContain("object-src 'none'")
+    expect(indexHtml).toContain("frame-src 'none'")
+    expect(indexHtml).toContain("script-src 'self'")
+  })
 })

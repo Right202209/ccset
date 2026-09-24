@@ -1,5 +1,6 @@
 import type { CcsetError, PartialCommitError } from '../core/errors.js'
 import type { Finding, OperationResult, TargetRecord } from '../operations/types.js'
+import { escapeJsonControlCharacters } from '../core/terminal-text.js'
 
 /**
  * The one machine-readable envelope, printed on stdout for success and for
@@ -21,7 +22,11 @@ export interface CommandEnvelope {
   data?: unknown
   partial?: string[]
   launchCommand?: string
-  error?: { code: string; params: Record<string, string> }
+  error?: {
+    code: string
+    params: Record<string, string>
+    rollback?: { code: string; params: Record<string, string> }
+  }
 }
 
 export function successEnvelope(result: OperationResult, exitCode: number): CommandEnvelope {
@@ -47,6 +52,7 @@ export function errorEnvelope(
   context: { agent: string | null; operation: string | null },
 ): CommandEnvelope {
   const partial = err as PartialCommitError
+  const rollback = partial.rollback
   return {
     schemaVersion: 1,
     agent: context.agent,
@@ -56,10 +62,14 @@ export function errorEnvelope(
     targets: partial.committed,
     // A record the commit skipped as a no-op is not a path that may have changed.
     partial: partial.committed?.filter((record) => record.changed).map((record) => record.path),
-    error: { code: err.messageKey, params: err.params },
+    error: {
+      code: err.messageKey,
+      params: err.params,
+      ...(rollback === undefined ? {} : { rollback: { code: rollback.messageKey, params: rollback.params } }),
+    },
   }
 }
 
 export function printEnvelope(envelope: CommandEnvelope): void {
-  process.stdout.write(`${JSON.stringify(envelope)}\n`)
+  process.stdout.write(`${escapeJsonControlCharacters(JSON.stringify(envelope))}\n`)
 }

@@ -106,17 +106,21 @@ export class ValidationError extends CcsetError {
  * A multi-target commit got partway before something unexpected failed. The
  * paths already written are the error's payload: a caller that cannot undo a
  * commit has to be able to say which files may have changed. The interrupted
- * cause keeps its own code and exit status.
+ * cause keeps its own code and exit status. When the undo triggered by that
+ * failure itself failed, `rollback` carries why -- otherwise the report names
+ * the trigger and silently drops the reason the state stayed broken.
  */
 export class PartialCommitError extends CcsetError {
   readonly committed: TargetRecord[]
   override readonly cause: CcsetError
+  readonly rollback?: CcsetError
 
-  constructor(committed: TargetRecord[], cause: CcsetError) {
+  constructor(committed: TargetRecord[], cause: CcsetError, rollback?: CcsetError) {
     super(cause.messageKey, cause.exitCode, cause.params)
     this.name = 'PartialCommitError'
     this.committed = committed
     this.cause = cause
+    this.rollback = rollback
   }
 }
 

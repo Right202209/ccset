@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { backupsDir, configPath } from '../src/agents/grok-build/paths.js'
+import { findTomlProblem, readTomlObject } from '../src/core/toml/index.js'
 import {
   EXIT_INVALID_CONFIG,
+  EXIT_RUNTIME,
   EXIT_UNKNOWN_AGENT,
   EXIT_UNSUPPORTED_COMMAND,
   EXIT_USAGE,
@@ -203,6 +205,40 @@ async function checkMalformed(home: string): Promise<void> {
   assert.equal(await fs.readFile(path.join(backups, first), 'utf8'), '[ broken\n', 'the backup lost the original bytes')
 }
 
+async function checkScalarTableParent(home: string): Promise<void> {
+  const original = 'model = "grok-4"\n'
+  await writeConfig(home, original)
+  const result = await runCli(
+    [
+      '--agent', 'grok-build', 'provider', 'set', 'myprov',
+      '--base-url', 'https://provider.example/v1',
+      '--token-stdin',
+      '--json',
+    ],
+    home,
+    SECRET,
+  )
+  assert.equal(result.code, EXIT_RUNTIME, 'a scalar TOML parent was not refused')
+  assert.equal(await fs.readFile(configPath(home), 'utf8'), original, 'the failed edit changed config bytes')
+  assert.equal(await backupCount(home), 0, 'the refused edit created a backup')
+}
+
+async function checkInlineUnset(home: string): Promise<void> {
+  const original = 'model = { relay = { base_url = "https://r.example/v1", api_key = "old-key-0123456789" } }\n'
+  await writeConfig(home, original)
+  const result = await runCli(
+    ['--agent', 'grok-build', 'provider', 'set', 'relay', '--unset', 'baseUrl', '--json'],
+    home,
+  )
+  assert.equal(result.code, 0, `inline-table unset failed: ${result.stderr}`)
+  assert.equal((JSON.parse(result.stdout) as { changed: boolean }).changed, true)
+  const raw = await fs.readFile(configPath(home), 'utf8')
+  assert.equal(findTomlProblem(raw), null, 'inline-table unset produced invalid TOML')
+  const block = (readTomlObject(raw) as Record<string, any>)['model']['relay']
+  assert.equal('base_url' in block, false, 'the inline-table key survived --unset')
+  assert.equal(block['api_key'], 'old-key-0123456789', 'an unmanaged inline-table sibling was lost')
+}
+
 async function checkCommandsSurface(home: string): Promise<void> {
   const unsupported = await runCli(['--agent', 'grok-build', 'state', 'init'], home)
   assert.equal(unsupported.code, EXIT_UNSUPPORTED_COMMAND, 'an undeclared operation was not unsupported')
@@ -225,6 +261,8 @@ async function checkCommandsSurface(home: string): Promise<void> {
 async function main(): Promise<void> {
   await withHome('grok-new-provider', checkNewProvider)
   await withHome('grok-patch', checkPatchSemantics)
+  await withHome('grok-scalar-parent', checkScalarTableParent)
+  await withHome('grok-inline-unset', checkInlineUnset)
   await withHome('grok-dry-run', checkDryRunAndNoOp)
   await withHome('grok-status', checkStatusAndSecrets)
   await withHome('grok-malformed', checkMalformed)

@@ -6,7 +6,7 @@ import { MAX_BACKUPS } from '../src/core/constants.js'
 import { backupsDirFor } from '../src/core/paths.js'
 import { countBackups } from '../src/core/backup.js'
 import { readConfigFile, renderConfigFile } from '../src/core/config-file.js'
-import { readTomlObject } from '../src/core/toml/index.js'
+import { findTomlProblem, readTomlObject } from '../src/core/toml/index.js'
 import type { Ctx, FormValues } from '../src/types.js'
 import { authPath, configFile, configPath, grokDir } from '../src/agents/grok-build/paths.js'
 import { emitProvider, loadProviders, saveProvider } from '../src/agents/grok-build/providers.js'
@@ -124,6 +124,16 @@ async function checkBlankOmitsKey(home: string): Promise<void> {
   for (const write of emitProvider(valuesOf({ id: 'r', modelId: '', baseUrl: '', displayName: '', apiBackend: '', apiKey: '' }))) {
     assert.equal(write.value, undefined, 'a blank field produced a concrete value')
   }
+
+  await writeConfig(
+    home,
+    'model = { relay = { model = "claude-x", base_url = "https://r.example/v1", name = "Relay", api_key = "old-key" } }\n',
+  )
+  await saveProvider(ctx, valuesOf({ id: 'relay' }))
+  const cleared = (await configOf(home))['model'] ?? {}
+  assert.equal(cleared['relay']?.['api_key'], undefined, 'a blank TUI field kept an inline-table key')
+  assert.equal(cleared['relay']?.['base_url'], undefined, 'a blank TUI field kept an inline-table endpoint')
+  assert.equal(findTomlProblem(await fs.readFile(configPath(home), 'utf8')), null)
 }
 
 /**

@@ -1,7 +1,7 @@
 import { countBackups, countPartialBackups } from '../../core/backup.js'
 import { readConfigFile } from '../../core/config-file.js'
 import { JsonParseError } from '../../core/errors.js'
-import { fileExists, readMode } from '../../core/json-file.js'
+import { fileExists, isPlainObject, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
 import type { Finding, KeyedStatusSection } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
@@ -167,6 +167,14 @@ function lineOf(id: string, labelKey: string, managed: Record<string, JsonValue 
   }
 }
 
+function modelLine(managed: Record<string, JsonValue | undefined>): Line {
+  const models = managed['models']
+  const ids = isPlainObject(models) ? Object.keys(models).sort() : []
+  return ids.length === 0
+    ? { labelKey: 'opencode.field.models', valueKey: 'status.unset' }
+    : { labelKey: 'opencode.field.models', value: ids.join(', ') }
+}
+
 function providerSection(provider: OpencodeProviderStatus): KeyedStatusSection {
   const managed = provider.managed ?? {}
   return {
@@ -180,7 +188,7 @@ function providerSection(provider: OpencodeProviderStatus): KeyedStatusSection {
         valueKey: provider.apiKeyPresent ? 'status.present' : 'status.absent',
       },
       lineOf('npm', 'opencode.field.npm', managed),
-      lineOf('models', 'opencode.field.models', managed),
+      modelLine(managed),
     ],
     noteKey: provider.noBaseUrl ? 'opencode.status.noBaseUrl' : undefined,
   }

@@ -79,6 +79,55 @@ async function checkPerModelMerge(home: string): Promise<void> {
   assert.equal(JSON.stringify(router).includes('opencode'), false)
 }
 
+async function checkPrototypeModelId(home: string): Promise<void> {
+  await seed(home)
+  const target = opencodeConfigPath(home)
+  const before = await fs.readFile(target, 'utf8')
+  const rejected = await runCli([...SET, '--model', '__proto__', '--json'], home)
+  assert.equal(rejected.code, EXIT_USAGE, 'the model id __proto__ was accepted')
+  assert.equal(await fs.readFile(target, 'utf8'), before, 'the rejected model id __proto__ changed config')
+  assert.equal(
+    `${rejected.stdout}${rejected.stderr}`.includes('__proto__'),
+    false,
+    'the rejected id __proto__ was printed',
+  )
+  // M-3: `constructor` and `prototype` are ordinary own keys, not the prototype
+  // slot, so they must be accepted and written rather than dropped.
+  for (const key of ['constructor', 'prototype']) {
+    const accepted = await runCli([...SET, '--model', key, '--json'], home)
+    assert.equal(accepted.code, 0, `the real model id ${key} was rejected: ${accepted.stderr}`)
+    const models = asRecord((await providerBlockOf(home, 'router'))['models'])
+    assert.equal(key in models, true, `the model id ${key} was not written`)
+  }
+  // `--model` is validated once, at the parser, so an invalid id is a usage
+  // error rather than a runtime ValidationError the handler raises afterwards.
+  const invalid = await runCli([...SET, '--model', 'bad\u0001id'], home)
+  assert.equal(invalid.code, EXIT_USAGE, 'an invalid model id was not a usage error')
+}
+
+/**
+ * H-1: a real opencode model id carries `.`, `/` and `:`. The provider-name
+ * charset rejected every one of them at the command boundary, so this pins the
+ * CLI to the same validator the TUI uses.
+ */
+async function checkRealModelIds(home: string): Promise<void> {
+  await seed(home)
+  const ids = [
+    'gpt-4.1',
+    'anthropic/claude-3.5-sonnet',
+    'llama3:8b',
+    'meta-llama/Llama-3.1-8B-Instruct',
+  ]
+  const args = [...SET, ...ids.flatMap((id) => ['--model', id]), '--json']
+  const result = await runCli(args, home)
+  assert.equal(result.code, 0, `a real model id was rejected: ${result.stderr}`)
+  const models = asRecord((await providerBlockOf(home, 'router'))['models'])
+  for (const id of ids) {
+    assert.deepEqual(models[id], {}, `the real model id ${id} was not written`)
+  }
+  assert.equal('model-keep' in models, false, 'a dropped model id survived a real-id patch')
+}
+
 async function checkSecretAndNewProvider(home: string): Promise<void> {
   await seed(home)
   const rotated = await runCli([...SET, '--token-stdin', '--json'], home, `${NEW_KEY}\n`)
@@ -168,6 +217,8 @@ async function withHome(label: string, run: (home: string) => Promise<void>): Pr
 
 async function main(): Promise<void> {
   await withHome('merge', checkPerModelMerge)
+  await withHome('prototype-model', checkPrototypeModelId)
+  await withHome('real-models', checkRealModelIds)
   await withHome('secret', checkSecretAndNewProvider)
   await withHome('unset', checkUnsetNoOpDryRun)
   await withHome('recover', checkRecovery)

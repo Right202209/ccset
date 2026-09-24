@@ -197,6 +197,11 @@ compatibility window.
       `README.zh-CN.md`, and npm's included `package.json` and `LICENSE`.
       No `src/`, fixtures, `.env`, or local settings files.
 - [ ] Install from the packed tarball and run once before publishing.
+- [ ] Publish only from a clean, version-matched GitHub Release through npm
+      trusted publishing, with provenance enabled. The GitHub Actions trusted
+      publisher must match `Right202209/ccset`, `.github/workflows/publish.yml`,
+      and the `npm-publish` environment; do not replace OIDC with a long-lived
+      npm token.
 
 ---
 
@@ -2630,3 +2635,155 @@ completed with exit 0 in the same environment, including
 `verify:first-run-locale` and the release-artifact check; no live Provider
 request was made. `pages`: `npm run typecheck` and `npm test` (72 tests)
 passed.
+
+### 9.53 Application-security remediation findings (2026-09-24)
+
+**Scope:** closed the 24 findings (B-1–B-3, H-1–H-2, M-1–M-5, L-1–L-14)
+in the 2026-09-24 application-security report. The fixes cover transactional
+Codex routing/auth moves; strict, bounded TOML and JSONC parsing and safe
+managed-key edits; secret and terminal-control masking; redirect refusal for
+connection tests; scratch-home isolation in PTY fixtures; and atomic,
+exclusive temporary writes. The website now uses a restrictive Markdown
+sanitizer, an enforced CSP, and a patched router dependency. CI Actions are
+SHA-pinned with job-scoped permissions, and release verification checks a
+clean, version-matched GitHub Release with npm provenance. The existing
+regressions also pin OpenCode Status model formatting and removal semantics.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run build`, `npm run verify:code-gates`, and the
+complete sequential `npm test` passed, including `verify:release-artifact`.
+In `pages/`, `npm run typecheck`, `npm test` (14 files / 75 tests),
+`npm run build`, and `npm run smoke` passed; `npm audit` found 0
+vulnerabilities. The Pages smoke required running outside the restricted
+sandbox because its preview server could not bind localhost there. No live
+Provider request, Windows/macOS run, or browser-based manual review was done.
+The npm Trusted Publisher still needs external configuration for
+`Right202209/ccset`, `.github/workflows/publish.yml`, and `npm-publish`;
+nothing was published.
+
+### 9.54 Follow-up review fixes H-1 and H-2 (2026-09-24)
+
+**Scope:** a follow-up review of §9.53 found two regressions, distinct from the
+B/H/M/L findings of the 2026-09-24 report it remediated. H-1: opencode model ids
+were validated with the provider-name charset (`[A-Za-z0-9_-]`), so real ids
+such as `gpt-4.1`, `anthropic/claude-3.5-sonnet` and `llama3:8b` were refused
+from the CLI, the TUI and `runProviderSet`. Model ids now use
+`makeModelIdValidator`, which accepts those characters while still rejecting
+`__proto__`/`constructor`/`prototype`, an empty id, and control characters -- a
+NUL in particular would alias the separator the unmanaged-key counter joins
+paths with; the new `validate.modelIdEmpty`/`validate.modelIdCharset` strings
+ship in `en` and `zh-Hans`. H-2: the §9.53 write path called `chmod` without
+handling failure, so atomic writes, copies and backups aborted on filesystems
+that refuse it (WSL's `/mnt/c` DrvFs, some FUSE and SMB mounts). The temp file
+is still created exclusively at mode `0600` with `wx`; `setPrivateMode` now
+treats the re-assertion as best-effort, which does not reopen L-1 because the
+symlink redirection is closed by the exclusive open and the random name, not by
+this call. The user guides now state that the mode is applied at creation and
+re-asserted best-effort.
+
+**Fixtures:** `scripts/verify-opencode-model-ids.ts` (new) pins the validator
+and the TUI `saveProvider` path to the real ids; `verify-opencode.ts` calls it.
+`verify:commands-opencode-provider` gained a `real-models` case at the process
+seam, and `verify:write-safety` gained `chmod-refused`, which stubs the open
+handle's `chmod` to `EPERM` and requires both `writeTextAtomic` and
+`copyFileAtomic` to land. Each new case was shown red against the reverted fix
+(H-1: `verify:opencode` failed with `validate.nameCharset` and the command
+fixture exited 64; H-2: `verify:write-safety` failed with `error.permission`
+and exit 3) and green after restoring it.
+
+**Verification:** on Linux x86_64 (WSL2), Node.js 26.8.1 and npm 12.0.2,
+`npm run typecheck`, `npm run verify:code-gates` (250 files, 17 baseline
+exceptions) and the complete sequential `npm test` passed, including
+`verify:opencode`, `verify:write-safety`, `verify:commands-opencode-provider`,
+`verify:provider-safety`, `verify:commands-opencode`, `verify:i18n-zh` and
+`verify:release-artifact`. No live Provider request, Windows/macOS run, or
+actual chmod-refusing mount was exercised; the chmod refusal is a stubbed
+handle, not a real filesystem.
+
+### 9.55 Provider-switch rollback and prototype-key review fixes M-1 to M-3 (2026-09-24)
+
+**Scope:** a review of the tree remediated by §9.53 found three issues on the
+current code, distinct from the §9.53 B/H/M/L findings and the §9.54 H-1/H-2
+follow-up. M-1: the auth replacement is the commit point of a Codex provider
+switch, so when the rename landed and only a later step threw, the rollback
+still reverted `model_provider` and paired the previous endpoint with the new
+credential; `provider-use.ts` now reads the live profile through
+`credentialReplaced` and, on a positive match, keeps the routing and reports
+`auth.json` among the written paths. M-2: the rollback's own failure was
+discarded (`catch { routingRestored = false }`), so an incomplete undo never
+named its cause; `PartialCommitError` now carries an optional `rollback`
+`CcsetError`, which the JSON envelope exposes as `error.rollback`, the human
+error lines render through the new `error.rollbackFailed` string, the TUI error
+screen shows it, and the TUI `undoRouting` path passes it too. M-3: `isPrototypeKey`
+also matched `constructor` and `prototype`, so JSONC and TOML readers silently
+dropped those real keys and the writers refused to edit them; the guard is
+narrowed to `__proto__` only -- the sole prototype slot, since all traversal
+uses own properties -- so `constructor` and `prototype` round-trip as ordinary
+data keys. This supersedes the `__proto__`/`constructor`/`prototype`
+characterization recorded in §9.54. The user guides and the code-review checklist
+now state that a half-finished switch names the paths it wrote and any rollback
+failure.
+
+**Fixtures:** `scripts/verify-opencode-jsonc-prototype.ts` and
+`verifyPrototypeSensitiveIds` in `verify-opencode.ts`, plus the
+`verify:commands-opencode-provider` `prototype-model` case, now require only
+`__proto__` to be rejected and drive `constructor`/`prototype` through the
+readers, writers and the CLI. `scripts/verify-commands-codex-use-failure.ts`
+gained three homes over one preload: `renameMode: 'after'` lands the credential
+rename and then throws (M-1), `failRollback` fails the second `config.toml`
+rename so the restore cannot take (M-2), and the existing ordinary/adoption
+cases still assert a full restore. Red against the reverted code: M-3 made
+`verify:opencode` fail with `validate.nameReserved` and the command fixture exit
+64; M-1 made `verify:commands-codex-use` fail matching
+`model_provider = "router"` because the revert had happened anyway; M-2 made it
+fail with `error.rollback.code` `undefined` instead of `error.io`. Each passed
+again after the fix was restored.
+
+**Verification:** on Linux x86_64 (WSL2), Node.js 26.8.1 and npm 12.0.2,
+`npm run typecheck`, `npm run verify:code-gates` (250 files, 17 baseline
+exceptions), the targeted `verify:opencode`, `verify:commands-opencode-provider`
+and `verify:commands-codex-use` fixtures, and the complete sequential `npm test`
+ending in `verify:release-artifact` all passed; `git diff --check` is clean. No
+live Provider request or Windows/macOS run was made.
+
+### 9.56 TOML conformance and codec review fixes L-1 to L-5 (2026-09-24)
+
+**Scope:** a review of the tree at §9.55 found five Low findings, distinct from
+its M-1/M-2/M-3. L-1: the §9.53 M-3 remediation dropped `\e` from
+`SHORT_ESCAPES`, so a config that used the TOML 1.1 escape could only be
+replaced wholesale, and the tolerant decoder read `\e` as a literal `e`; the
+escape is restored, so the strict checker accepts it and the decoder reads
+ESC. L-2: `validDate` rejected the year `0000` and `validTime` rejected `:60`,
+although RFC 3339 (and TOML's own ABNF) allow both; they are accepted now. L-1
+and L-2 deliberately revisit the M-3 conformance scope -- the checker still
+rejects every malformed shape M-3 corrected, but follows the Agents' parsers
+rather than Python's TOML 1.0 `tomllib` for these two tokens, so the oracle
+corpus lists them as deliberate extensions rather than mismatches. L-3:
+`provider-use.ts` re-implemented `restoreModelProvider` inline; it now calls it.
+L-4: `runProviderSet` validated each `--model` a second time and reported it as
+a runtime `ValidationError` naming the value, while the parser's field validator
+had already rejected the same value as a usage error naming the option; the
+handler's duplicate loop is gone, leaving the parser the single authority.
+L-5: `clearDescendants` scanned every recorded key on each repeated `[[array]]`
+header, quadratic in a document with many unrelated keys and many repeats;
+`redefine.ts` now keeps each path indexed under its proper prefixes so a clear
+touches only the real descendants.
+
+**Fixtures:** `scripts/verify-toml-conformance.ts` moved `\e`, `:60` and year
+`0000` out of the `tomllib` parity corpus into an `extensionCases` list asserted
+against ccset alone (including that `\e` decodes to ESC), and its
+`verifyBoundsAndArrayTables` gained a 20,000-key plus 20,000-repeat document
+that the old full scan made quadratic. `scripts/verify-toml-codec.ts` gained a
+`toml11AndRfcExtensions` corpus entry with read assertions and dropped the two
+now-valid cases from its malformed list.
+`scripts/verify-commands-opencode-provider.ts` now pins an invalid `--model` to
+`EXIT_USAGE`. The `redefine.ts` rewrite was differential-fuzzed for 50,000
+random header/assignment sequences against the pre-fix algorithm; the scratch
+harness was not committed.
+
+**Verification:** on Linux x86_64 (WSL2), Node.js 26.8.1 and npm 12.0.2,
+`npm run typecheck`, `npm run verify:code-gates` (250 files, 17 baseline
+exceptions), `npm run verify:codex`, `npm run verify:commands-opencode-provider`,
+`npm run verify:commands-codex-use`, and the complete sequential `npm test`
+ending in `verify:release-artifact` all passed; `git diff --check` is clean. No
+live Provider request or Windows/macOS run was made.

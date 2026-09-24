@@ -65,7 +65,7 @@ async function verifyMalformedRecovery(home: string): Promise<void> {
     const malformed = await fs.readFile(target, 'utf8')
     await submitSave(session, cursor, 8)
     cursor = await session.waitFor('File is not valid JSON', cursor)
-    assert.match(session.snapshot().slice(cursor), /Back it up and start fresh/)
+    cursor = await session.waitFor('Back it up and start fresh', cursor)
 
     session.send(ENTER)
     cursor = await session.waitFor('esc cancel', cursor + 1)

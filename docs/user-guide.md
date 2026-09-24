@@ -216,14 +216,17 @@ navigation path in the header; narrow terminals keep the final two steps visible
   `HTTP_PROXY` and `HTTPS_PROXY` rather than blanking them, because a file that
   still holds the key is a proxy that is still on.
 - **Blank form fields mean absent.** An empty field in the interactive UI
-  removes its key. Commands preserve omitted fields and require `--unset` to
-  remove one.
+  removes its managed leaf, including inside a TOML inline table. Commands
+  preserve omitted fields and `--unset` removes the named leaf while keeping
+  inline-table siblings.
 - **Config edits target managed leaves.** A sibling key you set by hand inside
   a managed object survives.
 - **The file is re-read immediately before writing**, so changes the agent
   persisted while ccset was open are not clobbered by a stale parse.
-- **Writes are atomic**: temp file in the same directory, `chmod`, then
-  `rename()`. A crash mid-write leaves the target wholly old or wholly new.
+- **Writes are atomic**: a random same-directory temp file is created
+  exclusively at mode `0600` on POSIX, then renamed into place. A planted
+  symlink cannot redirect the write; a crash mid-write leaves the target wholly
+  old or wholly new.
 - **`~/.claude.json` is created only if it is missing.** If it exists, ccset
   reads it and never writes it — it is Claude Code's live state store, rewritten
   continuously, and a read-modify-write there races an active writer. If
@@ -231,8 +234,10 @@ navigation path in the header; narrow terminals keep the final two steps visible
   applying it.
 - **Comments and formatting survive too, where the format has them.** Codex's
   `config.toml`, Grok Build's `config.toml`, opencode's `opencode.jsonc` and
-  pi's `models.json` are edited in place rather than re-serialised, so
-  comments, blank lines, alignment and key order are preserved exactly.
+  pi's `models.json` are edited in place rather than re-serialised, so unrelated
+  comments, blank lines, alignment and key order are preserved. If a managed
+  TOML leaf is inside an inline table, ccset expands that assignment to dotted
+  keys to preserve the other entries.
 - **A file ccset cannot parse is never silently overwritten.** The UI offers to
   back it up and start fresh. Commands require `--replace-invalid` where
   replacement is supported, and back up the unreadable original first.
@@ -241,6 +246,10 @@ navigation path in the header; narrow terminals keep the final two steps visible
   over it on your explicit request and never reads-modifies-writes it. Adopting
   an existing one is a byte copy, so an OAuth token block ccset does not model
   survives intact.
+- **A half-finished switch says what changed.** When a multi-file operation
+  stops partway, ccset reports the paths it had already written; if undoing the
+  routing also failed, the error names that failure too, so the state to inspect
+  is clear rather than hidden.
 
 ## Secrets
 
@@ -248,10 +257,14 @@ navigation path in the header; narrow terminals keep the final two steps visible
   characters are hidden entirely; tokens of 16 characters or more show the first
   and last four characters with a fixed-width masked middle. Command output
   omits secrets.
-- Every file ccset writes is mode `0600` on POSIX.
+- Every file ccset writes is mode `0600` on POSIX. The mode is applied when
+  the file is created; ccset re-asserts it best-effort, so a filesystem that
+  refuses the mode change (some WSL, FUSE and SMB mounts) still receives the
+  write.
 - A token leaves your machine only through **Test connection**, which names the
-  destination host and asks before sending. The response body is discarded
-  unread, because it can echo the token back.
+  destination host and asks before sending. Redirects are refused, so the probe
+  never contacts an unconfirmed host. The response body is discarded unread,
+  because it can echo the token back.
 - **Backups keep old tokens.** Every write first copies the target to a
   `backups/ccset/` directory beside that agent's config —
   `~/.claude/backups/ccset/` for Claude Code, `~/.config/opencode/backups/ccset/`
@@ -305,8 +318,9 @@ line-oriented report by default, or one JSON envelope on stdout with
 
 `status` reads everything and writes nothing. The `set` commands patch only the
 fields you name: omitted fields keep their disk values, `--unset <field>`
-deletes one explicitly, and unmanaged keys survive. TOML and JSONC edits also
-preserve the formatting around those keys. Saving a provider does not switch
+deletes one explicitly, including a managed leaf in a TOML inline table, and
+unmanaged siblings survive. TOML and JSONC edits also preserve the formatting
+around those keys. Saving a provider does not switch
 to it: Claude Code waits for
 `claude --settings`, Codex, pi and Grok Build wait for `provider use`, and
 opencode reads its config on start. `state init` creates Claude Code's

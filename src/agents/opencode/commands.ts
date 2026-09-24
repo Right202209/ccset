@@ -24,6 +24,7 @@ import {
   providerPath,
   providerTimeoutPath,
   validateProviderId,
+  validateModelId,
   validateProviderTimeoutMs,
 } from './manifest.js'
 import { autoupdateValue } from './global.js'
@@ -130,7 +131,7 @@ const PROVIDER_COMMAND_FIELDS: CommandFieldSpec[] = [
   { id: 'displayName', option: '--display-name', type: 'text', unsettable: true },
   { id: 'baseUrl', option: '--base-url', type: 'text', validate: validateBaseUrl },
   { id: 'npm', option: '--npm', type: 'text', unsettable: true },
-  { id: 'models', option: '--model', type: 'list', unsettable: true },
+  { id: 'models', option: '--model', type: 'list', validate: validateModelId, unsettable: true },
   {
     id: 'timeout',
     option: '--timeout',

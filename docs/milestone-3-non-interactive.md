@@ -170,7 +170,8 @@ ccset --agent codex global set --unset model --unset verbosity
 
 Assigning and unsetting the same field in one invocation is an error. Provider IDs,
 required fields, and secrets cannot be unset. There are no `--clear-*` aliases and
-an empty string never means removal.
+an empty string never means removal. Removing a TOML leaf inside an inline table
+preserves the other entries by expanding that inline table to dotted assignments.
 
 ### Secret sources
 
@@ -196,7 +197,9 @@ preceding CR are removed. The resulting value must be non-empty, valid UTF-8,
 NUL-free, single-line, and free of leading or trailing whitespace. `CCSET_TOKEN`
 uses the same validation without line-ending removal. Errors identify only the
 source and reason; no secret, masked or otherwise, reaches output, logs, stack
-traces, or process arguments. In practice, inject `CCSET_TOKEN` through a CI
+traces, JSON error parameters, or process arguments. Positional values and
+invalid option values are redacted in usage errors. In practice, inject
+`CCSET_TOKEN` through a CI
 secret store or an already-exported environment rather than typing a literal value
 in an inline shell assignment that could enter shell history.
 
@@ -290,7 +293,10 @@ raw secret values, masked secrets, or response bodies; non-secret values such as
 URLs, models, and enum settings may be represented in structured status data.
 Status represents credential fields as `secretPresent: true|false` and carries
 parseable data plus warning codes. A partial runtime failure includes
-`partial: true` and the paths already committed.
+`partial: true` and the paths already committed. When the failure triggered a
+rollback that itself failed, `error.rollback` carries the rollback's own code
+and params, so an incomplete undo names both failures rather than only the one
+that started it.
 
 The numeric `exitCode` in the envelope always matches the process exit status.
 When `status` returns `4` for an unparseable target, the envelope has `ok: false`,

@@ -1,12 +1,17 @@
-import { CcsetError, EXIT_USAGE, EXIT_UNKNOWN_AGENT, EXIT_UNSUPPORTED_COMMAND } from '../core/errors.js'
+import { CcsetError, EXIT_UNKNOWN_AGENT, EXIT_UNSUPPORTED_COMMAND, EXIT_USAGE } from '../core/errors.js'
 import type { Agent } from '../types.js'
 import type {
   CommandDeclaration,
-  CommandFieldSpec,
   OperationRequest,
-  PatchMap,
 } from '../operations/types.js'
 import { scanGlobals } from './globals.js'
+import {
+  REDACTED_VALUE,
+  type ParseState,
+  type ReaderContext,
+  readOption,
+  usage,
+} from './parser-options.js'
 
 /**
  * The command-mode parser. Pure against the filesystem and the environment,
@@ -23,31 +28,6 @@ export interface ParsedCommand {
   json: boolean
   /** Where the operation's secret must come from; null when none applies. */
   secretSource: 'env' | 'stdin' | null
-}
-
-interface ParseState {
-  patch: PatchMap
-  unsets: string[]
-  providerId?: string
-  replaceInvalid: boolean
-  dryRun: boolean
-  tokenStdin: boolean
-}
-
-/**
- * The option readers' one argument: everything they need travels together --
- * the token stream, the walk's position, the matched declaration, and the
- * patch under construction -- so no reader takes a parameter list.
- */
-interface ReaderContext {
-  tokens: string[]
-  index: number
-  declaration: CommandDeclaration
-  state: ParseState
-}
-
-function usage(messageKey: string, params: Record<string, string> = {}): CcsetError {
-  return new CcsetError(messageKey, EXIT_USAGE, params)
 }
 
 export function missingAgentError(): CcsetError {
@@ -92,40 +72,10 @@ function matchDeclaration(
   if (known) {
     throw new CcsetError('error.unsupportedCommand', EXIT_UNSUPPORTED_COMMAND, {
       agent: agent.id,
-      operation: requested,
+      operation: REDACTED_VALUE,
     })
   }
-  throw usage('cli.usage.unknownCommand', { command: requested })
-}
-
-/** A following flag is never an option's value -- the same rule `--agent`
- *  applies: swallowing the next option writes a dashed token silently. */
-function optionValue(
-  ctx: ReaderContext,
-  option: string,
-  inline: string | undefined,
-): { value: string; next: number } {
-  if (inline !== undefined) return { value: inline, next: ctx.index + 1 }
-  const value = ctx.tokens[ctx.index + 1]
-  if (value === undefined || value.startsWith('--')) throw usage('cli.usage.missingValue', { option })
-  return { value, next: ctx.index + 2 }
-}
-
-function normalizedValue(field: CommandFieldSpec, option: string, raw: string): string | number {
-  if (raw.length === 0) throw usage('cli.usage.emptyValue', { option })
-  if (field.type === 'choice') {
-    if (!(field.choices ?? []).includes(raw)) {
-      throw usage('cli.usage.invalidChoice', { option, value: raw, choices: (field.choices ?? []).join(', ') })
-    }
-    return raw
-  }
-  const problem = field.validate?.(raw)
-  if (problem !== null && problem !== undefined) {
-    throw new CcsetError(problem, EXIT_USAGE, { option })
-  }
-  // A NaN would slip past an optional validator into the patch otherwise.
-  if (field.type === 'int' && Number.isNaN(Number(raw))) throw usage('cli.usage.notInteger', { option, value: raw })
-  return field.type === 'int' ? Number(raw) : raw
+  throw usage('cli.usage.unknownCommand', { command: REDACTED_VALUE })
 }
 
 /** Assignment and unset of one field cannot coexist; removal is never inferred. */
@@ -150,84 +100,13 @@ function checkUnsetConflicts(
   }
 }
 
-function readUnset(ctx: ReaderContext): void {
-  const token = ctx.tokens[ctx.index] ?? ''
-  const inline = token.startsWith('--unset=') ? token.slice('--unset='.length) : undefined
-  const { value, next } = optionValue(ctx, '--unset', inline)
-  const field = ctx.declaration.fields.find((candidate) => candidate.id === value)
-  if (field === undefined) throw usage('cli.usage.unknownField', { field: value })
-  if (field.unsettable !== true) throw usage('cli.usage.notUnsettable', { field: value })
-  if (!ctx.state.unsets.includes(value)) ctx.state.unsets.push(value)
-  ctx.index = next
-}
-
-function readFieldOption(field: CommandFieldSpec, ctx: ReaderContext): void {
-  if (field.type === 'flag') {
-    if (ctx.tokens[ctx.index] !== field.option) throw usage('cli.usage.flagValue', { option: field.option })
-    if (ctx.state.patch[field.id] === true) throw usage('cli.usage.duplicateOption', { option: field.option })
-    ctx.state.patch[field.id] = true
-    ctx.index += 1
-    return
-  }
-  if (field.type !== 'list' && Object.prototype.hasOwnProperty.call(ctx.state.patch, field.id)) {
-    throw usage('cli.usage.duplicateOption', { option: field.option })
-  }
-  const raw = ctx.tokens[ctx.index]
-  const inline = raw?.startsWith(`${field.option}=`) ? raw.slice(field.option.length + 1) : undefined
-  const { value, next } = optionValue(ctx, field.option, inline)
-  if (field.type === 'list') {
-    const trimmed = value.trim()
-    if (trimmed.length === 0) throw usage('cli.usage.emptyValue', { option: field.option })
-    const current = ctx.state.patch[field.id]
-    ctx.state.patch[field.id] = [...(Array.isArray(current) ? current : []), trimmed]
-    ctx.index = next
-    return
-  }
-  ctx.state.patch[field.id] = normalizedValue(field, field.option, value)
-  ctx.index = next
-}
-
-function readOption(ctx: ReaderContext): void {
-  const token = ctx.tokens[ctx.index] ?? ''
-  const option = token.split('=')[0] ?? token
-  const bare = token === option
-  if (option === '--unset') return readUnset(ctx)
-  if (option === '--dry-run') {
-    if (!bare) throw usage('cli.usage.flagValue', { option })
-    if (ctx.declaration.dryRunnable !== true) throw usage('cli.usage.dryRunUnsupported')
-    if (ctx.state.dryRun) throw usage('cli.usage.duplicateOption', { option })
-    ctx.state.dryRun = true
-    ctx.index += 1
-    return
-  }
-  if (option === '--replace-invalid') {
-    if (!bare) throw usage('cli.usage.flagValue', { option })
-    if (ctx.declaration.replaceable !== true) throw usage('cli.usage.replaceInvalidUnsupported')
-    if (ctx.state.replaceInvalid) throw usage('cli.usage.duplicateOption', { option })
-    ctx.state.replaceInvalid = true
-    ctx.index += 1
-    return
-  }
-  if (option === '--token-stdin') {
-    if (!bare) throw usage('cli.usage.flagValue', { option })
-    if (ctx.declaration.takesSecret !== true) throw usage('cli.usage.noSecretAccepted')
-    if (ctx.state.tokenStdin) throw usage('cli.usage.duplicateOption', { option })
-    ctx.state.tokenStdin = true
-    ctx.index += 1
-    return
-  }
-  const field = ctx.declaration.fields.find((candidate) => candidate.option === option)
-  if (field === undefined) throw usage('cli.usage.unknownOption', { option })
-  readFieldOption(field, ctx)
-}
-
 function readPositional(token: string, declaration: CommandDeclaration, state: ParseState): void {
   if (declaration.argument !== 'providerId' || state.providerId !== undefined) {
-    throw usage('cli.usage.unexpectedArgument', { value: token })
+    throw usage('cli.usage.unexpectedArgument', { value: REDACTED_VALUE })
   }
   const problem = declaration.validateArgument?.(token)
   if (problem !== null && problem !== undefined) {
-    throw new CcsetError(problem, EXIT_USAGE, { name: token })
+    throw new CcsetError(problem, EXIT_USAGE, { name: REDACTED_VALUE })
   }
   state.providerId = token
 }
@@ -270,7 +149,7 @@ export function parseCommand(argv: string[], agents: Agent[], tokenEnv: string |
   const { agentId, json, rest } = extractGlobals([...argv])
   const agent = agents.find((candidate) => candidate.id === agentId)
   if (agent === undefined) {
-    throw new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: agentId })
+    throw new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: REDACTED_VALUE })
   }
   const { declaration, tokens } = matchDeclaration(rest, agent, agents)
   try {

@@ -1,4 +1,5 @@
 import { ALLOWED_URL_PROTOCOLS, PROVIDER_NAME_PATTERN } from './constants.js'
+import { isPrototypeKey } from './merge.js'
 
 /** Every validator returns an i18n key describing the problem, or null. */
 export type Validator = (value: string) => string | null
@@ -9,8 +10,6 @@ const PATH_SEPARATORS = ['/', '\\']
  * it writes Object.prototype. It is never a legitimate provider name, and the
  * merge helpers must never receive it.
  */
-const PROTOTYPE_KEY = '__proto__'
-
 /**
  * A provider name that becomes a filename is validated as one. The character
  * class already excludes separators; they are checked explicitly so the user
@@ -28,7 +27,7 @@ export function makeFileNameValidator(reserved: string[] = []): Validator {
     if (PATH_SEPARATORS.some((sep) => name.includes(sep))) return 'validate.namePathSeparator'
     if (name === '.' || name === '..') return 'validate.namePathSeparator'
     if (!PROVIDER_NAME_PATTERN.test(name)) return 'validate.nameCharset'
-    if (blocked.includes(name.toLowerCase()) || name === PROTOTYPE_KEY) {
+    if (blocked.includes(name.toLowerCase()) || isPrototypeKey(name)) {
       return 'validate.nameReserved'
     }
     return null
@@ -46,9 +45,29 @@ export function makeKeyNameValidator(reserved: string[] = []): Validator {
     const name = value.trim()
     if (name.length === 0) return 'validate.nameEmpty'
     if (!PROVIDER_NAME_PATTERN.test(name)) return 'validate.nameCharset'
-    if (blocked.includes(name.toLowerCase()) || name === PROTOTYPE_KEY) {
+    if (blocked.includes(name.toLowerCase()) || isPrototypeKey(name)) {
       return 'validate.nameReserved'
     }
+    return null
+  }
+}
+
+/**
+ * A model id is a JSON key too, but unlike a provider id it is never a
+ * filename: real ids carry `.` (`gpt-4.1`), `/` (`anthropic/claude-3.5-sonnet`)
+ * and `:` (`llama3:8b`), so the provider-name charset would reject them. The
+ * only names barred are the ones that would reach `Object.prototype` and
+ * control characters -- a NUL in particular would alias the separator the
+ * unmanaged-key counter joins paths with.
+ */
+const MODEL_ID_CONTROL_PATTERN = /[\u0000-\u001f\u007f]/
+
+export function makeModelIdValidator(): Validator {
+  return (value: string): string | null => {
+    const id = value.trim()
+    if (id.length === 0) return 'validate.modelIdEmpty'
+    if (MODEL_ID_CONTROL_PATTERN.test(id)) return 'validate.modelIdCharset'
+    if (isPrototypeKey(id)) return 'validate.nameReserved'
     return null
   }
 }

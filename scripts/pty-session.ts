@@ -23,6 +23,7 @@ const WAIT_TIMEOUT_MS = 5_000
 const POLL_INTERVAL_MS = 20
 /** Read chunk the bridge uses in both directions, matching typical PTY buffers. */
 const PTY_CHUNK_BYTES = 4096
+const AGENT_HOME_OVERRIDES = ['XDG_CONFIG_HOME', 'PI_CODING_AGENT_DIR', 'GROK_HOME', 'CODEX_HOME']
 
 const ANSI = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g
 
@@ -76,6 +77,7 @@ export function terminalEnv(home: string, extra: NodeJS.ProcessEnv = {}): NodeJS
   for (const key of Object.keys(env)) {
     if (key.startsWith('CCSET_') && !(key in extra)) delete env[key]
   }
+  for (const key of AGENT_HOME_OVERRIDES) delete env[key]
   return env
 }
 

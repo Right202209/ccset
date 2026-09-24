@@ -1,6 +1,9 @@
 import type { JsonValue } from '../../types.js'
+import { CcsetError, EXIT_RUNTIME } from '../errors.js'
+import { isPlainObject } from '../json-file.js'
 import type { ManagedWrite } from '../merge.js'
 import { formatTomlHeader, formatTomlKeyPath, formatTomlLine, formatTomlValue } from './format.js'
+import { parseTomlValue } from './parse.js'
 import { scanKeyPath, scanToml, scanValue, skipSpace, type TomlDoc, type TomlEntry } from './scan.js'
 
 /**
@@ -23,16 +26,8 @@ import { scanKeyPath, scanToml, scanValue, skipSpace, type TomlDoc, type TomlEnt
  * the sibling dotted lines, before adding anything.
  */
 
-/**
- * Path segments are compared as one joined string, and the separator has to be
- * a character a TOML key cannot contain. A space will not do: `'lit key' = 2` is
- * a legal quoted key, so joining on one would make `['lit key']` and
- * `['lit', 'key']` compare equal and edit each other's line.
- */
-const PATH_SEPARATOR = '\u0000'
-
 function pathKey(path: string[]): string {
-  return path.join(PATH_SEPARATOR)
+  return JSON.stringify(path)
 }
 
 /** Latest definition wins, matching how the reader resolves a repeated key. */
@@ -127,6 +122,15 @@ function findInlineAncestor(text: string, doc: TomlDoc, path: string[]): TomlEnt
   return best
 }
 
+function findScalarAncestor(text: string, doc: TomlDoc, path: string[]): TomlEntry | undefined {
+  let best: TomlEntry | undefined
+  for (const entry of doc.entries) {
+    if (entry.inArray || !isPrefix(entry.path, path) || text.charAt(entry.valueStart) === '{') continue
+    if (best === undefined || entry.path.length > best.path.length) best = entry
+  }
+  return best
+}
+
 interface InlinePair {
   keys: string[]
   raw: string
@@ -159,6 +163,15 @@ function inlinePairs(text: string, entry: TomlEntry): InlinePair[] | null {
     if (text.charAt(i) === '}') return pairs
     return null
   }
+}
+
+function inlinePathExists(text: string, entry: TomlEntry, path: string[]): boolean {
+  let current: JsonValue = parseTomlValue(text.slice(entry.valueStart, entry.valueEnd))
+  for (const key of path.slice(entry.path.length)) {
+    if (!isPlainObject(current) || !Object.prototype.hasOwnProperty.call(current, key)) return false
+    current = current[key] ?? null
+  }
+  return path.length > entry.path.length
 }
 
 /**
@@ -230,6 +243,12 @@ export function setTomlPath(text: string, path: string[], value: JsonValue): str
       const head = current.slice(0, entry.valueStart)
       return `${head}${formatTomlValue(value)}${current.slice(entry.valueEnd)}`
     }
+    const scalar = findScalarAncestor(current, doc, path)
+    if (scalar !== undefined) {
+      throw new CcsetError('error.tomlValueParent', EXIT_RUNTIME, {
+        key: formatTomlKeyPath(scalar.path),
+      })
+    }
     const anchor = anchorFor(doc, current, path)
     if (anchor !== null) return insertAt(current, anchor.offset, formatTomlLine(anchor.keys, value))
     const dotted = findDottedAnchor(doc, path)
@@ -244,9 +263,19 @@ export function setTomlPath(text: string, path: string[], value: JsonValue): str
  * behind: ccset did not write it, so removing it is not its call.
  */
 export function deleteTomlPath(text: string, path: string[]): string {
-  const entry = findEntry(scanToml(text), path)
-  if (entry === undefined) return text
-  return `${text.slice(0, entry.lineStart)}${text.slice(entry.lineEnd)}`
+  let current = text
+  for (;;) {
+    const doc = scanToml(current)
+    const entry = findEntry(doc, path)
+    if (entry !== undefined) {
+      return `${current.slice(0, entry.lineStart)}${current.slice(entry.lineEnd)}`
+    }
+    const inline = findInlineAncestor(current, doc, path)
+    if (inline === undefined || !inlinePathExists(current, inline, path)) return current
+    const expanded = convertInlineToDotted(current, doc, inline)
+    if (expanded === current) return current
+    current = expanded
+  }
 }
 
 export function applyTomlWrites(text: string, writes: ManagedWrite[]): string {

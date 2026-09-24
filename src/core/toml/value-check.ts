@@ -1,6 +1,8 @@
 import { describePosition } from '../position.js'
 import { endOfLine, scanKeyPath, skipSpace, skipTrivia } from './scan.js'
 import { SHORT_ESCAPES } from './strings.js'
+import { MAX_TOML_VALUE_DEPTH } from './limits.js'
+import { checkTomlKeyEscapes } from './key-check.js'
 
 /**
  * Whole-value checks for the strict TOML pass. Values are checked in full, not
@@ -12,15 +14,12 @@ import { SHORT_ESCAPES } from './strings.js'
 
 const UNICODE_ESCAPES: Record<string, number> = { u: 4, U: 8 }
 /** An array or inline table may nest; the cap keeps a pathological file linear. */
-const MAX_VALUE_DEPTH = 64
-
 const BOOL = /^(?:true|false)$/
-const INTEGER = /^[+-]?(?:0x[0-9A-Fa-f_]+|0o[0-7_]+|0b[01_]+|[0-9][0-9_]*)$/
-const FLOAT = /^[+-]?(?:[0-9][0-9_]*(?:\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?|inf|nan)$/
-const DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
-const TIME = /^[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?$/
-/** `1979-05-27T07:32:00Z` in one token; the space-separated form is two. */
-const DATE_TIME = /^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt ][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:[Zz]|[+-][0-9]{2}:[0-9]{2})?$/
+const INTEGER = /^[+-]?(?:0|[1-9](?:_?[0-9])*)$|^0x[0-9A-Fa-f](?:_?[0-9A-Fa-f])*$|^0o[0-7](?:_?[0-7])*$|^0b[01](?:_?[01])*$/
+const FLOAT = /^[+-]?(?:inf|nan|(?:0|[1-9](?:_?[0-9])*)(?:\.[0-9](?:_?[0-9])*(?:[eE][+-]?[0-9](?:_?[0-9])*)?|[eE][+-]?[0-9](?:_?[0-9])*))$/
+const DATE = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/
+const TIME = /^([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.[0-9]+)?$/
+const DATE_TIME = /^([0-9]{4}-[0-9]{2}-[0-9]{2})[Tt ]([0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?)(?:[Zz]|([+-])([0-9]{2}):([0-9]{2}))?$/
 
 interface ValueScan {
   /** Offset just past the value, when it is well formed. */
@@ -53,6 +52,8 @@ function checkEscape(text: string, backslash: number): number | null {
   if (width === undefined) return null
   const digits = text.slice(backslash + 2, backslash + 2 + width)
   if (digits.length !== width || !/^[0-9A-Fa-f]+$/.test(digits)) return null
+  const codePoint = Number.parseInt(digits, 16)
+  if (codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) return null
   return backslash + 2 + width
 }
 
@@ -137,10 +138,10 @@ function checkBare(text: string, start: number): ValueScan {
   }
   const raw = text.slice(start, i)
   if (BOOL.test(raw) || INTEGER.test(raw) || FLOAT.test(raw)) return ok(text, i)
-  if (DATE_TIME.test(raw)) return ok(text, i)
+  if (validDateTime(raw)) return ok(text, i)
   // A local date on its own is a value; `1979-05-27 07:32:00` is one too --
   // the date, one space, and the time.
-  if (DATE.test(raw)) {
+  if (validDate(raw)) {
     if (text.charAt(i) === ' ' || text.charAt(i) === '\t') {
       let j = i + 1
       while (
@@ -156,12 +157,53 @@ function checkBare(text: string, start: number): ValueScan {
       ) {
         j += 1
       }
-      if (TIME.test(text.slice(i + 1, j))) return ok(text, j)
+      if (validDateTime(`${raw} ${text.slice(i + 1, j)}`)) return ok(text, j)
     }
     return ok(text, i)
   }
-  if (TIME.test(raw)) return ok(text, i)
+  if (validTime(raw)) return ok(text, i)
   return problem(text, start)
+}
+
+function dateParts(raw: string): { year: number; month: number; day: number } | null {
+  const match = DATE.exec(raw)
+  if (match?.[1] === undefined || match[2] === undefined || match[3] === undefined) return null
+  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) }
+}
+
+function daysInMonth(year: number, month: number): number {
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  return days[month - 1] ?? 0
+}
+
+function validDate(raw: string): boolean {
+  const parts = dateParts(raw)
+  if (parts === null) return false
+  // RFC 3339 (and TOML's own ABNF) allow the year 0000, even though Python's
+  // TOML 1.0 `tomllib` rejects it.
+  return parts.year >= 0 && parts.month >= 1 && parts.month <= 12 && parts.day >= 1 && parts.day <= daysInMonth(parts.year, parts.month)
+}
+
+function validTime(raw: string): boolean {
+  const match = TIME.exec(raw)
+  if (match?.[1] === undefined || match[2] === undefined || match[3] === undefined) return false
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+  const second = Number(match[3])
+  // `:60` is the leap second, which RFC 3339 permits.
+  return hour <= 23 && minute <= 59 && second <= 60
+}
+
+function validDateTime(raw: string): boolean {
+  const match = DATE_TIME.exec(raw)
+  if (match?.[1] === undefined || match[2] === undefined || !validDate(match[1]) || !validTime(match[2])) {
+    return false
+  }
+  if (match[3] === undefined) return true
+  const hour = Number(match[4])
+  const minute = Number(match[5])
+  return hour <= 23 && minute <= 59
 }
 
 function checkArray(text: string, start: number, depth: number): ValueScan {
@@ -183,29 +225,53 @@ function checkArray(text: string, start: number, depth: number): ValueScan {
   }
 }
 
+function hasInlinePathConflict(paths: string[][], path: string[]): boolean {
+  return paths.some((existing) => isPrefix(existing, path) || isPrefix(path, existing))
+}
+
+interface InlineKey {
+  path: string[]
+  valueStart: number
+}
+
+function inlineKey(text: string, index: number, paths: string[][]): InlineKey | ValueScan {
+  if (text.charAt(index) === '\n' || text.charAt(index) === '\r') return problem(text, index)
+  const key = scanKeyPath(text, index)
+  if (key === null) return problem(text, index)
+  const keyProblem = checkTomlKeyEscapes(text, index, key.end)
+  if (keyProblem !== null) return { end: index, problem: keyProblem }
+  if (hasInlinePathConflict(paths, key.path)) return problem(text, index)
+  const equals = skipSpace(text, key.end)
+  if (text.charAt(equals) !== '=') return problem(text, equals)
+  return { path: key.path, valueStart: skipSpace(text, equals + 1) }
+}
+
 function checkInlineTable(text: string, start: number, depth: number): ValueScan {
-  let i = skipSpace(text, start + 1)
-  if (text.charAt(i) === '}') return ok(text, i + 1)
+  let index = skipSpace(text, start + 1)
+  if (text.charAt(index) === '}') return ok(text, index + 1)
+  const paths: string[][] = []
   for (;;) {
-    if (text.charAt(i) === '\n' || text.charAt(i) === '\r') return problem(text, i)
-    const key = scanKeyPath(text, i)
-    if (key === null) return problem(text, i)
-    const equals = skipSpace(text, key.end)
-    if (text.charAt(equals) !== '=') return problem(text, equals)
-    const scanned = checkValue(text, skipSpace(text, equals + 1), depth + 1)
-    if (scanned.problem !== null) return scanned
-    i = skipSpace(text, scanned.end)
-    if (text.charAt(i) === ',') {
-      i = skipSpace(text, i + 1)
+    const key = inlineKey(text, index, paths)
+    if ('problem' in key) return key
+    paths.push(key.path)
+    const value = checkValue(text, key.valueStart, depth + 1)
+    if (value.problem !== null) return value
+    index = skipSpace(text, value.end)
+    if (text.charAt(index) === ',') {
+      index = skipSpace(text, index + 1)
       continue
     }
-    if (text.charAt(i) === '}') return ok(text, i + 1)
-    return problem(text, i)
+    if (text.charAt(index) === '}') return ok(text, index + 1)
+    return problem(text, index)
   }
 }
 
+function isPrefix(prefix: string[], path: string[]): boolean {
+  return prefix.length <= path.length && prefix.every((part, index) => path[index] === part)
+}
+
 export function checkValue(text: string, start: number, depth: number): ValueScan {
-  if (depth > MAX_VALUE_DEPTH) return problem(text, start)
+  if (depth > MAX_TOML_VALUE_DEPTH) return problem(text, start)
   const char = text.charAt(start)
   if (char === '"' || char === "'") return checkString(text, start)
   if (char === '[') return checkArray(text, start, depth)

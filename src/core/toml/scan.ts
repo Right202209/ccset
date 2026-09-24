@@ -1,4 +1,5 @@
 import { decodeTomlString } from './strings.js'
+import { MAX_TOML_KEY_PATH_DEPTH } from './limits.js'
 
 /**
  * A TOML scanner that records *positions*, not values. It never builds a
@@ -29,6 +30,7 @@ export interface TomlEntry {
 export interface TomlTable {
   path: string[]
   isArray: boolean
+  parentIndex: number
   /** Start of the header line. */
   headerStart: number
   /** Offset just past the header line. */
@@ -204,6 +206,7 @@ export function scanKeyPath(text: string, start: number): KeyScan | null {
     const segment = scanSegment(text, skipSpace(text, i))
     if (segment === null) return null
     path.push(...segment.path)
+    if (path.length > MAX_TOML_KEY_PATH_DEPTH) return null
     i = skipSpace(text, segment.end)
     if (text.charAt(i) !== '.') return { path, end: i }
     i += 1
@@ -220,9 +223,19 @@ function readHeader(state: ScanState): void {
   const bodyStart = endOfLine(text, headerStart)
   state.index = bodyStart
   if (key === null) return
-  state.tables.push({ path: key.path, isArray, headerStart, bodyStart })
+  const parentIndex = parentTableIndex(state.tables, key.path)
+  state.tables.push({ path: key.path, isArray, parentIndex, headerStart, bodyStart })
   state.context = key.path
   state.tableIndex = state.tables.length - 1
+}
+
+function parentTableIndex(tables: TomlTable[], path: string[]): number {
+  for (let index = tables.length - 1; index >= 0; index -= 1) {
+    const table = tables[index]
+    if (table === undefined || table.path.length >= path.length) continue
+    if (table.path.every((segment, depth) => path[depth] === segment)) return index
+  }
+  return -1
 }
 
 function readAssignment(state: ScanState): void {
