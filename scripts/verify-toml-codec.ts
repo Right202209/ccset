@@ -23,6 +23,7 @@ const CORPUS: Record<string, string> = {
   arrayOfTables: '[[x]]\nn = 1\n\n[[x]]\nn = 2\n',
   literalPaths: "win = 'C:\\Users\\me\\.codex'\nesc = \"tab\\there\"\n",
   dateTimes: 'a = 1979-05-27T07:32:00Z\nb = 1979-05-27\nc = 07:32:00\nd = 1979-05-27 07:32:00\ne = 1979-05-27 07:32:00+01:00\n',
+  toml11AndRfcExtensions: 'esc = "\\e"\nleap = 23:59:60\nyear = 0000-01-01\n',
   multilineStrings: 'a = """\nkeep  me\n"""\nb = \'\'\'raw \\n here\'\'\'\n',
   numbers: 'i = 1_000\nh = 0xdead_beef\no = 0o755\nb = 0b1010\nf = 3.14\ne = 1e6\n',
   emptyish: '\n\n# only comments\n\n',
@@ -71,6 +72,10 @@ function verifyReads(): void {
   assert.equal(numbers['e'], 1e6)
 
   assert.equal(read('dateTimes')['a'], '1979-05-27T07:32:00Z', 'a datetime was coerced')
+  const extensions = read('toml11AndRfcExtensions')
+  assert.equal(extensions['esc'], '\u001b', 'the \\e escape did not decode to ESC')
+  assert.equal(extensions['leap'], '23:59:60', 'a leap second was coerced')
+  assert.equal(extensions['year'], '0000-01-01', 'the year 0000 was coerced')
   assert.equal(read('multilineStrings')['a'], 'keep  me\n', 'a multi-line string lost content')
   assert.deepEqual(read('emptyish'), {}, 'a comment-only document produced keys')
 
@@ -165,8 +170,6 @@ function verifyMalformedDetected(): void {
     bareCarriageReturn: 'a = 1\rb = 2\n',
     badQuotedKeyEscape: '"bad\\q" = 1\n',
     controlComment: '# invalid \u0001\na = 1\n',
-    toml11Escape: 'a = "\\e"\n',
-    invalidLeapSecond: 'a = 00:00:60\n',
     notAValue: 'a = yes-ish\n',
   }
   for (const [name, text] of Object.entries(broken)) {

@@ -204,12 +204,6 @@ function providerFieldPath(fieldId: string, id: string): string[] | undefined {
 
 async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
   const id = request.providerId ?? ''
-  const rawModels = request.patch['models']
-  const modelIds = Array.isArray(rawModels) ? rawModels.map(String) : rawModels === undefined ? [] : [String(rawModels)]
-  for (const modelId of modelIds) {
-    const problem = validateModelId(modelId)
-    if (problem !== null) throw new ValidationError(problem, { name: modelId })
-  }
   const file = await opencodeTarget(ctx.home)
   const base = await readPatchBase(file, request.replaceInvalid)
   const block = getPath(base.data, providerPath(id))

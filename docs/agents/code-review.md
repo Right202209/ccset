@@ -80,6 +80,12 @@ be batched.
   replaced only after the TUI confirm or `--replace-invalid`, and the original
   goes into a backup first. Freshness is scoped per target: a malformed sidecar
   beside a valid document replaces the sidecar only (9.37).
+- **The strict checker aims at the Agents' parsers, not one oracle.** It tracks
+  TOML 1.0's redefinition rules and rejects the malformed shapes a strict parser
+  refuses, but accepts the TOML 1.1 `\e` escape and RFC 3339's leap second and
+  year `0000`, which Python's TOML 1.0 `tomllib` rejects. Those are pinned in
+  `scripts/verify-toml-conformance.ts` as deliberate extensions, separate from
+  the case-for-case `tomllib` corpus (9.56).
 - **Create-only and whole-file cases.** `~/.claude.json` is never written when
   it exists (D4, D5). Codex `auth.json` is backed up and replaced whole on an
   explicit switch, never merged, and never offered as a switchable profile (C7).

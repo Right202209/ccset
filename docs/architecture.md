@@ -72,7 +72,10 @@ and editing (ADR 0003). The JSONC Codec uses npm's `jsonc-parser` for syntax and
 spans, with ccset's own editor because the package's formatter changes unmanaged
 bytes (ADR 0004). Tolerant reads do not authorize writes: a target failing the
 strict check requires TUI confirmation or the command's `--replace-invalid`
-choice. An authorized replacement backs up the unreadable original first.
+choice. The strict check follows the Agents' parsers rather than one TOML 1.0
+oracle: it enforces the redefinition rules, but accepts the TOML 1.1 `\e`
+escape and RFC 3339's leap second and year `0000` (9.56). An authorized
+replacement backs up the unreadable original first.
 `ConfigParseError` carries format-specific message keys; `runSave` catches it.
 
 ## Agent modules

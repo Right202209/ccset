@@ -2745,3 +2745,45 @@ exceptions), the targeted `verify:opencode`, `verify:commands-opencode-provider`
 and `verify:commands-codex-use` fixtures, and the complete sequential `npm test`
 ending in `verify:release-artifact` all passed; `git diff --check` is clean. No
 live Provider request or Windows/macOS run was made.
+
+### 9.56 TOML conformance and codec review fixes L-1 to L-5 (2026-09-24)
+
+**Scope:** a review of the tree at §9.55 found five Low findings, distinct from
+its M-1/M-2/M-3. L-1: the §9.53 M-3 remediation dropped `\e` from
+`SHORT_ESCAPES`, so a config that used the TOML 1.1 escape could only be
+replaced wholesale, and the tolerant decoder read `\e` as a literal `e`; the
+escape is restored, so the strict checker accepts it and the decoder reads
+ESC. L-2: `validDate` rejected the year `0000` and `validTime` rejected `:60`,
+although RFC 3339 (and TOML's own ABNF) allow both; they are accepted now. L-1
+and L-2 deliberately revisit the M-3 conformance scope -- the checker still
+rejects every malformed shape M-3 corrected, but follows the Agents' parsers
+rather than Python's TOML 1.0 `tomllib` for these two tokens, so the oracle
+corpus lists them as deliberate extensions rather than mismatches. L-3:
+`provider-use.ts` re-implemented `restoreModelProvider` inline; it now calls it.
+L-4: `runProviderSet` validated each `--model` a second time and reported it as
+a runtime `ValidationError` naming the value, while the parser's field validator
+had already rejected the same value as a usage error naming the option; the
+handler's duplicate loop is gone, leaving the parser the single authority.
+L-5: `clearDescendants` scanned every recorded key on each repeated `[[array]]`
+header, quadratic in a document with many unrelated keys and many repeats;
+`redefine.ts` now keeps each path indexed under its proper prefixes so a clear
+touches only the real descendants.
+
+**Fixtures:** `scripts/verify-toml-conformance.ts` moved `\e`, `:60` and year
+`0000` out of the `tomllib` parity corpus into an `extensionCases` list asserted
+against ccset alone (including that `\e` decodes to ESC), and its
+`verifyBoundsAndArrayTables` gained a 20,000-key plus 20,000-repeat document
+that the old full scan made quadratic. `scripts/verify-toml-codec.ts` gained a
+`toml11AndRfcExtensions` corpus entry with read assertions and dropped the two
+now-valid cases from its malformed list.
+`scripts/verify-commands-opencode-provider.ts` now pins an invalid `--model` to
+`EXIT_USAGE`. The `redefine.ts` rewrite was differential-fuzzed for 50,000
+random header/assignment sequences against the pre-fix algorithm; the scratch
+harness was not committed.
+
+**Verification:** on Linux x86_64 (WSL2), Node.js 26.8.1 and npm 12.0.2,
+`npm run typecheck`, `npm run verify:code-gates` (250 files, 17 baseline
+exceptions), `npm run verify:codex`, `npm run verify:commands-opencode-provider`,
+`npm run verify:commands-codex-use`, and the complete sequential `npm test`
+ending in `verify:release-artifact` all passed; `git diff --check` is clean. No
+live Provider request or Windows/macOS run was made.

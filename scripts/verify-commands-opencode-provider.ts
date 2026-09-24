@@ -99,6 +99,10 @@ async function checkPrototypeModelId(home: string): Promise<void> {
     const models = asRecord((await providerBlockOf(home, 'router'))['models'])
     assert.equal(key in models, true, `the model id ${key} was not written`)
   }
+  // `--model` is validated once, at the parser, so an invalid id is a usage
+  // error rather than a runtime ValidationError the handler raises afterwards.
+  const invalid = await runCli([...SET, '--model', 'bad\u0001id'], home)
+  assert.equal(invalid.code, EXIT_USAGE, 'an invalid model id was not a usage error')
 }
 
 /**

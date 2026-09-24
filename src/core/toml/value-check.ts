@@ -180,7 +180,9 @@ function daysInMonth(year: number, month: number): number {
 function validDate(raw: string): boolean {
   const parts = dateParts(raw)
   if (parts === null) return false
-  return parts.year > 0 && parts.month >= 1 && parts.month <= 12 && parts.day >= 1 && parts.day <= daysInMonth(parts.year, parts.month)
+  // RFC 3339 (and TOML's own ABNF) allow the year 0000, even though Python's
+  // TOML 1.0 `tomllib` rejects it.
+  return parts.year >= 0 && parts.month >= 1 && parts.month <= 12 && parts.day >= 1 && parts.day <= daysInMonth(parts.year, parts.month)
 }
 
 function validTime(raw: string): boolean {
@@ -189,7 +191,8 @@ function validTime(raw: string): boolean {
   const hour = Number(match[1])
   const minute = Number(match[2])
   const second = Number(match[3])
-  return hour <= 23 && minute <= 59 && second <= 59
+  // `:60` is the leap second, which RFC 3339 permits.
+  return hour <= 23 && minute <= 59 && second <= 60
 }
 
 function validDateTime(raw: string): boolean {

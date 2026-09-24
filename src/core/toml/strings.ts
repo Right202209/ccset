@@ -4,13 +4,17 @@
  * stated once.
  */
 
-/** Shared with the strict checker so both sides accept the same escape set. */
+/** Shared with the strict checker so both sides accept the same escape set.
+ *  `\e` (ESC) is TOML 1.1; accepted here so a config that already uses it can
+ *  still be edited instead of only replaced, and because the decoder would
+ *  otherwise read it as a literal `e`. */
 export const SHORT_ESCAPES: Record<string, string> = {
   b: '\b',
   t: '\t',
   n: '\n',
   f: '\f',
   r: '\r',
+  e: '\u001b',
   '"': '"',
   '\\': '\\',
 }

@@ -10,7 +10,7 @@ import { makeKeyNameValidator } from '../../core/validate.js'
 import { activateAuthProfile, keyringInUseIn, loadAuthState, type AuthState } from './auth.js'
 import { MODEL_PROVIDER_PATH } from './manifest.js'
 import { authProfilePath, backupsDir, codexAuthPath, codexHomeOverride, launchCommand } from './paths.js'
-import { codexConfigFile, saveModelProvider } from './global.js'
+import { codexConfigFile, restoreModelProvider } from './global.js'
 
 /**
  * Codex's provider use over the Non-interactive seam: routing first, then the
@@ -156,7 +156,7 @@ async function throwAuthMoveFailure(
   let rollback: CcsetError | undefined
   if (!replaced) {
     try {
-      await saveModelProvider(ctx, previousProvider.length > 0 ? previousProvider : undefined)
+      await restoreModelProvider(ctx, previousProvider)
       routingRestored = true
     } catch (rollbackErr) {
       rollback = toCcsetError(rollbackErr)
