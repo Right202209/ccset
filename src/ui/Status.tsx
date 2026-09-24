@@ -7,6 +7,7 @@ import { SelectList, type SelectOption } from './SelectList.js'
 import { toneColor, useTerminal } from './terminal.js'
 import { helpFor } from './keymap.js'
 import { useViewport, WindowCount, WindowRegion, windowAround } from './Viewport.js'
+import { sanitizeForTerminal } from '../core/terminal-text.js'
 
 const LABEL_WIDTH = 22
 
@@ -118,23 +119,23 @@ function statusRows(
   width: number,
   fold: (text: string) => string,
 ): StatusRow[] {
-  const rows: StatusRow[] = wrapLines(fold(section.title), width).map((text, index) => ({
+  const rows: StatusRow[] = wrapLines(fold(sanitizeForTerminal(section.title)), width).map((text, index) => ({
     kind: 'title',
     key: `title:${section.title}:${index}`,
     text,
   }))
   const valueWidth = Math.max(1, width - LABEL_WIDTH)
   for (const line of section.lines) {
-    rows.push(...wrapLines(fold(line.value), valueWidth).map((value, index) => ({
+    rows.push(...wrapLines(fold(sanitizeForTerminal(line.value)), valueWidth).map((value, index) => ({
       kind: 'line' as const,
       key: `line:${section.title}:${line.label}:${index}`,
-      label: index === 0 ? fold(line.label) : '',
+      label: index === 0 ? fold(sanitizeForTerminal(line.label)) : '',
       value,
       tone: line.tone,
     })))
   }
   if (section.note !== undefined) {
-    rows.push(...wrapLines(fold(section.note), Math.max(1, width - 2)).map((text, index) => ({
+    rows.push(...wrapLines(fold(sanitizeForTerminal(section.note)), Math.max(1, width - 2)).map((text, index) => ({
       kind: 'note' as const,
       key: `note:${section.title}:${index}`,
       text,

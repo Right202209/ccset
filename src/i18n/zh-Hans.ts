@@ -140,6 +140,7 @@ export const zhHans: Record<string, string> = {
   'probe.rateLimited': '可连接，但被限流。',
   'probe.serverError': '可连接，但提供商返回了服务器错误。',
   'probe.unexpectedStatus': '可连接；该状态码不在 ccset 的识别范围内。',
+  'probe.redirectRefused': '提供商重定向了请求；ccset 未跟随重定向。',
   'probe.timeout': '在超时之前没有收到响应。',
   'probe.dns': '主机名无法解析。',
   'probe.refused': '连接被拒绝。',
@@ -168,6 +169,10 @@ export const zhHans: Record<string, string> = {
   'error.permission': '权限被拒绝：{path}（需要 {mode}）。',
   'error.invalidJson': '不是有效的 JSON：{path}（{position}）。',
   'error.invalidToml': '不是有效的 TOML：{path}（{position}）。',
+  'error.renderedConfigInvalid': '拟议的更改会生成无效的 {format}：{path}（{position}）；未写入任何内容。',
+  'error.tomlValueParent': '无法在 {key} 下添加 TOML 表，因为该键已经是一个值。',
+  'error.prototypeKey': '配置键 {key} 无法安全读取或写入。',
+  'error.configNesting': '配置嵌套深度超出支持范围。',
   'error.unwritableValue': '{type} 类型的值无法写入这种文件格式。',
   'error.io': '无法访问 {path}（{code}）。',
   'error.unexpected': '意外失败（{detail}）。',
@@ -213,6 +218,7 @@ export const zhHans: Record<string, string> = {
 
   /* ----------------------------------------------------------- cli secrets */
   'cli.secret.tooLarge': '密钥超过 64 KiB。',
+  'cli.secret.ttyInput': '为安全起见，--token-stdin 需要管道输入，不能从交互式终端读取。',
   'cli.secret.notUtf8': '密钥不是有效的 UTF-8。',
   'cli.secret.containsNul': '密钥包含 NUL 字节。',
   'cli.secret.multiLine': '密钥必须只有一行。',

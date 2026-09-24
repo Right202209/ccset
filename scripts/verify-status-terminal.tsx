@@ -9,7 +9,6 @@ import { buildStatus } from '../src/agents/claude-code/status.js'
 import { maskSecret } from '../src/core/mask.js'
 import { activationCommand, claudeDir, providerSettingsPath } from '../src/agents/claude-code/paths.js'
 import { UNICODE_TERMINAL, TerminalContext } from '../src/ui/terminal.js'
-import { stripAnsi } from './ui-assertions.js'
 import { StatusView } from '../src/ui/Status.js'
 import { ViewportProvider } from '../src/ui/Viewport.js'
 import type { StatusScreen } from '../src/types.js'
@@ -145,12 +144,39 @@ async function verifyStatusScrolls(): Promise<void> {
   }
 }
 
+async function verifyStatusEscapesControls(): Promise<void> {
+  const screen: StatusScreen = {
+    kind: 'status',
+    title: 'Status',
+    sections: [{ title: 'Provider', lines: [{ label: 'Base URL', value: 'https://bad.test/\u001b[2J\u009b31m' }] }],
+    items: [],
+  }
+  const instance = render(
+    <TerminalContext.Provider value={UNICODE_TERMINAL}>
+      <ViewportProvider viewport={{ rows: 12, columns: 80 }}>
+        <StatusView screen={screen} onSelect={() => undefined} />
+      </ViewportProvider>
+    </TerminalContext.Provider>,
+  )
+  try {
+    const paint = stripAnsi(instance.lastFrame() ?? '')
+    const controls = [...paint]
+      .filter((character) => /[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/.test(character))
+      .map((character) => `U+${character.codePointAt(0)?.toString(16)}`)
+    assert.deepEqual(controls, [], `raw control reached the TUI paint: ${controls.join(', ')}`)
+    assert.ok(paint.includes('\\x1b[2J'), 'the TUI did not visibly escape ESC')
+  } finally {
+    instance.unmount()
+  }
+}
+
 async function main(): Promise<void> {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-status-'))
   try {
     await verifyStatus(home)
     await verifyCliBoundary()
     await verifyStatusScrolls()
+    await verifyStatusEscapesControls()
     process.stdout.write('Status and terminal boundary verification passed.\n')
   } finally {
     await fs.rm(home, { recursive: true, force: true })

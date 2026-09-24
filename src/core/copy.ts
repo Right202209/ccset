@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { FILE_MODE } from './constants.js'
 import { wrapFsError } from './errors.js'
+import { copyPrivateFile, temporaryPath } from './atomic-file.js'
 import { ensureDir } from './json-file.js'
 
 /**
@@ -17,10 +17,9 @@ import { ensureDir } from './json-file.js'
 export async function copyFileAtomic(source: string, destination: string): Promise<void> {
   const dir = path.dirname(destination)
   await ensureDir(dir)
-  const pending = path.join(dir, `.${path.basename(destination)}.${process.pid}.copy`)
+  const pending = temporaryPath(dir, path.basename(destination), 'copy')
   try {
-    await fs.copyFile(source, pending)
-    await fs.chmod(pending, FILE_MODE).catch(() => undefined)
+    await copyPrivateFile(source, pending)
     await fs.rename(pending, destination)
   } catch (err) {
     await fs.unlink(pending).catch(() => undefined)

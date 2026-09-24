@@ -1,4 +1,5 @@
 import { ALLOWED_URL_PROTOCOLS, PROVIDER_NAME_PATTERN } from './constants.js'
+import { isPrototypeKey } from './merge.js'
 
 /** Every validator returns an i18n key describing the problem, or null. */
 export type Validator = (value: string) => string | null
@@ -9,8 +10,6 @@ const PATH_SEPARATORS = ['/', '\\']
  * it writes Object.prototype. It is never a legitimate provider name, and the
  * merge helpers must never receive it.
  */
-const PROTOTYPE_KEY = '__proto__'
-
 /**
  * A provider name that becomes a filename is validated as one. The character
  * class already excludes separators; they are checked explicitly so the user
@@ -28,7 +27,7 @@ export function makeFileNameValidator(reserved: string[] = []): Validator {
     if (PATH_SEPARATORS.some((sep) => name.includes(sep))) return 'validate.namePathSeparator'
     if (name === '.' || name === '..') return 'validate.namePathSeparator'
     if (!PROVIDER_NAME_PATTERN.test(name)) return 'validate.nameCharset'
-    if (blocked.includes(name.toLowerCase()) || name === PROTOTYPE_KEY) {
+    if (blocked.includes(name.toLowerCase()) || isPrototypeKey(name)) {
       return 'validate.nameReserved'
     }
     return null
@@ -46,7 +45,7 @@ export function makeKeyNameValidator(reserved: string[] = []): Validator {
     const name = value.trim()
     if (name.length === 0) return 'validate.nameEmpty'
     if (!PROVIDER_NAME_PATTERN.test(name)) return 'validate.nameCharset'
-    if (blocked.includes(name.toLowerCase()) || name === PROTOTYPE_KEY) {
+    if (blocked.includes(name.toLowerCase()) || isPrototypeKey(name)) {
       return 'validate.nameReserved'
     }
     return null

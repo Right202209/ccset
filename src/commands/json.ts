@@ -1,5 +1,6 @@
 import type { CcsetError, PartialCommitError } from '../core/errors.js'
 import type { Finding, OperationResult, TargetRecord } from '../operations/types.js'
+import { escapeJsonControlCharacters } from '../core/terminal-text.js'
 
 /**
  * The one machine-readable envelope, printed on stdout for success and for
@@ -61,5 +62,5 @@ export function errorEnvelope(
 }
 
 export function printEnvelope(envelope: CommandEnvelope): void {
-  process.stdout.write(`${JSON.stringify(envelope)}\n`)
+  process.stdout.write(`${escapeJsonControlCharacters(JSON.stringify(envelope))}\n`)
 }

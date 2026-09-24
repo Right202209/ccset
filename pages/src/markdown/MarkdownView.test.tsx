@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router-dom'
+import { MemoryRouter, RouterProvider, createMemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { LanguageProvider } from '../i18n/index.js'
 import { MarkdownView } from './MarkdownView.js'
@@ -56,6 +56,11 @@ function renderMarkdownRouter(): void {
   render(<RouterProvider router={router} />)
 }
 
+function RoutePath() {
+  const { pathname } = useLocation()
+  return <output data-testid="route">{pathname}</output>
+}
+
 describe('MarkdownView rendering', () => {
   it('renders sanitized HTML with heading ids and copy buttons', () => {
     renderDoc()
@@ -73,7 +78,7 @@ describe('MarkdownView rendering', () => {
   })
 })
 
-describe('MarkdownView interactions', () => {
+describe('MarkdownView copy interaction', () => {
   it('copies a code block without the button label via the delegated click', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
@@ -85,7 +90,9 @@ describe('MarkdownView interactions', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Copied')
     delete (navigator as { clipboard?: unknown }).clipboard
   })
+})
 
+describe('MarkdownView routing', () => {
   it('routes internal links through the router instead of a reload', async () => {
     renderMarkdownRouter()
     const user = userEvent.setup()
@@ -93,6 +100,38 @@ describe('MarkdownView interactions', () => {
     expect(await screen.findByText('user guide route')).toBeInTheDocument()
   })
 
+  it('keeps unregistered repository links out of React Router navigation', () => {
+    const markdown = '[guide](user-guide.md) [external](//attacker.example/path)'
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/docs/:slug?',
+          element: (
+            <>
+              <RoutePath />
+              <LanguageProvider>
+                <MarkdownView markdown={markdown} sourceDir="docs" />
+              </LanguageProvider>
+            </>
+          ),
+        },
+      ],
+      { initialEntries: ['/docs/x'] },
+    )
+    render(<RouterProvider router={router} />)
+    expect(screen.getByText('guide').closest('a')).toHaveAttribute('href', '/docs/user-guide')
+    const external = screen.getByText('external').closest('a') as HTMLAnchorElement
+    expect(external).toHaveAttribute(
+      'href',
+      'https://github.com/Right202209/ccset/blob/master/attacker.example/path',
+    )
+    external.addEventListener('click', (event) => event.preventDefault(), { once: true })
+    fireEvent.click(external)
+    expect(screen.getByTestId('route')).toHaveTextContent('/docs/x')
+  })
+})
+
+describe('MarkdownView browser interactions', () => {
   it('leaves ctrl/cmd/shift-clicks to the browser so new-tab works', async () => {
     renderDoc()
     const link = screen.getByText('guide').closest('a') as HTMLAnchorElement
@@ -109,7 +148,9 @@ describe('MarkdownView interactions', () => {
     expect(scrollIntoView).toHaveBeenCalled()
     expect(screen.getByText('site')).toHaveAttribute('rel', 'noopener noreferrer')
   })
+})
 
+describe('MarkdownView fragment navigation', () => {
   it('tolerates a digit-leading fragment that a raw id selector would reject', async () => {
     const scrollIntoView = vi.fn()
     Element.prototype.scrollIntoView = scrollIntoView

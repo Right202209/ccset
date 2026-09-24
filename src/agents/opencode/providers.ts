@@ -27,6 +27,7 @@ import {
   providerPath,
   providerTimeoutPath,
   validateProviderId,
+  validateModelIds,
 } from './manifest.js'
 import { backupsDir, launchCommand, opencodeTarget } from './paths.js'
 
@@ -134,6 +135,9 @@ export async function saveProvider(
   const id = providerIdOf(values)
   const problem = validateProviderId(id)
   if (problem !== null) throw new ValidationError(problem, { name: id })
+  const modelList = String(values['models'] ?? '')
+  const modelProblem = validateModelIds(modelList)
+  if (modelProblem !== null) throw new ValidationError(modelProblem)
   const file = await opencodeTarget(ctx.home)
   const base = await readPatchBase(file, startFresh)
   const report = await commitOne({

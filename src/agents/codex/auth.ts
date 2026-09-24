@@ -189,12 +189,9 @@ export interface StagedProfile {
  */
 export async function stageAuthProfile(ctx: Ctx, name: string): Promise<StagedProfile> {
   const source = authProfilePath(ctx.home, name)
-  await readConfigFile(configFile(source, 'json'))
-  try {
-    return { name, path: source, raw: await fs.readFile(source, 'utf8') }
-  } catch (err) {
-    throw wrapFsError(err, source, 'r')
-  }
+  const validated = await readConfigFile(configFile(source, 'json'))
+  if (!validated.exists) throw wrapFsError({ code: 'ENOENT' }, source, 'r')
+  return { name, path: source, raw: validated.raw }
 }
 
 /**

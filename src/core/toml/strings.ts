@@ -11,8 +11,6 @@ export const SHORT_ESCAPES: Record<string, string> = {
   n: '\n',
   f: '\f',
   r: '\r',
-  // TOML 1.1 only; harmless to accept when reading a 1.0 document.
-  e: '\u001b',
   '"': '"',
   '\\': '\\',
 }

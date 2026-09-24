@@ -32,6 +32,15 @@ import {
  * silently override it instead of adding one.
  */
 export const validateProviderId = makeKeyNameValidator(RESERVED_PROVIDER_IDS)
+export const validateModelId = makeKeyNameValidator()
+
+export function validateModelIds(value: string): string | null {
+  for (const modelId of value.split(',').map((candidate) => candidate.trim()).filter(Boolean)) {
+    const problem = validateModelId(modelId)
+    if (problem !== null) return problem
+  }
+  return null
+}
 
 /** Provider timeouts are milliseconds, not days -- one hour is the ceiling. */
 export const validateProviderTimeoutMs = makeOptionalIntValidator(1, TIMEOUT_MS_MAX)
@@ -206,6 +215,7 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
     labelKey: 'opencode.field.models',
     helpKey: 'opencode.help.models',
     type: 'csv',
+    validate: validateModelIds,
   },
   {
     id: 'timeout',

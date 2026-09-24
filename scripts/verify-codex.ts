@@ -10,6 +10,7 @@ import { BACKUP_INFIX, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import { findTomlProblem, readTomlObject } from '../src/core/toml/index.js'
 import { verifyTomlCodec } from './verify-toml-codec.js'
+import { verifyTomlRenderSafety } from './verify-toml-render.js'
 import { verifyCodexRecovery } from './verify-codex-recovery.js'
 import {
   backupNames as listBackupNames,
@@ -121,6 +122,7 @@ async function backupNames(home: string, basename: string): Promise<string[]> {
  */
 function verifyRoundTrip(): void {
   verifyTomlCodec()
+  verifyTomlRenderSafety()
   assert.equal(findTomlProblem(ORIGINAL), null, 'C1: a valid document was reported malformed')
 
   const data = readTomlObject(ORIGINAL)

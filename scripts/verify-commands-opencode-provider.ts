@@ -79,6 +79,18 @@ async function checkPerModelMerge(home: string): Promise<void> {
   assert.equal(JSON.stringify(router).includes('opencode'), false)
 }
 
+async function checkPrototypeModelId(home: string): Promise<void> {
+  await seed(home)
+  const target = opencodeConfigPath(home)
+  const before = await fs.readFile(target, 'utf8')
+  for (const key of ['__proto__', 'constructor', 'prototype']) {
+    const result = await runCli([...SET, '--model', key, '--json'], home)
+    assert.equal(result.code, EXIT_USAGE, `the model id ${key} was accepted`)
+    assert.equal(await fs.readFile(target, 'utf8'), before, `the rejected model id ${key} changed config`)
+    assert.equal(`${result.stdout}${result.stderr}`.includes(key), false, `the rejected id ${key} was printed`)
+  }
+}
+
 async function checkSecretAndNewProvider(home: string): Promise<void> {
   await seed(home)
   const rotated = await runCli([...SET, '--token-stdin', '--json'], home, `${NEW_KEY}\n`)
@@ -168,6 +180,7 @@ async function withHome(label: string, run: (home: string) => Promise<void>): Pr
 
 async function main(): Promise<void> {
   await withHome('merge', checkPerModelMerge)
+  await withHome('prototype-model', checkPrototypeModelId)
   await withHome('secret', checkSecretAndNewProvider)
   await withHome('unset', checkUnsetNoOpDryRun)
   await withHome('recover', checkRecovery)

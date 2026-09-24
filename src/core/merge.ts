@@ -19,11 +19,11 @@ export interface ManagedWrite {
  * follows own properties only, and a write aimed at the prototype slot is
  * dropped rather than applied.
  */
-const PROTOTYPE_KEY = '__proto__'
+const PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
 /** Shared with the read-side codecs, which face the same hostile keys. */
 export function isPrototypeKey(key: string): boolean {
-  return key === PROTOTYPE_KEY
+  return PROTOTYPE_KEYS.has(key)
 }
 
 export function ownChild(target: JsonObject, key: string): JsonObject | undefined {

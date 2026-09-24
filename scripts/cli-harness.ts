@@ -45,9 +45,29 @@ export function runCli(
   env: Record<string, string | undefined> = {},
   input: string | Buffer = '',
 ): Promise<RunResult> {
+  return spawnCli(args, { env, input })
+}
+
+export function runCliWithPreload(
+  args: string[],
+  preload: string,
+  env: Record<string, string | undefined> = {},
+): Promise<RunResult> {
+  return spawnCli(args, { env, preload })
+}
+
+function spawnCli(
+  args: string[],
+  options: {
+    env: Record<string, string | undefined>
+    input?: string | Buffer
+    preload?: string
+  },
+): Promise<RunResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(process.cwd(), 'dist/cli.js'), ...args], {
-      env: { ...process.env, ...env },
+    const nodeArgs = options.preload === undefined ? [] : ['--require', options.preload]
+    const child = spawn(process.execPath, [...nodeArgs, path.join(process.cwd(), 'dist/cli.js'), ...args], {
+      env: { ...process.env, ...options.env },
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     let stdout = ''
@@ -60,7 +80,7 @@ export function runCli(
     })
     child.once('error', reject)
     child.once('close', (code) => resolve({ code, stdout, stderr }))
-    child.stdin.end(input)
+    child.stdin.end(options.input ?? '')
   })
 }
 

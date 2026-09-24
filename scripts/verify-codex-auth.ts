@@ -6,6 +6,7 @@ import {
   listAuthProfiles,
   loadAuthState,
   removeAuthProfile,
+  stageAuthProfile,
 } from '../src/agents/codex/auth.js'
 import { codexActions } from '../src/agents/codex/actions.js'
 import { codexMessages } from '../src/agents/codex/messages.js'
@@ -30,6 +31,37 @@ import type { ActionResult, Ctx, FormValues, JsonObject, ListItem } from '../src
  */
 
 const OTHER_KEY = 'CODEX-OTHER-KEY-0987654321'
+
+async function verifyStageKeepsValidatedBytes(home: string): Promise<void> {
+  const profile = authProfilePath(home, 'staging')
+  const validated = '{"OPENAI_API_KEY":"validated"}\n'
+  const changed = '{ broken after validation\n'
+  await fs.writeFile(profile, validated, { mode: 0o600 })
+  const readFile = fs.readFile
+  const descriptor = Object.getOwnPropertyDescriptor(fs, 'readFile')
+  let replaced = false
+  Object.defineProperty(fs, 'readFile', {
+    configurable: true,
+    writable: true,
+    value: async (...args: unknown[]) => {
+      const raw = await Reflect.apply(readFile, fs, args) as string | Buffer
+      if (args[0] === profile && args[1] === 'utf8' && !replaced) {
+        replaced = true
+        await fs.writeFile(profile, changed)
+      }
+      return raw
+    },
+  })
+  try {
+    const staged = await stageAuthProfile({ home }, 'staging')
+    assert.equal(staged.raw, validated, 'the staged bytes differ from the validated read')
+    assert.equal(replaced, true, 'the fixture did not change the file after validation')
+  } finally {
+    if (descriptor !== undefined) Object.defineProperty(fs, 'readFile', descriptor)
+    else Reflect.deleteProperty(fs, 'readFile')
+    await fs.writeFile(profile, validated, { mode: 0o600 })
+  }
+}
 
 async function assertMode600(filePath: string): Promise<void> {
   if (process.platform === 'win32') return
@@ -215,6 +247,7 @@ async function descend(screen: ActionResult, where: string, depth: number): Prom
 const WALK_DEPTH = 3
 
 export async function verifyCodexScreens(ctx: Ctx): Promise<void> {
+  await verifyStageKeepsValidatedBytes(ctx.home)
   for (const action of codexActions()) {
     assertKeyExists(action.labelKey, `${action.id}.labelKey`)
     assertKeyExists(action.detailKey ?? `${action.labelKey}Detail`, `${action.id}.detailKey`)

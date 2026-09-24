@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { codexAuthPath, codexConfigPath } from '../src/agents/codex/paths.js'
 import { EXIT_INVALID_CONFIG, EXIT_USAGE } from '../src/core/errors.js'
+import { findTomlProblem } from '../src/core/toml/index.js'
 import { runCli as spawnCli, type RunResult } from './cli-harness.js'
 
 /**
@@ -242,6 +243,17 @@ async function checkRecovery(): Promise<void> {
   const text = await textOf(home)
   assert.equal(text.includes('model = "gpt-6.1"'), true, 'the replacement did not write the key')
   assert.equal(text.includes('# ccset must keep'), false, 'a replacement kept bytes from an unreadable base')
+
+  const outOfRange = 'model = "\\UFFFFFFFF"\n'
+  await fs.writeFile(codexConfigPath(home), outOfRange, { mode: 0o600 })
+  const malformedStatus = await runCli(['--agent', 'codex', 'status', '--json'], home)
+  assert.equal(malformedStatus.code, EXIT_INVALID_CONFIG, 'an out-of-range Unicode escape was not invalid TOML')
+  const recovered = await runCli(
+    ['--agent', 'codex', 'global', 'set', '--model', 'gpt-6.1', '--replace-invalid', '--json'],
+    home,
+  )
+  assert.equal(recovered.code, 0, 'replace-invalid could not recover an out-of-range escape')
+  assert.equal(findTomlProblem(await textOf(home)), null)
   await fs.rm(home, { recursive: true, force: true })
 }
 

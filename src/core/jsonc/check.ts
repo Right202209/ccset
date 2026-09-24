@@ -1,5 +1,6 @@
 import { parseTree, type ParseError } from 'jsonc-parser'
 import { describePosition } from '../position.js'
+import { excessiveJsoncDepth } from './depth.js'
 
 /**
  * Syntax check for a JSONC target. The parser is npm's jsonc-parser (ADR 0004);
@@ -18,6 +19,8 @@ import { describePosition } from '../position.js'
 /** Position of the first syntax problem, or null when the document is sound. */
 export function findJsoncProblem(text: string): string | null {
   if (text.trim().length === 0) return null
+  const deep = excessiveJsoncDepth(text)
+  if (deep !== null) return describePosition(text, deep)
   const errors: ParseError[] = []
   const root = parseTree(text, errors, { allowTrailingComma: true })
   if (errors.length === 0 && root !== undefined && root.type === 'object') return null

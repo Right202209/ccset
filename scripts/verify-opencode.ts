@@ -6,12 +6,14 @@ import { saveGlobal } from '../src/agents/opencode/global.js'
 import { loadProviders, saveProvider } from '../src/agents/opencode/providers.js'
 import { buildStatus } from '../src/agents/opencode/status.js'
 import { backupsDir, opencodeConfigPath, opencodeDir } from '../src/agents/opencode/paths.js'
-import { validateProviderId } from '../src/agents/opencode/manifest.js'
+import { validateModelIds, validateProviderId } from '../src/agents/opencode/manifest.js'
 import { applyManagedWrites } from '../src/core/merge.js'
 import { BACKUP_INFIX, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import { verifyJsoncScenarios } from './verify-opencode-jsonc-scenarios.js'
 import { verifyJsoncCodec } from './verify-opencode-jsonc.js'
+import { verifyJsoncPrototypeHandling } from './verify-opencode-jsonc-prototype.js'
+import { verifyJsoncDepthLimit } from './verify-opencode-jsonc-depth.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 
 /**
@@ -197,11 +199,10 @@ async function verifyDiscovery(home: string): Promise<void> {
  * the saved document would carry none of the write it reported.
  */
 function verifyPrototypeSensitiveIds(): void {
-  assert.notEqual(
-    validateProviderId('__proto__'),
-    null,
-    'the key-name validator accepted __proto__',
-  )
+  for (const key of ['__proto__', 'constructor', 'prototype']) {
+    assert.notEqual(validateProviderId(key), null, `the provider validator accepted ${key}`)
+    assert.notEqual(validateModelIds(key), null, `the models list accepted ${key}`)
+  }
   const polluted: JsonObject = {}
   const result = applyManagedWrites(polluted, [
     { path: ['__proto__', 'name'], value: 'injected' },
@@ -256,6 +257,8 @@ async function main(): Promise<void> {
     await verifyBackupsAndMasking(home)
 
     verifyPrototypeSensitiveIds()
+    verifyJsoncPrototypeHandling()
+    verifyJsoncDepthLimit()
     verifyXdgConfigHomeIsHonoured()
     verifyJsoncCodec()
     await verifyJsoncScenarios(providerValues, API_KEY)

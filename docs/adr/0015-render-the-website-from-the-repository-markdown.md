@@ -60,6 +60,10 @@ Non-goals: no blog or benchmark content (ccset has none), no third-party
 fonts, icon CDNs, or analytics (the site loads everything first-party), no
 server-side rendering (the docs corpus is small and static), and no rendering
 of ADRs or the verification register as site routes — they are linked to
-GitHub instead. The root `ci.yml` and the npm package are untouched; the
-deploy workflow runs the same site checks the PR workflow runs, then uploads
-`pages/dist` with the official Pages actions.
+GitHub instead. Repository Markdown is sanitized through an allowlist that
+excludes media, SVG, forms, and resource-loading attributes; `index.html`
+also carries a first-party Content Security Policy for static hosts that do
+not support response-header configuration. External links remain user-clicked
+navigation, not automatic requests. The root `ci.yml` and npm package are
+untouched; the deploy workflow runs the same site checks as the PR workflow,
+then uploads `pages/dist` with the official Pages actions.

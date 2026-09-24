@@ -17,14 +17,11 @@
  * which is conservative for one exotic shape (a dotted key in an earlier array
  * element, then a sub-table header in a later one). Over-rejecting that sends
  * a file to the confirm the user decides on; under-rejecting would write one
- * Codex refuses. Paths are joined with NUL, the same separator the editor
- * uses, because a quoted key may contain any other character.
+ * Codex refuses.
  */
 
-const SEP = '\u0000'
-
 function join(path: string[]): string {
-  return path.join(SEP)
+  return JSON.stringify(path)
 }
 
 /** True when any proper prefix of the path sits in the set -- a table was
@@ -34,6 +31,17 @@ function hasPrefixIn(path: string[], set: Set<string>): boolean {
     if (set.has(join(path.slice(0, depth)))) return true
   }
   return false
+}
+
+function clearDescendants(path: string[], sets: Set<string>[]): void {
+  for (const set of sets) {
+    for (const key of set) {
+      const candidate = JSON.parse(key) as string[]
+      if (candidate.length > path.length && path.every((part, index) => candidate[index] === part)) {
+        set.delete(key)
+      }
+    }
+  }
 }
 
 /** Hands one construct's full key path to the tracker: the syntax has already
@@ -94,6 +102,9 @@ function noteHeader(state: DefinitionState, path: string[], isArray: boolean): b
     state.leaves.has(key) ||
     (!isArray && state.arrayTables.has(key))
   if (known || hasPrefixIn(path, state.leaves)) return true
+  if (isArray && state.arrayTables.has(key)) {
+    clearDescendants(path, [state.leaves, state.dotted, state.singleTables, state.arrayTables])
+  }
   if (isArray) state.arrayTables.add(key)
   else state.singleTables.add(key)
   state.instanceLeaves = new Set()

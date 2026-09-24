@@ -20,6 +20,27 @@ describe('renderMarkdown', () => {
     expect(html).not.toContain('style=')
   })
 
+})
+
+describe('renderMarkdown request filtering', () => {
+  it('removes request-capable media, SVG, form, and resource attributes', () => {
+    const html = renderMarkdown(
+      '<iframe src="https://external.example/frame"></iframe>' +
+        '<video poster="https://external.example/poster"><source src="https://external.example/movie"></video>' +
+        '<audio src="https://external.example/audio"></audio>' +
+        '<svg><image href="https://external.example/image"></image></svg>' +
+        '<form action="https://external.example/submit"><input type="submit"></form>' +
+        '<object data="https://external.example/object"></object><embed src="https://external.example/embed">',
+      '',
+    )
+    for (const tag of ['iframe', 'video', 'source', 'audio', 'svg', 'image', 'form', 'object', 'embed']) {
+      expect(html).not.toMatch(new RegExp(`<${tag}(?:\\s|>)`))
+    }
+    for (const attribute of ['src=', 'poster=', 'action=', 'data=', 'href="https://external.example']) {
+      expect(html).not.toContain(attribute)
+    }
+  })
+
   it('gives headings GitHub-compatible ids', () => {
     const html = renderMarkdown('## What it will not do to your files\n\n### 功能\n', '')
     expect(html).toContain('id="what-it-will-not-do-to-your-files"')

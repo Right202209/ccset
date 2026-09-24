@@ -33,6 +33,7 @@ interface StatusEnvelope {
 }
 
 const TOKEN = 'M3-STATUS-SECRET-0123456789'
+const TERMINAL_PAYLOAD = '\u001b[2J\u001b]0;owned\u0007\u009b31m'
 
 async function seedProviders(home: string, broken = false): Promise<void> {
   await fs.mkdir(claudeDir(home), { recursive: true })
@@ -64,6 +65,28 @@ async function checkStatusWithoutSecrets(home: string): Promise<void> {
   assert.ok(human.stdout.includes('complete'), 'the human report lost a provider')
   assert.equal(human.stdout.includes(TOKEN), false, 'the token leaked into the human report')
   assert.equal(`${human.stdout}${human.stderr}`.includes('\x1b'), false, 'ANSI reached status')
+}
+
+async function checkStatusEscapesControls(home: string): Promise<void> {
+  await fs.mkdir(claudeDir(home), { recursive: true })
+  await fs.writeFile(
+    providerSettingsPath(home, 'controls'),
+    `${JSON.stringify({ env: { ANTHROPIC_BASE_URL: `https://example.test/${TERMINAL_PAYLOAD}` } })}\n`,
+    { mode: 0o600 },
+  )
+  const human = await runCli(['--agent', 'claude-code', 'status'], home)
+  assert.equal(human.code, 0)
+  assert.equal(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/.test(`${human.stdout}${human.stderr}`), false)
+  assert.ok(human.stdout.includes('\\x1b[2J'), 'the human report did not visibly escape ESC')
+
+  const json = await runCli(['--agent', 'claude-code', 'status', '--json'], home)
+  assert.equal(json.code, 0)
+  assert.equal(
+    /[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/.test(json.stdout),
+    false,
+    'JSON carried a raw control character',
+  )
+  assert.ok(json.stdout.includes('\\u009b'), 'JSON did not escape the C1 CSI character')
 }
 
 async function checkStatusExit4KeepsSections(home: string): Promise<void> {
@@ -133,6 +156,7 @@ async function withHome(label: string, run: (home: string) => Promise<void>): Pr
 
 async function main(): Promise<void> {
   await withHome('status', checkStatusWithoutSecrets)
+  await withHome('status-controls', checkStatusEscapesControls)
   await withHome('status4', checkStatusExit4KeepsSections)
   await withHome('init', checkStateInit)
   await withHome('init4', checkStateInitRefusals)

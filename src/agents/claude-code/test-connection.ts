@@ -1,4 +1,5 @@
 import { CONNECTION_TIMEOUT_MS } from '../../core/constants.js'
+import { isIPv4 } from 'node:net'
 import {
   ANTHROPIC_VERSION,
   CONNECTION_PATH,
@@ -78,14 +79,19 @@ export function warnsPlaintextHttp(baseUrl: string): boolean {
     return false
   }
   if (parsed.protocol !== 'http:') return false
-  const host = parsed.hostname.toLowerCase()
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  const octets = host.split('.').map(Number)
+  const loopbackIpv4 = isIPv4(host) && octets[0] === 127
   const loopback =
     host === 'localhost' ||
     host.endsWith('.localhost') ||
     host === '::1' ||
-    host === '[::1]' ||
-    host.startsWith('127.')
+    loopbackIpv4
   return !loopback
+}
+
+function isRedirect(status: number): boolean {
+  return status >= 300 && status < 400
 }
 
 function probeBody(model: string): string {
@@ -115,9 +121,13 @@ export async function probeEndpoint(target: ProbeTarget): Promise<ProbeResult> {
       },
       body: probeBody(target.model),
       signal: AbortSignal.timeout(CONNECTION_TIMEOUT_MS),
+      redirect: 'manual',
     })
     // Discard the body unread: it must not be buffered, logged, or displayed.
     await response.body?.cancel().catch(() => undefined)
+    if (isRedirect(response.status)) {
+      return { ok: false, status: response.status, key: 'probe.redirectRefused', host }
+    }
     return {
       ok: response.ok,
       status: response.status,

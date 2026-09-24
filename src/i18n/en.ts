@@ -139,6 +139,7 @@ export const en: Record<string, string> = {
   'probe.rateLimited': 'Reachable, but rate limited.',
   'probe.serverError': 'Reachable, but the provider returned a server error.',
   'probe.unexpectedStatus': 'Reachable; the status is not one ccset interprets.',
+  'probe.redirectRefused': 'The provider redirected the request; ccset did not follow it.',
   'probe.timeout': 'No response before the timeout.',
   'probe.dns': 'The host name did not resolve.',
   'probe.refused': 'The connection was refused.',
@@ -168,6 +169,10 @@ export const en: Record<string, string> = {
   'error.permission': 'Permission denied: {path} (needs {mode}).',
   'error.invalidJson': 'Not valid JSON: {path} ({position}).',
   'error.invalidToml': 'Not valid TOML: {path} ({position}).',
+  'error.renderedConfigInvalid': 'The proposed update produces invalid {format} at {path} ({position}); nothing was written.',
+  'error.tomlValueParent': 'Cannot add a TOML table below {key} because that key is already a value.',
+  'error.prototypeKey': 'The configuration key {key} cannot be read or written safely.',
+  'error.configNesting': 'The configuration exceeds the supported nesting depth.',
   'error.unwritableValue': 'A {type} value cannot be written to this file format.',
   'error.io': 'Could not access {path} ({code}).',
   'error.unexpected': 'Unexpected failure ({detail}).',
@@ -215,6 +220,7 @@ export const en: Record<string, string> = {
 
   /* ----------------------------------------------------------- cli secrets */
   'cli.secret.tooLarge': 'The secret is larger than 64 KiB.',
+  'cli.secret.ttyInput': 'For safety, --token-stdin requires piped input and cannot read from an interactive terminal.',
   'cli.secret.notUtf8': 'The secret is not valid UTF-8.',
   'cli.secret.containsNul': 'The secret contains a NUL byte.',
   'cli.secret.multiLine': 'The secret must be a single line.',

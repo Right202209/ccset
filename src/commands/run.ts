@@ -8,6 +8,7 @@ import { parseCommand, type ParsedCommand } from './parser.js'
 import { scanGlobals } from './globals.js'
 import { humanError, humanMutation, humanStatus } from './present.js'
 import { secretFromEnv, secretFromStdin } from './secret.js'
+import { sanitizeForTerminal } from '../core/terminal-text.js'
 
 /**
  * Command-mode execution: parse, read the secret if one applies, run the
@@ -16,7 +17,7 @@ import { secretFromEnv, secretFromStdin } from './secret.js'
  */
 
 function output(lines: string[], toStderr: boolean): void {
-  const text = lines.length === 0 ? '' : `${lines.join('\n')}\n`
+  const text = lines.length === 0 ? '' : `${lines.map(sanitizeForTerminal).join('\n')}\n`
   if (toStderr) process.stderr.write(text)
   else process.stdout.write(text)
 }
@@ -62,9 +63,10 @@ function presentFailure(parsed: ParsedCommand | undefined, err: CcsetError, argv
   // had already matched, and the raw flags cover the earlier stages.
   const fallback = parsed === undefined ? globalsOf(argv) : null
   if (parsed?.json === true || fallback?.json === true) {
+    const fallbackAgent = err.messageKey === 'error.unknownAgent' ? '[redacted]' : fallback?.agentId ?? null
     printEnvelope(
       errorEnvelope(err, {
-        agent: parsed?.agent.id ?? err.command?.agent ?? fallback?.agentId ?? null,
+        agent: parsed?.agent.id ?? err.command?.agent ?? fallbackAgent,
         operation: parsed?.declaration.id ?? err.command?.operation ?? null,
       }),
     )

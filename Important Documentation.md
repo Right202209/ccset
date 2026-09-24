@@ -197,6 +197,11 @@ compatibility window.
       `README.zh-CN.md`, and npm's included `package.json` and `LICENSE`.
       No `src/`, fixtures, `.env`, or local settings files.
 - [ ] Install from the packed tarball and run once before publishing.
+- [ ] Publish only from a clean, version-matched GitHub Release through npm
+      trusted publishing, with provenance enabled. The GitHub Actions trusted
+      publisher must match `Right202209/ccset`, `.github/workflows/publish.yml`,
+      and the `npm-publish` environment; do not replace OIDC with a long-lived
+      npm token.
 
 ---
 
@@ -2630,3 +2635,28 @@ completed with exit 0 in the same environment, including
 `verify:first-run-locale` and the release-artifact check; no live Provider
 request was made. `pages`: `npm run typecheck` and `npm test` (72 tests)
 passed.
+
+### 9.53 Application-security remediation findings (2026-09-24)
+
+**Scope:** closed the 24 findings (B-1–B-3, H-1–H-2, M-1–M-5, L-1–L-14)
+in the 2026-09-24 application-security report. The fixes cover transactional
+Codex routing/auth moves; strict, bounded TOML and JSONC parsing and safe
+managed-key edits; secret and terminal-control masking; redirect refusal for
+connection tests; scratch-home isolation in PTY fixtures; and atomic,
+exclusive temporary writes. The website now uses a restrictive Markdown
+sanitizer, an enforced CSP, and a patched router dependency. CI Actions are
+SHA-pinned with job-scoped permissions, and release verification checks a
+clean, version-matched GitHub Release with npm provenance. The existing
+regressions also pin OpenCode Status model formatting and removal semantics.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run build`, `npm run verify:code-gates`, and the
+complete sequential `npm test` passed, including `verify:release-artifact`.
+In `pages/`, `npm run typecheck`, `npm test` (14 files / 75 tests),
+`npm run build`, and `npm run smoke` passed; `npm audit` found 0
+vulnerabilities. The Pages smoke required running outside the restricted
+sandbox because its preview server could not bind localhost there. No live
+Provider request, Windows/macOS run, or browser-based manual review was done.
+The npm Trusted Publisher still needs external configuration for
+`Right202209/ccset`, `.github/workflows/publish.yml`, and `npm-publish`;
+nothing was published.

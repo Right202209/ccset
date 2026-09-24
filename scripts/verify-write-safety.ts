@@ -11,6 +11,9 @@ import {
   inspectState,
 } from '../src/agents/claude-code/state.js'
 import { CcsetError, EXIT_PERMISSION } from '../src/core/errors.js'
+import { BACKUP_TEMP_PREFIX } from '../src/core/constants.js'
+import { copyFileAtomic } from '../src/core/copy.js'
+import { writeTextAtomic } from '../src/core/json-file.js'
 import { backupsDir, claudeDir, claudeStatePath, globalSettingsPath } from '../src/agents/claude-code/paths.js'
 import type { FormValues, JsonObject } from '../src/types.js'
 import { KILL_CHILD_FLAG, runKillChild, runKillSweep } from './kill-harness.js'
@@ -153,6 +156,34 @@ async function checkD5(home: string): Promise<void> {
   assert.equal(after.bytes, before.bytes)
 }
 
+async function checkPlantedTemporarySymlinks(home: string): Promise<void> {
+  if (process.platform === 'win32') return
+  const target = globalSettingsPath(home)
+  const copyTarget = path.join(claudeDir(home), 'adopted.json')
+  const outside = path.join(home, 'outside')
+  const backupDirectory = backupsDir(home)
+  await fs.mkdir(claudeDir(home), { recursive: true })
+  await fs.mkdir(backupDirectory, { recursive: true })
+  await fs.writeFile(outside, 'outside-safe')
+  await fs.writeFile(target, '{"model":"old"}\n', { mode: 0o600 })
+  const planted = [
+    path.join(claudeDir(home), `.${path.basename(target)}.${process.pid}.tmp`),
+    path.join(claudeDir(home), `.${path.basename(copyTarget)}.${process.pid}.copy`),
+    path.join(backupDirectory, `${BACKUP_TEMP_PREFIX}${path.basename(target)}.${process.pid}`),
+  ]
+  for (const symlink of planted) await fs.symlink(outside, symlink)
+  try {
+    await saveGlobal({ home }, GLOBAL_VALUES)
+    await copyFileAtomic(target, copyTarget)
+    await writeTextAtomic(copyTarget, '{"safe":true}\n')
+    assert.equal(await fs.readFile(outside, 'utf8'), 'outside-safe', 'a planted symlink target was overwritten')
+    assert.equal((await fs.lstat(target)).isSymbolicLink(), false, 'the config was replaced by a symlink')
+    assert.equal((await fs.lstat(copyTarget)).isSymbolicLink(), false, 'the copied config is a symlink')
+  } finally {
+    for (const symlink of planted) await fs.unlink(symlink).catch(() => undefined)
+  }
+}
+
 async function expectPermissionError(run: () => Promise<unknown>, named: string): Promise<void> {
   let caught: unknown
   try {
@@ -213,6 +244,7 @@ async function main(): Promise<void> {
   await withHome('d4', checkD4)
   await withHome('d4m', checkD4Malformed)
   await withHome('d5', checkD5)
+  await withHome('temp-symlinks', checkPlantedTemporarySymlinks)
 
   const reason = skipE3()
   if (reason === null) await withHome('e3', checkE3)

@@ -62,10 +62,12 @@ Read these guides for the corresponding work:
   contract; command mode must not load Ink. Both surfaces share the commit core.
 - Preserve unmanaged keys at every nesting level. Write managed leaves rather
   than replacing parent objects. TOML and JSONC edits preserve unrelated text,
-  comments, and formatting.
-- Keep deletion semantics explicit: blank TUI fields omit their managed keys;
-  omitted command options preserve disk values and `--unset` requests removal.
-  A supported boolean `false` remains a boolean, not a deletion.
+  comments, and formatting; a managed leaf inside a TOML inline table may
+  expand that table to dotted assignments while preserving its siblings.
+- Keep deletion semantics explicit: blank TUI fields omit their managed keys,
+  including leaves inside inline tables; omitted command options preserve disk
+  values and `--unset` removes the named leaf while preserving its siblings. A
+  supported boolean `false` remains a boolean, not a deletion.
 - Re-read targets at save time. Preflight all command targets before the first
   write. Back up originals and use atomic writes with `0600` on POSIX.
   Non-interactive no-ops and dry-runs must not write or create backups.
@@ -75,9 +77,10 @@ Read these guides for the corresponding work:
 - `~/.claude.json` is create-only. Codex's live `auth.json` is backed up and
   replaced as a whole on an explicit switch; never merge into it.
 - Mask secrets in entry, Status, review, errors, and command output. Commands
-  accept secrets only through `CCSET_TOKEN` or explicit `--token-stdin`.
-  Test connection requires confirmation naming the destination host and never
-  prints the response body.
+  accept secrets only through `CCSET_TOKEN` or explicit `--token-stdin`; usage
+  errors never echo raw values. Test connection requires confirmation naming
+  the destination host, refuses redirects rather than contacting an unconfirmed
+  host, and never prints the response body.
 - Read `CCSET_*` overrides at the CLI boundary and pass them inward. Use a scratch
   `CCSET_HOME` for manual runs and fixtures; never test writes in a real Agent home.
 - Ship user-facing string changes in both `en` and `zh-Hans`. Agent strings live

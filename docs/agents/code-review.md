@@ -58,9 +58,10 @@ be batched.
   the file uses (D1, D3, O1 in the register §2).
 - **Deletion is explicit and shape-preserving.** A blank TUI field omits the key
   entirely: no `null`, no `""`. An omitted command option preserves the disk
-  value; `--unset` deletes. `ManagedWrite.value === undefined` means delete;
-  `false` is a value and stays a boolean (D2, O2, O3, C4). Template defaults do
-  not fill omitted patch fields (ADR 0008).
+  value; `--unset` deletes the named leaf, including inside a TOML inline table,
+  while preserving its siblings. `ManagedWrite.value === undefined` means
+  delete; `false` is a value and stays a boolean (D2, O2, O3, C4). Template
+  defaults do not fill omitted patch fields (ADR 0008).
 - **Read at save time, preflight before the first write.** Values seeded when a
   form opened are overlaid on the document read at commit. Every command target
   is rendered and preflighted before any file changes. A multi-target failure
@@ -69,7 +70,7 @@ be batched.
   temp files. A dry run must plan every record the real commit would write,
   including sidecars (9.45 L-14).
 - **Atomic, `0600`, backed up.** Every create or overwrite goes through the
-  temp-file and `rename()` helpers in `src/core/json-file.ts` or `copy.ts`,
+  exclusive random-temp and `rename()` helpers in `src/core/atomic-file.ts`,
   every file ccset creates is mode `0600` on POSIX, and every overwrite of an
   existing file has a backup first, rotating at `MAX_BACKUPS`. Direct
   `fs.writeFile` on a target path is a Blocker.
@@ -83,15 +84,18 @@ be batched.
   A switch stages the credential bytes before routing changes and restores
   routing if the move fails.
 - **Codecs preserve bytes.** For TOML and JSONC, an empty write list is
-  byte-identical and a managed edit changes only its own value span; comments,
-  alignment, key order, and blank lines survive (C1, C2, O7, O11). An insert
+  byte-identical; ordinary scalar edits change only their own value span.
+  Structural edits inside a TOML inline table expand only that assignment to
+  dotted keys, preserving its comment and sibling values. Comments, alignment,
+  key order, and blank lines elsewhere survive (C1, C2, O7, O11). An insert
   resolves the representation it lands in (inline table, dotted key, header)
-  before writing, and the result re-parses under the strict checker.
+  before writing, rejects a scalar parent, and the result re-parses under the
+  strict checker before it can be committed.
 - **Prototype keys are inert on both paths.** `__proto__`, `constructor`, and
-  `prototype` are rejected by key-name validators, dropped by `merge.ts`'s
-  own-property traversal, and dropped by the TOML reader through the same
-  `isPrototypeKey`/`ownChild` helpers. A new reader or writer of user keys that
-  does not reuse those helpers is a Blocker.
+  `prototype` are rejected by key-name validators, dropped by JSONC/TOML
+  readers, and refused by JSONC/TOML writers. Reads use own-property traversal;
+  a reader or writer of user keys that bypasses the shared prototype-key guards
+  is a Blocker.
 
 ## Secrets
 

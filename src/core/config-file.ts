@@ -1,8 +1,16 @@
 import { promises as fs } from 'node:fs'
 import type { ConfigFile, JsonObject } from '../types.js'
-import { CcsetError, EXIT_RUNTIME, JsonParseError, TomlParseError, isNotFound, wrapFsError } from './errors.js'
+import {
+  CcsetError,
+  ConfigParseError,
+  EXIT_RUNTIME,
+  JsonParseError,
+  TomlParseError,
+  isNotFound,
+  wrapFsError,
+} from './errors.js'
 import { findJsoncProblem, applyJsoncWrites, readJsoncObject } from './jsonc/index.js'
-import { parseJsonObject, writeTextAtomic } from './json-file.js'
+import { parseJsonObject } from './json-file.js'
 import { applyManagedWrites, type ManagedWrite } from './merge.js'
 import { applyTomlWrites, findTomlProblem, readTomlObject } from './toml/index.js'
 
@@ -68,6 +76,19 @@ function render(file: ConfigFile, base: LoadedConfig, writes: ManagedWrite[]): s
   throw new CcsetError('error.unsupportedCodec', EXIT_RUNTIME, { codec: file.codec })
 }
 
+function validateRendered(file: ConfigFile, rendered: string): void {
+  try {
+    parse(file, rendered)
+  } catch (err) {
+    if (!(err instanceof ConfigParseError)) throw err
+    throw new CcsetError('error.renderedConfigInvalid', EXIT_RUNTIME, {
+      format: file.codec,
+      path: file.path,
+      position: err.params['position'] ?? 'unknown position',
+    })
+  }
+}
+
 /**
  * The plan half of a save: the exact bytes the writes would put on disk,
  * without touching anything. The operation layer compares this against the
@@ -78,19 +99,7 @@ export function renderConfigFile(
   base: LoadedConfig,
   writes: ManagedWrite[],
 ): string {
-  return render(file, base, writes)
-}
-
-/**
- * Applies the manifest to whatever the base holds and writes the result
- * atomically at 0600. The base is passed in rather than re-read here so the
- * caller controls when the read happens -- every save re-reads immediately
- * before writing, because the agent rewrites its own config while ccset is open.
- */
-export async function writeConfigFile(
-  file: ConfigFile,
-  base: LoadedConfig,
-  writes: ManagedWrite[],
-): Promise<void> {
-  await writeTextAtomic(file.path, render(file, base, writes))
+  const rendered = render(file, base, writes)
+  validateRendered(file, rendered)
+  return rendered
 }

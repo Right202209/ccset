@@ -66,6 +66,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:review-form` | Changed rows, hints, Advanced toggle, `ctrl+s`, long-value cursor visibility |
 | `npm run verify:error-recovery` | Failed-save draft retention and partial-backup listing/cleanup |
 | `npm run verify:malformed-dirty` | Malformed-target confirmation and unsaved-edit prompts through a real PTY |
+| `npm run verify:pty-isolation` | PTY children ignore inherited Agent-home overrides and stay in scratch homes |
 | `npm run verify:first-run-locale` | First-use language choice, persistence, overrides, cancellation, help/version/non-TTY boundaries |
 | `npm run verify:status-terminal` | Status refresh/scrolling, narrow layout, version and non-TTY behavior |
 | `npm run verify:i18n-zh` | English/Chinese key and placeholder parity, locale normalization and CLI language selection |
@@ -87,7 +88,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:commands-codex-provider` | Provider invariants, Auth profile preservation, credential-source refusals, untouched live auth |
 | `npm run verify:commands-codex-use` | Switch ordering, adoption/replacement choices, idempotence, environment preconditions, partial failures |
 | `npm run verify:code-gates` | TypeScript file/function size and complexity over `src/`, `scripts/`, and `pages/`, plus stale or new baseline violations |
-| `npm run verify:release-artifact` | Build, pack, temporary install, allowed package contents, executable/shebang and CLI smoke |
+| `npm run verify:release-artifact` | Clean-tree and release-tag guard, pinned-action and least-privilege/provenance workflow contracts, build, pack, temporary install, allowed package contents, executable/shebang and CLI smoke |
 
 All `verify:commands` / `verify:commands-*` scripts build before running and
 exercise `dist/cli.js`; some also assert directly against the operation seam.
@@ -155,14 +156,21 @@ and Windows with Node 18/20/22. The smoke requires non-empty `--version` output
 without ANSI escapes and a non-TTY interactive refusal with exit 2 and no ANSI.
 Ubuntu and macOS also run `npm test`; Windows skips the POSIX fixture suite.
 
-The website has its own pair of workflows. [pages-ci.yml](../.github/workflows/pages-ci.yml)
+The website has its own workflows. [pages-ci.yml](../.github/workflows/pages-ci.yml)
 runs the site's checks (install, typecheck, Vitest, build, smoke) on pull
 requests touching `pages/**`, `docs/**`, root `*.md`, or either workflow.
 [deploy-pages.yml](../.github/workflows/deploy-pages.yml) runs the same checks
 on every push to `master` (no path filter, so doc edits never leave the site
 stale) and on `workflow_dispatch`, then deploys `pages/dist` through the
 official Pages actions; the build takes its base path from
-`actions/configure-pages`. Root `ci.yml` does not build the site.
+`actions/configure-pages`. These workflows pin Actions to commit SHAs; only the
+build job reads repository contents, and only the deploy job receives Pages and
+OIDC permissions. [publish.yml](../.github/workflows/publish.yml) publishes a
+version-matched GitHub Release from a clean checkout through npm trusted
+publishing, which generates provenance without a long-lived npm token. The
+npm Trusted Publisher must be configured for this repository, workflow, and
+`npm-publish` environment before a release can publish. Root `ci.yml` does not
+build the site.
 
 Release checks and platform exceptions are defined in the register's §6 and
 [SUPPORT.md](../SUPPORT.md). Platform-specific path, permission, or terminal

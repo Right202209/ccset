@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { applyTomlWrites, findTomlProblem, readTomlObject } from '../src/core/toml/index.js'
 import type { JsonObject } from '../src/types.js'
-import type { ManagedWrite } from '../src/core/merge.js'
+import { verifyTomlConformance } from './verify-toml-conformance.js'
 
 /**
  * The codec, on its own. Not a gate with an npm script: it runs inside
@@ -22,7 +22,7 @@ const CORPUS: Record<string, string> = {
   inlineTable: 'h = { a = "1", b = { c = 2 } }\n',
   arrayOfTables: '[[x]]\nn = 1\n\n[[x]]\nn = 2\n',
   literalPaths: "win = 'C:\\Users\\me\\.codex'\nesc = \"tab\\there\"\n",
-  dateTimes: 'a = 1979-05-27T07:32:00Z\nb = 1979-05-27\nc = 07:32:00\nd = 1979-05-27 07:32:00\n',
+  dateTimes: 'a = 1979-05-27T07:32:00Z\nb = 1979-05-27\nc = 07:32:00\nd = 1979-05-27 07:32:00\ne = 1979-05-27 07:32:00+01:00\n',
   multilineStrings: 'a = """\nkeep  me\n"""\nb = \'\'\'raw \\n here\'\'\'\n',
   numbers: 'i = 1_000\nh = 0xdead_beef\no = 0o755\nb = 0b1010\nf = 3.14\ne = 1e6\n',
   emptyish: '\n\n# only comments\n\n',
@@ -154,6 +154,19 @@ function verifyMalformedDetected(): void {
     unterminatedMultilineBasic: 'x = """abc\n',
     badEscape: 'a = "bad \\q escape"\n',
     shortUnicodeEscape: 'a = "\\u004"\n',
+    outOfRangeUnicode: 'a = "\\UFFFFFFFF"\n',
+    surrogateUnicode: 'a = "\\uD800"\n',
+    leadingZero: 'a = 00\n',
+    leadingZeroAfterUnderscore: 'a = 0_1\n',
+    repeatedUnderscore: 'a = 1__0\n',
+    signedRadix: 'a = +0x1\n',
+    impossibleDate: 'a = 1979-13-45\n',
+    duplicateInlineKey: 'a = { key = 1, key = 2 }\n',
+    bareCarriageReturn: 'a = 1\rb = 2\n',
+    badQuotedKeyEscape: '"bad\\q" = 1\n',
+    controlComment: '# invalid \u0001\na = 1\n',
+    toml11Escape: 'a = "\\e"\n',
+    invalidLeapSecond: 'a = 00:00:60\n',
     notAValue: 'a = yes-ish\n',
   }
   for (const [name, text] of Object.entries(broken)) {
@@ -161,47 +174,14 @@ function verifyMalformedDetected(): void {
   }
 }
 
-/**
- * The table a key belongs to may already exist in a form the new line cannot
- * legally join: an inline table cannot be extended by assignments, and a table
- * spelled with dotted keys cannot be redeclared with a `[header]`. The insert
- * has to resolve the representation first -- both documents start out valid,
- * and a naive insert turns each into a configuration Codex rejects.
- */
-function verifyExistingRepresentationsAreResolved(): void {
-  const wire: ManagedWrite[] = [
-    { path: ['model_providers', 'router', 'wire_api'], value: 'responses' },
-  ]
-
-  const inlineOut = applyTomlWrites(CORPUS['inlineProvider'] ?? '', wire)
-  assert.equal(inlineOut.includes('[model_providers'), false, 'an inline table grew a header')
-  assert.equal(inlineOut.includes('wire_api'), true, 'the key never landed at all')
-  assert.equal(findTomlProblem(inlineOut), null, `inline resolution produced invalid TOML:\n${inlineOut}`)
-  const inlineRead = readTomlObject(inlineOut) as JsonObject
-  const inlineRouter = (inlineRead['model_providers'] as JsonObject)['router'] as JsonObject
-  assert.equal(inlineRouter['wire_api'], 'responses', 'the inline table lost the new key')
-  assert.equal(inlineRouter['name'], 'R', 'the inline table lost an existing key')
-  assert.equal(inlineRead['unrelated'], 'keep', 'an unmanaged sibling did not survive')
-
-  const dottedOut = applyTomlWrites(CORPUS['dottedProvider'] ?? '', wire)
-  assert.equal(dottedOut.includes('[model_providers'), false, 'a dotted table grew a header')
-  assert.equal(findTomlProblem(dottedOut), null, `dotted resolution produced invalid TOML:\n${dottedOut}`)
-  const dottedRead = readTomlObject(dottedOut) as JsonObject
-  const dottedRouter = (dottedRead['model_providers'] as JsonObject)['router'] as JsonObject
-  assert.equal(dottedRouter['wire_api'], 'responses', 'the dotted table lost the new key')
-  assert.equal(dottedRouter['name'], 'R', 'the dotted table lost an existing key')
-
-  const headerOut = applyTomlWrites(CORPUS['headerInlineProvider'] ?? '', [
-    { path: ['model_providers', 'router', 'base_url'], value: 'https://b/v1' },
+function verifyKeyPathsDoNotAlias(): void {
+  const src = '"model_providers\\u0000p".base_url = "quoted"\nmodel_providers.p.base_url = "real"\n'
+  const out = applyTomlWrites(src, [
+    { path: ['model_providers\u0000p', 'base_url'], value: 'updated' },
   ])
-  assert.equal(headerOut.includes('[model_providers.router'), false, 'an inline entry grew a subsection')
-  assert.equal(findTomlProblem(headerOut), null, `header+inline resolution produced invalid TOML:\n${headerOut}`)
-  const headerRead = readTomlObject(headerOut) as JsonObject
-  const section = headerRead['model_providers'] as JsonObject
-  assert.deepEqual(section['other_key'], true, 'the section after the converted line moved')
-  const headerRouter = section['router'] as JsonObject
-  assert.equal(headerRouter['base_url'], 'https://b/v1', 'the inline entry lost the new key')
-  assert.equal(headerRouter['name'], 'R', 'the inline entry lost an existing key')
+  const data = readTomlObject(out)
+  assert.equal((data['model_providers\u0000p'] as JsonObject)['base_url'], 'updated')
+  assert.equal(((data['model_providers'] as JsonObject)['p'] as JsonObject)['base_url'], 'real')
 }
 
 /** Editing a document repeatedly must converge, not accumulate. */
@@ -292,8 +272,9 @@ export function verifyTomlCodec(): void {
   verifyEscaping()
   verifySpacedKeyIsDistinct()
   verifyMalformedDetected()
+  verifyTomlConformance()
   verifyDuplicateDefinitionsDetected()
   verifyLegalTableShapesStaySound()
-  verifyExistingRepresentationsAreResolved()
+  verifyKeyPathsDoNotAlias()
   verifyIdempotent()
 }

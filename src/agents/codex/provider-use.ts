@@ -1,6 +1,8 @@
 import { configFile, readConfigFile, type LoadedConfig } from '../../core/config-file.js'
 import { CcsetError, EXIT_RUNTIME, EXIT_USAGE, PartialCommitError, toCcsetError, ValidationError } from '../../core/errors.js'
 import { fileExists, readMode } from '../../core/json-file.js'
+import { getPath } from '../../core/merge.js'
+import { jsonToText } from '../../core/values.js'
 import { applyPlan, MODE_AFTER_WRITE, planTargets } from '../../operations/commit.js'
 import type { OperationRequest, OperationResult, TargetRecord } from '../../operations/types.js'
 import type { Ctx, ConfigFile } from '../../types.js'
@@ -8,7 +10,7 @@ import { makeKeyNameValidator } from '../../core/validate.js'
 import { activateAuthProfile, keyringInUseIn, loadAuthState, type AuthState } from './auth.js'
 import { MODEL_PROVIDER_PATH } from './manifest.js'
 import { authProfilePath, backupsDir, codexAuthPath, codexHomeOverride, launchCommand } from './paths.js'
-import { codexConfigFile } from './global.js'
+import { codexConfigFile, saveModelProvider } from './global.js'
 
 /**
  * Codex's provider use over the Non-interactive seam: routing first, then the
@@ -122,19 +124,28 @@ async function withAdoptedProfile(
   return committed
 }
 
-/** The live-auth half of a switch, committed after routing; if the copy fails,
- * the partial report must still name the profile the adoption already wrote. */
+/** The live-auth half of a switch; a failure restores the original routing. */
 async function authMoveRecords(
   ctx: Ctx,
   pre: UsePreflight,
   committed: TargetRecord[],
+  previousProvider: string,
 ): Promise<TargetRecord[]> {
   let report
   try {
     report = await activateAuthProfile(ctx, pre.id, pre.conflicted && pre.adoptAs !== null ? pre.adoptAs : null)
   } catch (err) {
-    // Routing already landed; the envelope has to say so.
-    throw new PartialCommitError(await withAdoptedProfile(ctx, pre, committed), toCcsetError(err))
+    let routingRestored = false
+    try {
+      await saveModelProvider(ctx, previousProvider.length > 0 ? previousProvider : undefined)
+      routingRestored = true
+    } catch {
+      routingRestored = false
+    }
+    const changed = routingRestored ? [] : committed.filter((record) => record.changed)
+    const partial = await withAdoptedProfile(ctx, pre, changed)
+    if (partial.length > 0) throw new PartialCommitError(partial, toCcsetError(err))
+    throw toCcsetError(err)
   }
   const records: TargetRecord[] = []
   if (report.adoptedPath !== null) {
@@ -185,7 +196,8 @@ export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promi
       // A dry run still plans the credential move it would make.
       targets.push(...(await plannedAuthRecords(ctx, pre)))
     } else {
-      targets.push(...(await authMoveRecords(ctx, pre, outcome.records)))
+      const previousProvider = jsonToText(getPath(pre.configBase.data, MODEL_PROVIDER_PATH))
+      targets.push(...(await authMoveRecords(ctx, pre, outcome.records, previousProvider)))
     }
   }
   return {

@@ -11,15 +11,17 @@ That is U7, and it is why a Codex agent was deferred rather than attempted with
 the JSON machinery.
 
 ccset therefore scans the document for *positions* rather than values. Setting a
-managed key replaces the span its value occupies; adding one inserts a single
-line into the table it belongs to; deleting one removes a single line. Every
-other byte is copied through untouched, so the round trip is byte-identical by
-construction rather than by a formatter that happens to agree with the author.
-A strict syntax pass runs before any write, and a file that fails it reaches the
-user as the same "back it up and start fresh" confirm a malformed JSON target
-does. Reading is separate and lossy on purpose: offset date-times and `inf` have
-no JSON equivalent, so they are kept as their source text — ccset manages none
-of them, and the writer never touches what it did not write.
+managed scalar replaces the span its value occupies; adding one inserts a line
+into the table it belongs to; deleting an ordinary assignment removes its line.
+When a managed leaf lives inside an inline table, the codec expands that one
+assignment to dotted keys so it can remove or add the leaf without losing its
+siblings. The assignment's comment and every unrelated byte survive. The
+rendered result passes the strict syntax checker again before any write, and a
+malformed source still reaches the user as the same "back it up and start fresh"
+confirm a malformed JSON target does. Reading is separate and lossy on purpose:
+offset date-times and `inf` have no JSON equivalent, so they are kept as their
+source text — ccset manages none of them, and the writer never touches what it
+did not write.
 
 The codec is written here rather than taken from npm. The one JavaScript package
 that patches TOML while preserving formatting was last published in 2022 and

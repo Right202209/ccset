@@ -102,8 +102,21 @@ async function checkUnsetNoOpDryRun(home: string): Promise<void> {
 
 async function checkStatus(home: string): Promise<void> {
   await seed(home)
+  await fs.writeFile(
+    opencodeConfigPath(home),
+    `${JSON.stringify({ provider: { legacyOnly: { options: { baseURL: 'https://legacy.example', apiKey: API_KEY } } } })}\n`,
+    { mode: 0o600 },
+  )
   const jsonc = opencodeJsoncPath(home)
-  await fs.writeFile(jsonc, '{\n  // comment\n  "theme": "gruvbox"\n}\n', { mode: 0o600 })
+  await fs.writeFile(
+    jsonc,
+    `{
+  // comment
+  "theme": "gruvbox",
+  "provider": { "router": { "options": { "baseURL": "https://r.example", "apiKey": "${API_KEY}" }, "models": { "z-model": {}, "a-model": {} } } }
+}\n`,
+    { mode: 0o600 },
+  )
   const result = await runCli(['--agent', 'opencode', 'status', '--json'], home)
   assert.equal(result.code, 0)
   const envelope = JSON.parse(result.stdout) as {
@@ -118,13 +131,19 @@ async function checkStatus(home: string): Promise<void> {
   assert.equal(envelope.data.config.parsed, true, 'a commented .jsonc failed to parse')
   assert.equal(envelope.data.legacyJson?.path, opencodeConfigPath(home), 'the legacy .json was not named')
   assert.equal(envelope.warnings.length, 0, 'the managed target raised a warning')
-  assert.equal(envelope.data.providers.length, 0, 'providers were read from the unmanaged legacy file')
+  assert.deepEqual(
+    envelope.data.providers.map((provider) => provider.id),
+    ['router'],
+    'status included a provider from the unmanaged legacy file',
+  )
   assert.equal(JSON.stringify(envelope.data).includes(API_KEY), false, 'the API key leaked into the JSON')
 
   const human = await runCli(['--agent', 'opencode', 'status'], home)
   assert.equal(human.code, 0)
   assert.ok(human.stdout.includes('opencode.json (not managed)'), 'the human status lost the legacy note')
   assert.equal(human.stdout.includes(API_KEY), false, 'the API key leaked into the human report')
+  assert.match(human.stdout, /Model ids: a-model, z-model/, 'model ids were not formatted as names')
+  assert.equal(human.stdout.includes('[object Object]'), false, 'a models object reached plain-text status')
   assert.equal(`${human.stdout}${human.stderr}`.includes('\x1b'), false, 'ANSI reached status')
 }
 
