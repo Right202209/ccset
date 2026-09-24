@@ -154,6 +154,8 @@ export const zhHans: Record<string, string> = {
   'validate.namePathSeparator': '名称不能包含路径分隔符。',
   'validate.nameCharset': '只能使用字母、数字、- 和 _。',
   'validate.nameReserved': '保留名称 — 会与该 Agent 使用的名称冲突。',
+  'validate.modelIdEmpty': '需要模型 ID。',
+  'validate.modelIdCharset': '模型 ID 不能包含控制字符。',
   'validate.urlEmpty': '需要 base URL。',
   'validate.urlMalformed': '不是有效的 URL。',
   'validate.urlProtocol': '只允许 http:// 和 https://。',

@@ -11,6 +11,7 @@ import { applyManagedWrites } from '../src/core/merge.js'
 import { BACKUP_INFIX, MAX_BACKUPS } from '../src/core/constants.js'
 import { maskSecret } from '../src/core/mask.js'
 import { verifyJsoncScenarios } from './verify-opencode-jsonc-scenarios.js'
+import { verifyModelIdValidator, verifyRealModelIds } from './verify-opencode-model-ids.js'
 import { verifyJsoncCodec } from './verify-opencode-jsonc.js'
 import { verifyJsoncPrototypeHandling } from './verify-opencode-jsonc-prototype.js'
 import { verifyJsoncDepthLimit } from './verify-opencode-jsonc-depth.js'
@@ -251,6 +252,8 @@ async function main(): Promise<void> {
     await fs.writeFile(target, `${JSON.stringify(ORIGINAL, null, 2)}\n`, { mode: 0o600 })
 
     await verifyProviderMerge(home)
+    await verifyRealModelIds(home)
+    verifyModelIdValidator()
     await verifyBlankOmits(home)
     await verifyGlobalTypes(home)
     await verifyDiscovery(home)

@@ -2660,3 +2660,42 @@ Provider request, Windows/macOS run, or browser-based manual review was done.
 The npm Trusted Publisher still needs external configuration for
 `Right202209/ccset`, `.github/workflows/publish.yml`, and `npm-publish`;
 nothing was published.
+
+### 9.54 Follow-up review fixes H-1 and H-2 (2026-09-24)
+
+**Scope:** a follow-up review of §9.53 found two regressions, distinct from the
+B/H/M/L findings of the 2026-09-24 report it remediated. H-1: opencode model ids
+were validated with the provider-name charset (`[A-Za-z0-9_-]`), so real ids
+such as `gpt-4.1`, `anthropic/claude-3.5-sonnet` and `llama3:8b` were refused
+from the CLI, the TUI and `runProviderSet`. Model ids now use
+`makeModelIdValidator`, which accepts those characters while still rejecting
+`__proto__`/`constructor`/`prototype`, an empty id, and control characters -- a
+NUL in particular would alias the separator the unmanaged-key counter joins
+paths with; the new `validate.modelIdEmpty`/`validate.modelIdCharset` strings
+ship in `en` and `zh-Hans`. H-2: the §9.53 write path called `chmod` without
+handling failure, so atomic writes, copies and backups aborted on filesystems
+that refuse it (WSL's `/mnt/c` DrvFs, some FUSE and SMB mounts). The temp file
+is still created exclusively at mode `0600` with `wx`; `setPrivateMode` now
+treats the re-assertion as best-effort, which does not reopen L-1 because the
+symlink redirection is closed by the exclusive open and the random name, not by
+this call. The user guides now state that the mode is applied at creation and
+re-asserted best-effort.
+
+**Fixtures:** `scripts/verify-opencode-model-ids.ts` (new) pins the validator
+and the TUI `saveProvider` path to the real ids; `verify-opencode.ts` calls it.
+`verify:commands-opencode-provider` gained a `real-models` case at the process
+seam, and `verify:write-safety` gained `chmod-refused`, which stubs the open
+handle's `chmod` to `EPERM` and requires both `writeTextAtomic` and
+`copyFileAtomic` to land. Each new case was shown red against the reverted fix
+(H-1: `verify:opencode` failed with `validate.nameCharset` and the command
+fixture exited 64; H-2: `verify:write-safety` failed with `error.permission`
+and exit 3) and green after restoring it.
+
+**Verification:** on Linux x86_64 (WSL2), Node.js 26.8.1 and npm 12.0.2,
+`npm run typecheck`, `npm run verify:code-gates` (250 files, 17 baseline
+exceptions) and the complete sequential `npm test` passed, including
+`verify:opencode`, `verify:write-safety`, `verify:commands-opencode-provider`,
+`verify:provider-safety`, `verify:commands-opencode`, `verify:i18n-zh` and
+`verify:release-artifact`. No live Provider request, Windows/macOS run, or
+actual chmod-refusing mount was exercised; the chmod refusal is a stubbed
+handle, not a real filesystem.

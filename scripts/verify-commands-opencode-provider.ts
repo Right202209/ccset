@@ -91,6 +91,29 @@ async function checkPrototypeModelId(home: string): Promise<void> {
   }
 }
 
+/**
+ * H-1: a real opencode model id carries `.`, `/` and `:`. The provider-name
+ * charset rejected every one of them at the command boundary, so this pins the
+ * CLI to the same validator the TUI uses.
+ */
+async function checkRealModelIds(home: string): Promise<void> {
+  await seed(home)
+  const ids = [
+    'gpt-4.1',
+    'anthropic/claude-3.5-sonnet',
+    'llama3:8b',
+    'meta-llama/Llama-3.1-8B-Instruct',
+  ]
+  const args = [...SET, ...ids.flatMap((id) => ['--model', id]), '--json']
+  const result = await runCli(args, home)
+  assert.equal(result.code, 0, `a real model id was rejected: ${result.stderr}`)
+  const models = asRecord((await providerBlockOf(home, 'router'))['models'])
+  for (const id of ids) {
+    assert.deepEqual(models[id], {}, `the real model id ${id} was not written`)
+  }
+  assert.equal('model-keep' in models, false, 'a dropped model id survived a real-id patch')
+}
+
 async function checkSecretAndNewProvider(home: string): Promise<void> {
   await seed(home)
   const rotated = await runCli([...SET, '--token-stdin', '--json'], home, `${NEW_KEY}\n`)
@@ -181,6 +204,7 @@ async function withHome(label: string, run: (home: string) => Promise<void>): Pr
 async function main(): Promise<void> {
   await withHome('merge', checkPerModelMerge)
   await withHome('prototype-model', checkPrototypeModelId)
+  await withHome('real-models', checkRealModelIds)
   await withHome('secret', checkSecretAndNewProvider)
   await withHome('unset', checkUnsetNoOpDryRun)
   await withHome('recover', checkRecovery)

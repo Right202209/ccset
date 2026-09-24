@@ -1,6 +1,7 @@
 import type { FieldChoice, FieldSpec, FormValues } from '../../types.js'
 import {
   makeKeyNameValidator,
+  makeModelIdValidator,
   makeOptionalIntValidator,
   validateBaseUrl,
   validateRequiredText,
@@ -32,7 +33,7 @@ import {
  * silently override it instead of adding one.
  */
 export const validateProviderId = makeKeyNameValidator(RESERVED_PROVIDER_IDS)
-export const validateModelId = makeKeyNameValidator()
+export const validateModelId = makeModelIdValidator()
 
 export function validateModelIds(value: string): string | null {
   for (const modelId of value.split(',').map((candidate) => candidate.trim()).filter(Boolean)) {

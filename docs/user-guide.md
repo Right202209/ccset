@@ -253,7 +253,10 @@ navigation path in the header; narrow terminals keep the final two steps visible
   characters are hidden entirely; tokens of 16 characters or more show the first
   and last four characters with a fixed-width masked middle. Command output
   omits secrets.
-- Every file ccset writes is mode `0600` on POSIX.
+- Every file ccset writes is mode `0600` on POSIX. The mode is applied when
+  the file is created; ccset re-asserts it best-effort, so a filesystem that
+  refuses the mode change (some WSL, FUSE and SMB mounts) still receives the
+  write.
 - A token leaves your machine only through **Test connection**, which names the
   destination host and asks before sending. Redirects are refused, so the probe
   never contacts an unconfirmed host. The response body is discarded unread,

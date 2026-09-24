@@ -184,6 +184,33 @@ async function checkPlantedTemporarySymlinks(home: string): Promise<void> {
   }
 }
 
+/**
+ * H-2: the temp file is created exclusively at 0600, so a POSIX filesystem
+ * that refuses chmod (WSL's /mnt/c, some FUSE and SMB mounts) must not abort
+ * the write. Stub the open handle's chmod to EPERM and require both the write
+ * and the copy to still land.
+ */
+async function checkChmodRefused(home: string): Promise<void> {
+  if (process.platform === 'win32') return
+  const probe = await fs.open(path.join(home, 'chmod-probe'), 'w', 0o600)
+  const proto = Object.getPrototypeOf(probe) as { chmod: () => Promise<void> }
+  await probe.close()
+  const original = proto.chmod
+  proto.chmod = async () => {
+    throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' })
+  }
+  try {
+    const target = globalSettingsPath(home)
+    await writeTextAtomic(target, '{"model":"gpt-4.1"}\n')
+    assert.equal(await fs.readFile(target, 'utf8'), '{"model":"gpt-4.1"}\n')
+    const destination = path.join(claudeDir(home), 'chmod-refused.json')
+    await copyFileAtomic(target, destination)
+    assert.equal(await fs.readFile(destination, 'utf8'), '{"model":"gpt-4.1"}\n')
+  } finally {
+    proto.chmod = original
+  }
+}
+
 async function expectPermissionError(run: () => Promise<unknown>, named: string): Promise<void> {
   let caught: unknown
   try {
@@ -245,6 +272,7 @@ async function main(): Promise<void> {
   await withHome('d4m', checkD4Malformed)
   await withHome('d5', checkD5)
   await withHome('temp-symlinks', checkPlantedTemporarySymlinks)
+  await withHome('chmod-refused', checkChmodRefused)
 
   const reason = skipE3()
   if (reason === null) await withHome('e3', checkE3)

@@ -121,7 +121,7 @@ Grok Build 同样没有 Test connection：它的三种 API 后端各有自己的
 ## 密钥
 
 - 在 UI 中输入和显示时会遮罩密钥。少于 16 个字符的密钥完全隐藏；16 个字符及以上的密钥显示前四位和后四位，中间以固定宽度的遮罩填充。命令输出不包含密钥。
-- ccset 写入的每个文件在 POSIX 上的权限都是 `0600`。
+- ccset 写入的每个文件在 POSIX 上的权限都是 `0600`。权限在创建文件时即已应用；ccset 会尽力再次确认，因此拒绝更改权限的文件系统（部分 WSL、FUSE 与 SMB 挂载）仍能完成写入。
 - 密钥只有通过 **Test connection** 才会离开你的机器：它会指明目标主机，并在发送前请求确认。响应体会被直接丢弃、不予读取，因为它可能把密钥回显回来。
 - **备份会保留旧密钥。** 每次写入前都会先把目标复制到该 Agent 配置目录旁的 `backups/ccset/` 目录——Claude Code 为 `~/.claude/backups/ccset/`，opencode 为 `~/.config/opencode/backups/ccset/`，Codex 为 `~/.codex/backups/ccset/`，pi 为 `~/.pi/agent/backups/ccset/`，Grok Build 为 `~/.grok/backups/ccset/`（权限 `0600`，每个文件最多保留十份，最旧的会被清理）。轮换密钥后，旧密钥仍留在这些副本中，直到你在该 Agent 的 Status 界面运行 **Clear ccset backups**。出于同样的原因，移除 Codex 某个 provider 已保存的凭据时会删除 sidecar 文件，但不删除其备份。
 - **复制中途被中断的备份不会被隐藏。** 残缺副本保存着正在复制的凭据，因此 Status 会将其列出并警告，直到 **Clear ccset backups** 将其删除。

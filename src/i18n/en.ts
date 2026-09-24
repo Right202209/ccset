@@ -153,6 +153,8 @@ export const en: Record<string, string> = {
   'validate.namePathSeparator': 'A name cannot contain a path separator.',
   'validate.nameCharset': 'Use letters, digits, - and _ only.',
   'validate.nameReserved': 'Reserved — it would collide with a name this agent uses.',
+  'validate.modelIdEmpty': 'A model id is required.',
+  'validate.modelIdCharset': 'A model id cannot contain control characters.',
   'validate.urlEmpty': 'A base URL is required.',
   'validate.urlMalformed': 'Not a valid URL.',
   'validate.urlProtocol': 'Only http:// and https:// are allowed.',

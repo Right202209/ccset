@@ -52,6 +52,26 @@ export function makeKeyNameValidator(reserved: string[] = []): Validator {
   }
 }
 
+/**
+ * A model id is a JSON key too, but unlike a provider id it is never a
+ * filename: real ids carry `.` (`gpt-4.1`), `/` (`anthropic/claude-3.5-sonnet`)
+ * and `:` (`llama3:8b`), so the provider-name charset would reject them. The
+ * only names barred are the ones that would reach `Object.prototype` and
+ * control characters -- a NUL in particular would alias the separator the
+ * unmanaged-key counter joins paths with.
+ */
+const MODEL_ID_CONTROL_PATTERN = /[\u0000-\u001f\u007f]/
+
+export function makeModelIdValidator(): Validator {
+  return (value: string): string | null => {
+    const id = value.trim()
+    if (id.length === 0) return 'validate.modelIdEmpty'
+    if (MODEL_ID_CONTROL_PATTERN.test(id)) return 'validate.modelIdCharset'
+    if (isPrototypeKey(id)) return 'validate.nameReserved'
+    return null
+  }
+}
+
 /** http(s) only: a file:// or javascript: URL must never reach fetch. */
 export function validateBaseUrl(value: string): string | null {
   const raw = value.trim()
