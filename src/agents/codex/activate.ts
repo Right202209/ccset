@@ -69,7 +69,7 @@ async function undoRouting(
 ): Promise<unknown> {
   try {
     await restoreModelProvider(ctx, previous)
-  } catch {
+  } catch (rollbackErr) {
     const committed: TargetRecord[] = [
       {
         path: routing.path,
@@ -78,7 +78,7 @@ async function undoRouting(
         changed: true,
       },
     ]
-    return new PartialCommitError(committed, toCcsetError(err))
+    return new PartialCommitError(committed, toCcsetError(err), toCcsetError(rollbackErr))
   }
   return err
 }

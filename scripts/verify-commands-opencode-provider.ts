@@ -83,11 +83,21 @@ async function checkPrototypeModelId(home: string): Promise<void> {
   await seed(home)
   const target = opencodeConfigPath(home)
   const before = await fs.readFile(target, 'utf8')
-  for (const key of ['__proto__', 'constructor', 'prototype']) {
-    const result = await runCli([...SET, '--model', key, '--json'], home)
-    assert.equal(result.code, EXIT_USAGE, `the model id ${key} was accepted`)
-    assert.equal(await fs.readFile(target, 'utf8'), before, `the rejected model id ${key} changed config`)
-    assert.equal(`${result.stdout}${result.stderr}`.includes(key), false, `the rejected id ${key} was printed`)
+  const rejected = await runCli([...SET, '--model', '__proto__', '--json'], home)
+  assert.equal(rejected.code, EXIT_USAGE, 'the model id __proto__ was accepted')
+  assert.equal(await fs.readFile(target, 'utf8'), before, 'the rejected model id __proto__ changed config')
+  assert.equal(
+    `${rejected.stdout}${rejected.stderr}`.includes('__proto__'),
+    false,
+    'the rejected id __proto__ was printed',
+  )
+  // M-3: `constructor` and `prototype` are ordinary own keys, not the prototype
+  // slot, so they must be accepted and written rather than dropped.
+  for (const key of ['constructor', 'prototype']) {
+    const accepted = await runCli([...SET, '--model', key, '--json'], home)
+    assert.equal(accepted.code, 0, `the real model id ${key} was rejected: ${accepted.stderr}`)
+    const models = asRecord((await providerBlockOf(home, 'router'))['models'])
+    assert.equal(key in models, true, `the model id ${key} was not written`)
   }
 }
 

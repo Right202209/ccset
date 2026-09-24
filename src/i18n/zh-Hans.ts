@@ -177,6 +177,7 @@ export const zhHans: Record<string, string> = {
   'error.configNesting': '配置嵌套深度超出支持范围。',
   'error.unwritableValue': '{type} 类型的值无法写入这种文件格式。',
   'error.io': '无法访问 {path}（{code}）。',
+  'error.rollbackFailed': '回滚也失败了：{message}',
   'error.unexpected': '意外失败（{detail}）。',
   'error.unsupportedCodec': '不支持的序列化格式（{codec}）。',
   'error.unknownAgent': '未知 Agent：{id}。',

@@ -177,6 +177,7 @@ export const en: Record<string, string> = {
   'error.configNesting': 'The configuration exceeds the supported nesting depth.',
   'error.unwritableValue': 'A {type} value cannot be written to this file format.',
   'error.io': 'Could not access {path} ({code}).',
+  'error.rollbackFailed': 'The rollback also failed: {message}',
   'error.unexpected': 'Unexpected failure ({detail}).',
   'error.unsupportedCodec': 'Unsupported serialization format ({codec}).',
   'error.unknownAgent': 'Unknown agent: {id}.',

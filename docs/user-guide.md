@@ -246,6 +246,10 @@ navigation path in the header; narrow terminals keep the final two steps visible
   over it on your explicit request and never reads-modifies-writes it. Adopting
   an existing one is a byte copy, so an OAuth token block ccset does not model
   survives intact.
+- **A half-finished switch says what changed.** When a multi-file operation
+  stops partway, ccset reports the paths it had already written; if undoing the
+  routing also failed, the error names that failure too, so the state to inspect
+  is clear rather than hidden.
 
 ## Secrets
 

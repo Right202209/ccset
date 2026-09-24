@@ -65,7 +65,9 @@ be batched.
 - **Read at save time, preflight before the first write.** Values seeded when a
   form opened are overlaid on the document read at commit. Every command target
   is rendered and preflighted before any file changes. A multi-target failure
-  reports the paths already written as partial, in those words.
+  reports the paths already written as partial, in those words; if the rollback
+  triggered by that failure itself fails, its error is reported too rather than
+  discarded (M-2).
 - **Zero writes for no-ops and dry runs**, including zero backups and zero
   temp files. A dry run must plan every record the real commit would write,
   including sidecars (9.45 L-14).
@@ -91,10 +93,12 @@ be batched.
   resolves the representation it lands in (inline table, dotted key, header)
   before writing, rejects a scalar parent, and the result re-parses under the
   strict checker before it can be committed.
-- **Prototype keys are inert on both paths.** `__proto__`, `constructor`, and
-  `prototype` are rejected by key-name validators, dropped by JSONC/TOML
-  readers, and refused by JSONC/TOML writers. Reads use own-property traversal;
-  a reader or writer of user keys that bypasses the shared prototype-key guards
+- **Prototype keys are inert on both paths.** `__proto__` is rejected by
+  key-name validators, dropped by JSONC/TOML readers, and refused by JSONC/TOML
+  writers. `constructor` and `prototype` are ordinary data keys -- assigning one
+  creates an own property, and every read checks own properties first -- so they
+  round-trip rather than being discarded. Reads use own-property traversal; a
+  reader or writer of user keys that bypasses the shared prototype-key guards
   is a Blocker.
 
 ## Secrets

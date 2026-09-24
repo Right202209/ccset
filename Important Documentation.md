@@ -2699,3 +2699,49 @@ exceptions) and the complete sequential `npm test` passed, including
 `verify:release-artifact`. No live Provider request, Windows/macOS run, or
 actual chmod-refusing mount was exercised; the chmod refusal is a stubbed
 handle, not a real filesystem.
+
+### 9.55 Provider-switch rollback and prototype-key review fixes M-1 to M-3 (2026-09-24)
+
+**Scope:** a review of the tree remediated by §9.53 found three issues on the
+current code, distinct from the §9.53 B/H/M/L findings and the §9.54 H-1/H-2
+follow-up. M-1: the auth replacement is the commit point of a Codex provider
+switch, so when the rename landed and only a later step threw, the rollback
+still reverted `model_provider` and paired the previous endpoint with the new
+credential; `provider-use.ts` now reads the live profile through
+`credentialReplaced` and, on a positive match, keeps the routing and reports
+`auth.json` among the written paths. M-2: the rollback's own failure was
+discarded (`catch { routingRestored = false }`), so an incomplete undo never
+named its cause; `PartialCommitError` now carries an optional `rollback`
+`CcsetError`, which the JSON envelope exposes as `error.rollback`, the human
+error lines render through the new `error.rollbackFailed` string, the TUI error
+screen shows it, and the TUI `undoRouting` path passes it too. M-3: `isPrototypeKey`
+also matched `constructor` and `prototype`, so JSONC and TOML readers silently
+dropped those real keys and the writers refused to edit them; the guard is
+narrowed to `__proto__` only -- the sole prototype slot, since all traversal
+uses own properties -- so `constructor` and `prototype` round-trip as ordinary
+data keys. This supersedes the `__proto__`/`constructor`/`prototype`
+characterization recorded in §9.54. The user guides and the code-review checklist
+now state that a half-finished switch names the paths it wrote and any rollback
+failure.
+
+**Fixtures:** `scripts/verify-opencode-jsonc-prototype.ts` and
+`verifyPrototypeSensitiveIds` in `verify-opencode.ts`, plus the
+`verify:commands-opencode-provider` `prototype-model` case, now require only
+`__proto__` to be rejected and drive `constructor`/`prototype` through the
+readers, writers and the CLI. `scripts/verify-commands-codex-use-failure.ts`
+gained three homes over one preload: `renameMode: 'after'` lands the credential
+rename and then throws (M-1), `failRollback` fails the second `config.toml`
+rename so the restore cannot take (M-2), and the existing ordinary/adoption
+cases still assert a full restore. Red against the reverted code: M-3 made
+`verify:opencode` fail with `validate.nameReserved` and the command fixture exit
+64; M-1 made `verify:commands-codex-use` fail matching
+`model_provider = "router"` because the revert had happened anyway; M-2 made it
+fail with `error.rollback.code` `undefined` instead of `error.io`. Each passed
+again after the fix was restored.
+
+**Verification:** on Linux x86_64 (WSL2), Node.js 26.8.1 and npm 12.0.2,
+`npm run typecheck`, `npm run verify:code-gates` (250 files, 17 baseline
+exceptions), the targeted `verify:opencode`, `verify:commands-opencode-provider`
+and `verify:commands-codex-use` fixtures, and the complete sequential `npm test`
+ending in `verify:release-artifact` all passed; `git diff --check` is clean. No
+live Provider request or Windows/macOS run was made.

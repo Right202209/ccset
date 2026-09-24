@@ -63,13 +63,21 @@ export function humanStatus(
   return [...lines, ...warningLines(result.warnings), '']
 }
 
-/** Failure lines: the error itself, then any paths an earlier commit touched. */
+/** Failure lines: the error itself, then any paths an earlier commit touched,
+ *  then the rollback failure when undoing them did not take. */
 export function humanError(err: CcsetError): string[] {
   const lines = [t(err.messageKey, err.params)]
   const partial = err as PartialCommitError
   if (partial.committed !== undefined && partial.committed.length > 0) {
     lines.push(
       t('cli.partialCommit', { paths: partial.committed.map((record) => record.path).join(', ') }),
+    )
+  }
+  if (partial.rollback !== undefined) {
+    lines.push(
+      t('error.rollbackFailed', {
+        message: t(partial.rollback.messageKey, partial.rollback.params),
+      }),
     )
   }
   return lines

@@ -124,6 +124,56 @@ async function withAdoptedProfile(
   return committed
 }
 
+/**
+ * Whether auth.json already holds the target profile's bytes after a failed
+ * move. The replacement is atomic and last, so a failure normally leaves the
+ * old credential and reverting routing is safe; a filesystem that is not
+ * rename-atomic can still leave the new bytes in place, and reverting then
+ * would pair the old endpoint with the new key. Only a positive match -- the
+ * live file is now byte-identical to the profile -- suppresses the revert.
+ */
+async function credentialReplaced(ctx: Ctx, id: string): Promise<boolean> {
+  try {
+    return (await loadAuthState(ctx)).activeName === id
+  } catch {
+    return false
+  }
+}
+
+/** A failed credential move: keep routing and the credential paired, and report
+ *  every path that landed -- the auth.json itself when the move had committed
+ *  before it threw, and the rollback failure when the restore did not take. */
+async function throwAuthMoveFailure(
+  ctx: Ctx,
+  pre: UsePreflight,
+  committed: TargetRecord[],
+  previousProvider: string,
+  err: unknown,
+): Promise<never> {
+  const failure = toCcsetError(err)
+  const replaced = await credentialReplaced(ctx, pre.id)
+  let routingRestored = false
+  let rollback: CcsetError | undefined
+  if (!replaced) {
+    try {
+      await saveModelProvider(ctx, previousProvider.length > 0 ? previousProvider : undefined)
+      routingRestored = true
+    } catch (rollbackErr) {
+      rollback = toCcsetError(rollbackErr)
+    }
+  }
+  const changed = routingRestored && !replaced ? [] : committed.filter((record) => record.changed)
+  let partial = await withAdoptedProfile(ctx, pre, changed)
+  if (replaced) {
+    const authPath = codexAuthPath(ctx.home)
+    partial = [...partial, changedRecord(authPath, await readMode(authPath))]
+  }
+  if (partial.length > 0 || rollback !== undefined) {
+    throw new PartialCommitError(partial, failure, rollback)
+  }
+  throw failure
+}
+
 /** The live-auth half of a switch; a failure restores the original routing. */
 async function authMoveRecords(
   ctx: Ctx,
@@ -135,17 +185,7 @@ async function authMoveRecords(
   try {
     report = await activateAuthProfile(ctx, pre.id, pre.conflicted && pre.adoptAs !== null ? pre.adoptAs : null)
   } catch (err) {
-    let routingRestored = false
-    try {
-      await saveModelProvider(ctx, previousProvider.length > 0 ? previousProvider : undefined)
-      routingRestored = true
-    } catch {
-      routingRestored = false
-    }
-    const changed = routingRestored ? [] : committed.filter((record) => record.changed)
-    const partial = await withAdoptedProfile(ctx, pre, changed)
-    if (partial.length > 0) throw new PartialCommitError(partial, toCcsetError(err))
-    throw toCcsetError(err)
+    return throwAuthMoveFailure(ctx, pre, committed, previousProvider, err)
   }
   const records: TargetRecord[] = []
   if (report.adoptedPath !== null) {

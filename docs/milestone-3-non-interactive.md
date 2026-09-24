@@ -293,7 +293,10 @@ raw secret values, masked secrets, or response bodies; non-secret values such as
 URLs, models, and enum settings may be represented in structured status data.
 Status represents credential fields as `secretPresent: true|false` and carries
 parseable data plus warning codes. A partial runtime failure includes
-`partial: true` and the paths already committed.
+`partial: true` and the paths already committed. When the failure triggered a
+rollback that itself failed, `error.rollback` carries the rollback's own code
+and params, so an incomplete undo names both failures rather than only the one
+that started it.
 
 The numeric `exitCode` in the envelope always matches the process exit status.
 When `status` returns `4` for an unparseable target, the envelope has `ok: false`,

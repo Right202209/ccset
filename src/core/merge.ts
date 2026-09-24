@@ -13,13 +13,19 @@ export interface ManagedWrite {
 }
 
 /**
- * A key is data, but one name is not: reading or writing through `__proto__`
- * reaches Object.prototype rather than the document. Provider ids are rejected
- * upstream (validate.ts), so this is the second line of defense -- traversal
- * follows own properties only, and a write aimed at the prototype slot is
- * dropped rather than applied.
+ * A key is data, but one name is not: assigning through `__proto__` reaches
+ * the prototype slot rather than adding a property, so reading or writing it
+ * never touches the document. Provider ids are rejected upstream
+ * (validate.ts), so this is the second line of defense -- traversal follows
+ * own properties only, and a write aimed at the prototype slot is dropped
+ * rather than applied.
+ *
+ * `constructor` and `prototype` are ordinary data keys: assigning either
+ * creates an own property that shadows the inherited one, and every read here
+ * checks `hasOwnProperty` first, so they round-trip like any other name. Only
+ * `__proto__` is the prototype slot and the only key that has to be barred.
  */
-const PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+const PROTOTYPE_KEYS = new Set(['__proto__'])
 
 /** Shared with the read-side codecs, which face the same hostile keys. */
 export function isPrototypeKey(key: string): boolean {

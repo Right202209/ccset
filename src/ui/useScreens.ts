@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActionResult } from '../types.js'
-import { toCcsetError, type CcsetError } from '../core/errors.js'
+import { toCcsetError, PartialCommitError, type CcsetError } from '../core/errors.js'
 import { t } from '../i18n/index.js'
 
 /**
@@ -46,10 +46,19 @@ function toFrame(screen: ActionResult, task: Task): Frame {
  * to discard the only copy of a token the user just entered.
  */
 function errorScreen(error: CcsetError): ActionResult {
+  const lines = [t(error.messageKey, error.params)]
+  if (error instanceof PartialCommitError && error.rollback !== undefined) {
+    lines.push(
+      t('error.rollbackFailed', {
+        message: t(error.rollback.messageKey, error.rollback.params),
+      }),
+    )
+  }
+  lines.push('', t('error.screenHint'))
   return {
     kind: 'message',
     title: t('error.screenTitle'),
-    lines: [t(error.messageKey, error.params), '', t('error.screenHint')],
+    lines,
     tone: 'error',
   }
 }
