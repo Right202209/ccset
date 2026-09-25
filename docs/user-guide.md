@@ -20,8 +20,21 @@ commands always require that explicit selector.
 | --- | --- |
 | Global settings | `~/.claude/settings.json` |
 | Providers | `~/.claude/settings.<name>.json` — add, edit, list |
-| Status | Reads everything above plus `~/.claude.json`. Writes nothing. |
+| Project model mapping | Opt in from a provider form; writes `<current-directory>/.claude/settings.json` |
+| Status | Reads global and provider settings plus `~/.claude.json`. Writes nothing. |
 | Test connection | One opt-in request to a provider you pick |
+
+The provider form’s **Configure project model mappings** toggle is off by default.
+When enabled, the provider form hides its **Model** field and expands the advanced
+fields; turning it off restores **Model** and collapses the advanced fields. Saving
+the provider opens a second form for the five model slots: the main model, Opus,
+Sonnet, Haiku, and subagent model IDs. These free-text values go only
+to the current working directory’s `.claude/settings.json`, not the global settings
+file. Blank slots remove only their matching `env` key; disabling the toggle later
+preserves saved mappings. Existing settings and sibling `env` keys are merged,
+malformed files require confirmation before replacement, and backups are stored
+under the project’s `.claude/backups/ccset/`. Restart Claude Code in the project to
+load the saved mapping.
 
 ### opencode
 

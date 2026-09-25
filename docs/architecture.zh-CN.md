@@ -10,6 +10,8 @@
 
 `src/types.ts` 定义 TUI 契约：Agent 返回一个 `ActionResult`（`form`、`list`、`status`、`confirm` 或 `message`），Ink View 渲染这些形态而不需要任何 Agent 特定的知识。`src/ctx.ts` 负责共享上下文；`types.ts` 重新导出它。Agent 模块不得从 `src/ui/` 导入。
 
+CLI 也会在共享上下文中捕获启动时的工作目录，供 Claude Code 解析项目级设置路径。
+
 非交互契约是 `src/operations/types.ts` 与 `src/operations/index.ts` 中的 `executeOperation`：一个规范化的 `OperationRequest` 产生一个 `OperationResult` 或类型化错误。Screen、翻译后的展示文本和 `ManagedWrite[]` 不跨越公开的操作契约。见 ADR 0006。
 
 `src/commands/` 把 argv 适配到该契约。解析器使用各 Agent 的声明，密钥读取器提供 `CCSET_TOKEN` 或显式选择的 stdin，展示器生成已本地化的行或 `schemaVersion: 1` 的 JSON 信封。打印的错误与进程退出状态必须一致。命令规范记录了已知的一致性差异；更改它们属于行为变更，而不是文档清理。

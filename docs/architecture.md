@@ -19,7 +19,8 @@ helpers.
 `src/types.ts` defines the TUI contract: an Agent returns an `ActionResult`
 (`form`, `list`, `status`, `confirm`, or `message`), and the Ink Views render those
 shapes without Agent-specific knowledge. `src/ctx.ts` owns the shared context;
-`types.ts` re-exports it. Agent modules do not import from `src/ui/`.
+`types.ts` re-exports it. The CLI captures the invocation directory there for
+Claude Code’s project-local settings. Agent modules do not import from `src/ui/`.
 
 The Non-interactive contract is `src/operations/types.ts` and
 `executeOperation` in `src/operations/index.ts`: a normalized `OperationRequest`

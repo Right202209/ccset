@@ -55,6 +55,8 @@ export interface FieldSpec {
   path?: string[]
   /** Collapsed behind the Advanced toggle. */
   advanced?: boolean
+  hiddenWhen?: { fieldId: string; value: FieldValue }
+  advancedVisibilityWhen?: { show: FieldValue; hide: FieldValue }
   required?: boolean
   readOnly?: boolean
   helpKey?: string

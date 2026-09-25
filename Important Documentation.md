@@ -2787,3 +2787,34 @@ exceptions), `npm run verify:codex`, `npm run verify:commands-opencode-provider`
 `npm run verify:commands-codex-use`, and the complete sequential `npm test`
 ending in `verify:release-artifact` all passed; `git diff --check` is clean. No
 live Provider request or Windows/macOS run was made.
+
+### 9.57 Claude Code project custom model mapping (2026-09-24)
+
+**Scope:** the provider form now has a default-off project-mapping toggle. When
+enabled after saving the provider, the second form writes the five model slots
+only to `<invocation directory>/.claude/settings.json`; blank fields remove
+their own `env` leaves, and disabling the toggle preserves existing mappings.
+Project backups are isolated under `<project>/.claude/backups/ccset/`.
+
+**Fixtures:** `verify:provider-safety` covers all five environment keys,
+`deepseek-flash[1m]` preservation, unmanaged siblings, project/home isolation,
+blank-leaf removal, mode `0600`, malformed-file refusal and backup on confirmed
+replacement, provider-name warning, and model suggestions. `verify:ui-render`
+uses Ink key input to cover the default-off toggle, preservation when off,
+opening and rendering the second form, its project path, suggestions, and the
+non-blocking Claude-name warning.
+
+**Manual scratch PTY:** on Linux, with `CCSET_HOME` pointing to a temporary
+home and the working directory set to a separate temporary project, created a
+provider, enabled the toggle, and saved `deepseek-flash[1m]`. The provider file
+landed under the scratch home; the mapping landed only in the scratch project’s
+`.claude/settings.json` at mode `0600`. The temporary directory was removed. The
+token was a placeholder and no live Provider request was made.
+
+**Verification:** Node.js 26.9.0; `npm run typecheck`, `npm run build`,
+`npm run verify:code-gates` (253 files, 17 baseline exceptions),
+`npm run verify:provider-safety`, `npm run verify:ui-render` (36 paints each for
+Unicode and ASCII), and `npm run verify:i18n-zh` passed. The first sandboxed
+`verify:i18n-zh` run was blocked when its nested CLI spawn returned `EPERM`; the
+same fixture passed outside the sandbox. `git diff --check` passed. No Windows
+or macOS run was made.

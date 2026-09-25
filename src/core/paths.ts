@@ -10,6 +10,11 @@ export function resolveHome(): string {
   return override && override.length > 0 ? override : os.homedir()
 }
 
+/** Captured once at the process boundary; fixtures pass their own directory. */
+export function resolveProjectDir(): string {
+  return process.cwd()
+}
+
 /**
  * Backups live in a ccset-owned subdirectory of the directory they came from,
  * never in a directory the agent itself prunes. Each agent passes its own

@@ -29,6 +29,10 @@ export function globalSettingsPath(home: string): string {
   return path.join(claudeDir(home), GLOBAL_SETTINGS_FILE)
 }
 
+export function projectSettingsPath(projectDir: string): string {
+  return path.join(projectDir, CLAUDE_DIR_NAME, GLOBAL_SETTINGS_FILE)
+}
+
 export function providerSettingsPath(home: string, name: string): string {
   return path.join(claudeDir(home), `${SETTINGS_PREFIX}${name}${SETTINGS_SUFFIX}`)
 }

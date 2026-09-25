@@ -140,6 +140,52 @@ export const PROVIDER_BASE_URL_PATH = ['env', 'ANTHROPIC_BASE_URL']
 export const PROVIDER_TOKEN_PATH = ['env', 'ANTHROPIC_AUTH_TOKEN']
 export const PROVIDER_MODEL_PATH = ['model']
 
+export const PROJECT_MODEL_MAPPING_FIELDS: FieldSpec[] = [
+  {
+    id: 'anthropicModel',
+    labelKey: 'claudeCode.field.anthropicModel',
+    helpKey: 'claudeCode.help.projectModelMapping',
+    type: 'text',
+    path: ['env', 'ANTHROPIC_MODEL'],
+  },
+  {
+    id: 'defaultOpusModel',
+    labelKey: 'claudeCode.field.defaultOpusModel',
+    helpKey: 'claudeCode.help.projectModelMapping',
+    type: 'text',
+    path: ['env', 'ANTHROPIC_DEFAULT_OPUS_MODEL'],
+  },
+  {
+    id: 'defaultSonnetModel',
+    labelKey: 'claudeCode.field.defaultSonnetModel',
+    helpKey: 'claudeCode.help.projectModelMapping',
+    type: 'text',
+    path: ['env', 'ANTHROPIC_DEFAULT_SONNET_MODEL'],
+  },
+  {
+    id: 'defaultHaikuModel',
+    labelKey: 'claudeCode.field.defaultHaikuModel',
+    helpKey: 'claudeCode.help.projectModelMapping',
+    type: 'text',
+    path: ['env', 'ANTHROPIC_DEFAULT_HAIKU_MODEL'],
+  },
+  {
+    id: 'subagentModel',
+    labelKey: 'claudeCode.field.subagentModel',
+    helpKey: 'claudeCode.help.projectModelMapping',
+    type: 'text',
+    path: ['env', 'CLAUDE_CODE_SUBAGENT_MODEL'],
+  },
+]
+
+export const PROVIDER_MODEL_MAPPING_TOGGLE: FieldSpec = {
+  id: 'customModelMapping',
+  labelKey: 'claudeCode.field.customModelMapping',
+  helpKey: 'claudeCode.help.customModelMapping',
+  type: 'boolean',
+  advancedVisibilityWhen: { show: true, hide: false },
+}
+
 export const PROVIDER_FIELDS: FieldSpec[] = [
   {
     id: 'name',
@@ -172,8 +218,10 @@ export const PROVIDER_FIELDS: FieldSpec[] = [
     labelKey: 'field.providerModel',
     helpKey: 'claudeCode.help.providerModel',
     type: 'text',
+    hiddenWhen: { fieldId: 'customModelMapping', value: true },
     path: PROVIDER_MODEL_PATH,
   },
+  PROVIDER_MODEL_MAPPING_TOGGLE,
   {
     id: 'fallbackModel',
     labelKey: 'claudeCode.field.fallbackModel',

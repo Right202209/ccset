@@ -1,5 +1,5 @@
 import { EXIT_INVALID_CONFIG, EXIT_OK, toCcsetError, type CcsetError } from '../core/errors.js'
-import { resolveHome } from '../core/paths.js'
+import { resolveHome, resolveProjectDir } from '../core/paths.js'
 import { executeOperation } from '../operations/index.js'
 import type { OperationRequest } from '../operations/types.js'
 import type { Agent, Ctx } from '../types.js'
@@ -93,7 +93,7 @@ export async function runCommand(
     const secret = await readSecret(parsed.secretSource, tokenEnv)
     const request: OperationRequest =
       secret === undefined ? parsed.request : { ...parsed.request, secret }
-    const ctx: Ctx = { home: resolveHome() }
+    const ctx: Ctx = { home: resolveHome(), projectDir: resolveProjectDir() }
     const result = await executeOperation(parsed.agent, ctx, request)
     return presentSuccess(parsed, result)
   } catch (err) {

@@ -19,6 +19,7 @@ const ANSI = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g
 export const DOWN = '\x1b[B'
 export const ENTER = '\r'
 export const ESC = '\x1b'
+export const UP = '\x1b[A'
 
 const POLL_MS = 10
 const WAIT_TIMEOUT_MS = 5_000
@@ -62,12 +63,12 @@ export class UiSession {
   constructor(
     home: string,
     terminal: Terminal,
-    options: { agents?: Agent[]; agentId?: string; viewport?: Viewport } = {},
+    options: { agents?: Agent[]; agentId?: string; projectDir?: string; viewport?: Viewport } = {},
   ) {
     this.marker = terminal.glyphs.focus
     this.instance = render(
       createElement(App, {
-        ctx: { home },
+        ctx: { home, projectDir: options.projectDir ?? home },
         agents: options.agents ?? AGENTS,
         agentId: options.agentId,
         terminal,

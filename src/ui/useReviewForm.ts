@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useInput } from 'ink'
+import { useInput, type Key } from 'ink'
 import wrapAnsi from 'wrap-ansi'
 import type { FieldSpec, FieldValue, FormScreen, FormValues } from '../types.js'
 import { fieldHints, type FieldHint } from './Field.js'
@@ -26,9 +26,14 @@ export function textOf(value: FieldValue | undefined): string {
   return ''
 }
 
+function isVisible(field: FieldSpec, values: FormValues): boolean {
+  return field.hiddenWhen === undefined || values[field.hiddenWhen.fieldId] !== field.hiddenWhen.value
+}
+
 function validateAll(fields: FieldSpec[], values: FormValues): Record<string, string> {
   const errors: Record<string, string> = {}
   for (const field of fields) {
+    if (!isVisible(field, values)) continue
     const raw = textOf(values[field.id])
     const missing = field.required === true && raw.trim().length === 0
     if (missing) errors[field.id] = 'validate.required'
@@ -40,10 +45,11 @@ function validateAll(fields: FieldSpec[], values: FormValues): Record<string, st
   return errors
 }
 
-function buildRows(fields: FieldSpec[], showAdvanced: boolean): ReviewRow[] {
-  const visible = fields.filter((field) => field.advanced !== true || showAdvanced)
+function buildRows(fields: FieldSpec[], showAdvanced: boolean, values: FormValues): ReviewRow[] {
+  const available = fields.filter((field) => isVisible(field, values))
+  const visible = available.filter((field) => field.advanced !== true || showAdvanced)
   const rows: ReviewRow[] = visible.map((field) => ({ kind: 'field', field }))
-  if (fields.some((field) => field.advanced === true)) rows.push({ kind: 'advanced' })
+  if (available.some((field) => field.advanced === true)) rows.push({ kind: 'advanced' })
   rows.push({ kind: 'save' }, { kind: 'cancel' })
   return rows
 }
@@ -59,8 +65,15 @@ function prioritizeHints(hints: FieldHint[]): FieldHint[] {
   return error === undefined ? hints : [error, ...hints.filter((hint) => hint !== error)]
 }
 
-function rowIndexOf(target: FieldSpec, fields: FieldSpec[], showAdvanced: boolean): number {
-  const visible = fields.filter((field) => field.advanced !== true || showAdvanced)
+function rowIndexOf(
+  target: FieldSpec,
+  fields: FieldSpec[],
+  showAdvanced: boolean,
+  values: FormValues,
+): number {
+  const visible = fields.filter(
+    (field) => isVisible(field, values) && (field.advanced !== true || showAdvanced),
+  )
   return Math.max(0, visible.indexOf(target))
 }
 
@@ -129,21 +142,39 @@ interface InputActions {
   cycle: (field: FieldSpec, delta: number) => void
 }
 
+interface FormInputEvent {
+  input: string
+  key: Key
+  row: ReviewRow | undefined
+  actions: InputActions
+}
+
+function handleNavigationKey(key: Key, actions: InputActions): boolean {
+  if (key.upArrow) actions.move(-1)
+  else if (key.downArrow || key.tab) actions.move(1)
+  else if (key.return) actions.activate()
+  else return false
+  return true
+}
+
+function handleFieldKey({ input, key, row, actions }: FormInputEvent): boolean {
+  if (row?.kind !== 'field') return false
+  if (isTextual(row.field)) return true
+  if (key.leftArrow) actions.cycle(row.field, -1)
+  else if (key.rightArrow || input === ' ') actions.cycle(row.field, 1)
+  else return false
+  return true
+}
+
+function handleFormInput({ input, key, row, actions }: FormInputEvent): void {
+  if (pressed(input, key).includes('ctrl+s')) actions.save()
+  else if (handleNavigationKey(key, actions) || handleFieldKey({ input, key, row, actions })) return
+  else if (input === 'k') actions.move(-1)
+  else if (input === 'j') actions.move(1)
+}
+
 function useFormInput(active: boolean, row: ReviewRow | undefined, actions: InputActions): void {
-  useInput((input, key) => {
-    if (pressed(input, key).includes('ctrl+s')) actions.save()
-    else if (key.upArrow) actions.move(-1)
-    else if (key.downArrow || key.tab) actions.move(1)
-    else if (key.return) actions.activate()
-    // The keymap's form entry promises k/j; textual rows return first, so the
-    // letters keep typing into them and only reach the movement below on rows
-    // where they cannot be text.
-    else if (row?.kind === 'field' && isTextual(row.field)) return
-    else if (key.leftArrow && row?.kind === 'field') actions.cycle(row.field, -1)
-    else if ((key.rightArrow || input === ' ') && row?.kind === 'field') actions.cycle(row.field, 1)
-    else if (input === 'k') actions.move(-1)
-    else if (input === 'j') actions.move(1)
-  }, { isActive: active })
+  useInput((input, key) => handleFormInput({ input, key, row, actions }), { isActive: active })
 }
 
 export function useReviewForm(options: ControllerOptions) {
@@ -152,7 +183,10 @@ export function useReviewForm(options: ControllerOptions) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [index, setIndex] = useState(0)
-  const rows = useMemo(() => buildRows(screen.fields, showAdvanced), [screen.fields, showAdvanced])
+  const rows = useMemo(
+    () => buildRows(screen.fields, showAdvanced, values),
+    [screen.fields, showAdvanced, values],
+  )
   const row = rows[Math.min(index, rows.length - 1)]
   const layout = useFormLayout({ screen, rows, errors, index })
   useDirtyState(screen, values, onDirtyChange)
@@ -162,8 +196,22 @@ export function useReviewForm(options: ControllerOptions) {
   }
 
   function update(field: FieldSpec, next: FieldValue): void {
-    setValues((current) => ({ ...current, [field.id]: next }))
+    const nextValues = { ...values, [field.id]: next }
+    setValues(nextValues)
     setErrors((current) => ({ ...current, [field.id]: '' }))
+    const advancedVisibility = field.advancedVisibilityWhen
+    if (
+      advancedVisibility !== undefined &&
+      (advancedVisibility.show === next || advancedVisibility.hide === next)
+    ) {
+      const nextShowAdvanced = advancedVisibility.show === next
+      setShowAdvanced(nextShowAdvanced)
+      const nextRows = buildRows(screen.fields, nextShowAdvanced, nextValues)
+      const nextIndex = nextRows.findIndex(
+        (candidate) => candidate.kind === 'field' && candidate.field.id === field.id,
+      )
+      if (nextIndex >= 0) setIndex(nextIndex)
+    }
   }
 
   function cycle(field: FieldSpec, delta: number): void {
@@ -177,17 +225,23 @@ export function useReviewForm(options: ControllerOptions) {
   function save(): void {
     const found = validateAll(screen.fields, values)
     setErrors(found)
-    const firstBad = screen.fields.find((field) => found[field.id] !== undefined)
+    const firstBad = screen.fields.find(
+      (field) => isVisible(field, values) && found[field.id] !== undefined,
+    )
     if (firstBad === undefined) return onSubmit(values)
     const reveal = showAdvanced || firstBad.advanced === true
     if (firstBad.advanced === true) setShowAdvanced(true)
-    setIndex(rowIndexOf(firstBad, screen.fields, reveal))
+    setIndex(rowIndexOf(firstBad, screen.fields, reveal, values))
   }
 
   function toggleAdvanced(): void {
     const next = !showAdvanced
     setShowAdvanced(next)
-    setIndex(screen.fields.filter((field) => field.advanced !== true || next).length)
+    setIndex(
+      screen.fields.filter(
+        (field) => isVisible(field, values) && (field.advanced !== true || next),
+      ).length,
+    )
   }
 
   function activate(): void {

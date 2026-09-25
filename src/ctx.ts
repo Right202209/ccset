@@ -9,4 +9,6 @@
 export interface Ctx {
   /** Home directory root; overridable via CCSET_HOME for isolated runs. */
   home: string
+  /** Directory captured when the process started for project-local settings. */
+  projectDir?: string
 }

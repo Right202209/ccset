@@ -7,7 +7,7 @@ import {
   EXIT_UNKNOWN_AGENT,
   toCcsetError,
 } from './core/errors.js'
-import { resolveHome, settingsFilePath } from './core/paths.js'
+import { resolveHome, resolveProjectDir, settingsFilePath } from './core/paths.js'
 import { readSavedLocale, saveLocale } from './core/settings.js'
 import { LOCALE_ENV, resolveLocale, setLocale, t, type Locale } from './i18n/index.js'
 import type { Terminal } from './ui/terminal.js'
@@ -161,6 +161,7 @@ async function launchTui(): Promise<void> {
   ])
   const React = (await import('react')).default
   const home = resolveHome()
+  const projectDir = resolveProjectDir()
   const terminal = resolveTerminal()
   // --help and --version returned during argument parsing, and commands exited
   // at the mode split, so only a TTY run reaches the settings file (ADR 0005).
@@ -176,7 +177,7 @@ async function launchTui(): Promise<void> {
     process.stderr.write(`${t('warn.localePersistFailed', { path: settingsFilePath(home) })}\n`)
   }
   const agentId = resolveAgentId(options.agent)
-  const ctx = { home }
+  const ctx = { home, projectDir }
   // Task errors recover inside the app as a Screen on the stack; what still
   // escapes the render tree reaches main().catch, which restores nothing.
   const app = render(React.createElement(App, { ctx, agents: AGENTS, agentId, terminal }))

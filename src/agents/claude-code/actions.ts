@@ -14,6 +14,7 @@ import { t } from '../../i18n/index.js'
 import { seedGlobal, seedGlobalFromDisk, saveGlobal } from './global.js'
 import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
 import { loadProviders, saveProvider, seedProvider, type ProviderRecord } from './providers.js'
+import { openProjectModelMappingForm } from './model-mapping-screen.js'
 import { runSave } from '../../core/save.js'
 import { buildStatus } from './status.js'
 import { createStateIfMissing } from './state.js'
@@ -50,13 +51,22 @@ function providerFields(isNew: boolean): FieldSpec[] {
   )
 }
 
-function providerForm(ctx: Ctx, record: ProviderRecord | null): ActionResult {
+function providerForm(
+  ctx: Ctx,
+  record: ProviderRecord | null,
+  modelSuggestions: string[],
+): ActionResult {
   const isNew = record === null
-  const values = isNew ? seedProvider({}, '') : seedProvider(record.data, record.name)
+  const seeded = isNew ? seedProvider({}, '') : seedProvider(record.data, record.name)
+  const values = { ...seeded, customModelMapping: false }
   return {
     kind: 'form',
     title: isNew ? t('action.providerAdd') : t('action.providerEdit', { name: record.name }),
-    fields: providerFields(isNew),
+    fields: providerFields(isNew).map((field) =>
+      field.id === 'model' && modelSuggestions.length > 0
+        ? { ...field, suggestions: modelSuggestions }
+        : field,
+    ),
     values,
     baseline: { ...values },
     notes: [t('claudeCode.note.providerPath'), t('note.preserved')],
@@ -64,14 +74,28 @@ function providerForm(ctx: Ctx, record: ProviderRecord | null): ActionResult {
       t('app.busyWriting', {
         path: providerSettingsPath(ctx.home, String(next['name'] ?? '').trim()),
       }),
-    submit: async (next: FormValues) =>
-      runSave(
+    submit: async (next: FormValues) => {
+      const result = await runSave(
         'write.providerSaved',
         (fresh) => saveProvider(ctx, next, fresh),
         t('app.busyWriting', {
           path: providerSettingsPath(ctx.home, String(next['name'] ?? '').trim()),
         }),
-      ),
+      )
+      if (next['customModelMapping'] !== true) return result
+      const suggestions = [...new Set([...modelSuggestions, String(next['model'] ?? '')].filter(Boolean))]
+      const target = providerSettingsPath(ctx.home, String(next['name'] ?? '').trim())
+      if (result.kind === 'confirm') {
+        return {
+          ...result,
+          confirm: async () => {
+            await result.confirm()
+            return openProjectModelMappingForm(ctx, suggestions, target)
+          },
+        }
+      }
+      return openProjectModelMappingForm(ctx, suggestions, target)
+    },
   }
 }
 
@@ -81,7 +105,7 @@ function providerDetail(record: ProviderRecord): string {
   return record.baseUrl
 }
 
-function providerItem(ctx: Ctx, record: ProviderRecord): ListItem {
+function providerItem(ctx: Ctx, record: ProviderRecord, modelSuggestions: string[]): ListItem {
   return {
     id: record.name,
     label: record.name,
@@ -89,7 +113,7 @@ function providerItem(ctx: Ctx, record: ProviderRecord): ListItem {
     tone: record.parsed ? undefined : 'error',
     run: async () =>
       record.parsed
-        ? providerForm(ctx, record)
+        ? providerForm(ctx, record, modelSuggestions)
         : {
             kind: 'message',
             title: t('status.providerTitle', { name: record.name }),
@@ -105,14 +129,17 @@ function providerItem(ctx: Ctx, record: ProviderRecord): ListItem {
 
 async function openProviders(ctx: Ctx): Promise<ActionResult> {
   const records = await loadProviders(ctx)
+  const modelSuggestions = [...new Set(records.filter((record) => record.parsed)
+    .map((record) => record.model)
+    .filter((model) => model.length > 0))]
   const items: ListItem[] = [
     {
       id: '__add__',
       label: t('action.providerAdd'),
       detail: t('claudeCode.action.providerAddDetail'),
-      run: async () => providerForm(ctx, null),
+      run: async () => providerForm(ctx, null, modelSuggestions),
     },
-    ...records.map((record) => providerItem(ctx, record)),
+    ...records.map((record) => providerItem(ctx, record, modelSuggestions)),
   ]
   return { kind: 'list', title: t('action.providers'), empty: t('claudeCode.status.noProviders'), items }
 }

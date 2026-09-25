@@ -243,6 +243,31 @@ Rationale for opt-in: a connection test transmits a live credential to a third-p
 host. That must be a thing the user chose in the moment, not a side effect of saving
 a draft or fixing a typo.
 
+#### 4.2.7 Project-level custom model mapping
+
+The provider review form has a default-off **Configure project model mappings**
+toggle. When selected, ccset saves the provider first and opens a second form for
+the project-level model slots below. Turning the toggle off does not delete prior
+project mappings.
+
+The target is `<process working directory>/.claude/settings.json`, never the
+home-level `~/.claude/settings.json` by substitution. Model IDs are free text and
+are written verbatim. Blank fields delete only their managed `env` leaf, while
+unmanaged settings and sibling environment values survive. If every known
+provider model name contains `claude`, ccset warns but does not block the save.
+Malformed targets require the same explicit TUI replacement confirmation as other
+managed settings. Project backups are isolated under
+`<project>/.claude/backups/ccset/`; the success screen names the file and advises
+restarting Claude Code in that project.
+
+| Project `env` key | Slot |
+| --- | --- |
+| `ANTHROPIC_MODEL` | Main model |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | Opus |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | Sonnet |
+| `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Haiku |
+| `CLAUDE_CODE_SUBAGENT_MODEL` | Subagent |
+
 ### 4.3 Extensibility: static registry
 
 `src/registry.ts` holds a hand-written array. There is **no** filesystem scanning and
@@ -540,6 +565,8 @@ The accepted command, safety, output, and reuse plan is recorded in
 | `~/.claude/settings.json` | read/write, manifest-merged |
 | `~/.claude/settings.<name>.json` | read/write, manifest-merged, glob-discovered |
 | `~/.claude/backups/ccset/` | write, `0600`, pruned to 10 |
+| `<project>/.claude/settings.json` | read/write, project model mappings only |
+| `<project>/.claude/backups/ccset/` | write, `0600`, pruned to 10 per target basename |
 
 Activation is always `claude --settings <absolute-path>`.
 

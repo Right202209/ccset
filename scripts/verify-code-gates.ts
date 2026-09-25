@@ -36,8 +36,6 @@ const BASELINE: readonly string[] = [
   'src/ui/Status.tsx:StatusView',
   'src/ui/TextField.tsx:(anonymous)@63',
   'src/ui/TextField.tsx:TextField',
-  'src/ui/useReviewForm.ts:(anonymous)@133',
-  'src/ui/useReviewForm.ts:useFormInput',
   'src/ui/useReviewForm.ts:useReviewForm',
   'src/ui/useScreens.ts:useScreens',
   'scripts/verify-viewport.ts:verifyShortStatus',

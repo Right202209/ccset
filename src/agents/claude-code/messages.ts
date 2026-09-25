@@ -13,6 +13,7 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.action.globalDetail': '~/.claude/settings.json',
     'claudeCode.action.providersDetail': 'Add or edit settings.<name>.json',
     'claudeCode.action.providerAddDetail': 'Create a new settings.<name>.json',
+    'claudeCode.action.projectModelMapping': 'Project custom model mapping',
     'claudeCode.action.createState': 'Create ~/.claude.json',
     'claudeCode.action.createStateDetail':
       'Only when absent — ccset never rewrites this file',
@@ -29,6 +30,9 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.field.defaultOpusModel': 'Opus model remap',
     'claudeCode.field.defaultSonnetModel': 'Sonnet model remap',
     'claudeCode.field.defaultHaikuModel': 'Haiku model remap',
+    'claudeCode.field.customModelMapping': 'Configure project model mappings',
+    'claudeCode.field.anthropicModel': 'Main model ID',
+    'claudeCode.field.subagentModel': 'Subagent model ID',
 
     /* ------------------------------------------------------------------ help */
     'claudeCode.help.proxyEnabled': 'Off deletes HTTP_PROXY and HTTPS_PROXY from the file.',
@@ -45,6 +49,10 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.help.providerModel':
       'Free text. Blank omits the key so the global model applies.',
     'claudeCode.help.fallbackModel': 'Comma-separated. Written as a JSON array.',
+    'claudeCode.help.customModelMapping':
+      'Off by default. Enable to edit project slots; disabling preserves mappings.',
+    'claudeCode.help.projectModelMapping':
+      'Free text; IDs stay verbatim. Blank clears only this slot.',
 
     /* ---------------------------------------------------------------- status */
     'claudeCode.status.stateTitle': 'Claude Code state (~/.claude.json)',
@@ -57,10 +65,15 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* ----------------------------------------------------------------- notes */
     'claudeCode.note.providerPath':
       'File: ~/.claude/settings.<name>.json — created on save.',
+    'claudeCode.note.projectModelMappingPath': 'Project file: {path}',
+    'claudeCode.note.providerSavedBeforeMapping': 'Provider file saved first: {path}',
 
     /* ----------------------------------------------------------------- write */
     'claudeCode.write.stateCreated': 'Created with hasCompletedOnboarding set.',
     'claudeCode.write.stateExists': 'Already present — left untouched.',
+    'claudeCode.write.projectModelMappingSaved': 'Project model mappings saved',
+    'claudeCode.write.projectModelMappingActivate': 'To apply these project-level mappings:',
+    'claudeCode.write.projectModelMappingReload': 'restart Claude Code in this project',
 
     /* -------------------------------------------------------------- commands */
     'claudeCode.validate.proxyNeedsUrl':
@@ -71,6 +84,8 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* --------------------------------------------------------- status warns */
     'claudeCode.warning.stateAbsent': '~/.claude.json is absent; state init can create it.',
     'claudeCode.warning.noBaseUrl': 'Provider {name} has no ANTHROPIC_BASE_URL.',
+    'claudeCode.warning.modelMappingClaudeNames':
+      'All known provider model names contain "claude"; double-check that your provider supports the selected slots.',
     'claudeCode.validate.providerBaseUrlRequired': 'A new provider needs --base-url.',
     'claudeCode.validate.providerTokenRequired':
       'A new provider needs a token from CCSET_TOKEN or --token-stdin.',
@@ -81,6 +96,7 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.action.globalDetail': '~/.claude/settings.json',
     'claudeCode.action.providersDetail': '添加或编辑 settings.<name>.json',
     'claudeCode.action.providerAddDetail': '新建 settings.<name>.json',
+    'claudeCode.action.projectModelMapping': '项目自定义模型映射',
     'claudeCode.action.createState': '创建 ~/.claude.json',
     'claudeCode.action.createStateDetail': '仅当文件不存在时 — ccset 绝不重写此文件',
 
@@ -96,6 +112,9 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.field.defaultOpusModel': 'Opus 模型重映射',
     'claudeCode.field.defaultSonnetModel': 'Sonnet 模型重映射',
     'claudeCode.field.defaultHaikuModel': 'Haiku 模型重映射',
+    'claudeCode.field.customModelMapping': '配置项目模型映射',
+    'claudeCode.field.anthropicModel': '主模型 ID',
+    'claudeCode.field.subagentModel': '子代理模型 ID',
 
     /* ------------------------------------------------------------------ help */
     'claudeCode.help.proxyEnabled': '关闭会从文件中删除 HTTP_PROXY 和 HTTPS_PROXY。',
@@ -107,6 +126,10 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     'claudeCode.help.token': '作为 Authorization: Bearer 请求头发送。ccset 打印它的所有位置都会掩码。',
     'claudeCode.help.providerModel': '自由文本。留空则省略该键，全局模型生效。',
     'claudeCode.help.fallbackModel': '逗号分隔。以 JSON 数组写入。',
+    'claudeCode.help.customModelMapping':
+      '默认关闭。启用后先保存此 provider，再编辑项目级模型槽位。关闭不会清除已保存的映射。',
+    'claudeCode.help.projectModelMapping':
+      '自由文本；模型 ID 会原样写入当前项目的 .claude/settings.json。留空只删除对应槽位。',
 
     /* ---------------------------------------------------------------- status */
     'claudeCode.status.stateTitle': 'Claude Code 状态（~/.claude.json）',
@@ -117,10 +140,15 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
 
     /* ----------------------------------------------------------------- notes */
     'claudeCode.note.providerPath': '文件：~/.claude/settings.<name>.json — 保存时创建。',
+    'claudeCode.note.projectModelMappingPath': '项目文件：{path}',
+    'claudeCode.note.providerSavedBeforeMapping': '已先保存 provider 文件：{path}',
 
     /* ----------------------------------------------------------------- write */
     'claudeCode.write.stateCreated': '已创建，并写入 hasCompletedOnboarding。',
     'claudeCode.write.stateExists': '已存在 — 未做改动。',
+    'claudeCode.write.projectModelMappingSaved': '项目模型映射已保存',
+    'claudeCode.write.projectModelMappingActivate': '应用这些项目级映射：',
+    'claudeCode.write.projectModelMappingReload': '在此项目中重启 Claude Code',
 
     /* -------------------------------------------------------------- commands */
     'claudeCode.validate.proxyNeedsUrl': '代理已开启，但未提供代理 URL，磁盘上也没有。',
@@ -129,6 +157,8 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
     /* --------------------------------------------------------- status warns */
     'claudeCode.warning.stateAbsent': '~/.claude.json 不存在；state init 可以创建它。',
     'claudeCode.warning.noBaseUrl': 'Provider {name} 没有设置 ANTHROPIC_BASE_URL。',
+    'claudeCode.warning.modelMappingClaudeNames':
+      '所有已知 provider 模型名都包含“claude”；请确认你的 provider 支持所选槽位。',
     'claudeCode.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
     'claudeCode.validate.providerTokenRequired':
       '新建 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',

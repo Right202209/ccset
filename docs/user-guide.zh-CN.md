@@ -19,8 +19,16 @@
 | --- | --- |
 | Global settings | `~/.claude/settings.json` |
 | Providers | `~/.claude/settings.<name>.json`，可添加、编辑、查看 |
-| Status | 读取上述文件及 `~/.claude.json`，不会写入 |
+| 项目模型映射 | 在 provider 表单中主动启用；写入`<当前目录>/.claude/settings.json` |
+| Status | 读取全局与 provider 设置及 `~/.claude.json`，不会写入 |
 | Test connection | 向选定的提供商发送一次需确认的连接请求 |
+
+Provider 表单中的 **配置项目模型映射** 默认关闭。开启后，provider 表单会隐藏“模型”
+字段并展开高级字段；关闭后会恢复“模型”字段并收起高级字段。保存 provider 后，会进入
+第二个表单配置五个模型槽位：主模型、Opus、Sonnet、Haiku 和子代理模型 ID。这些自由文本值只写入当前工作目录的
+`.claude/settings.json`，不会写入全局设置。留空只删除对应的 `env` 键；之后关闭开关会
+保留已保存的映射。保存时会合并现有设置并保留同级键；损坏文件需要确认后才会替换，
+备份保存在项目的 `.claude/backups/ccset/`。在此项目中重启 Claude Code 后映射生效。
 
 ### opencode
 

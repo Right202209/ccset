@@ -3,12 +3,17 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { saveProvider } from '../src/agents/claude-code/providers.js'
+import { saveProjectModelMapping, seedProjectModelMapping } from '../src/agents/claude-code/model-mappings.js'
+import { openProjectModelMappingForm } from '../src/agents/claude-code/model-mapping-screen.js'
 import { buildStatus } from '../src/agents/claude-code/status.js'
 import { probeEndpoint, warnsPlaintextHttp } from '../src/agents/claude-code/test-connection.js'
 import { BACKUP_INFIX, MASK_CHAR, MASK_FULL_HIDE_BELOW, MASK_MIDDLE_WIDTH, MAX_BACKUPS } from '../src/core/constants.js'
+import { ConfigParseError } from '../src/core/errors.js'
 import { maskSecret } from '../src/core/mask.js'
-import { backupsDir, providerSettingsPath } from '../src/agents/claude-code/paths.js'
+import { backupsDir, globalSettingsPath, projectSettingsPath, providerSettingsPath } from '../src/agents/claude-code/paths.js'
 import type { FormValues, JsonObject } from '../src/types.js'
+import '../src/registry.js'
+import { t } from '../src/i18n/index.js'
 
 const token = 'TOKEN-TEST-ALPHA-1234567890'
 
@@ -116,6 +121,97 @@ function checkPlaintextWarning(): void {
   assert.equal(warnsPlaintextHttp('not a url'), false, 'an unparseable URL warned')
 }
 
+async function verifyMappingWarningAndSeed(ctx: { home: string; projectDir: string }): Promise<void> {
+  const form = await openProjectModelMappingForm(ctx, ['claude-sonnet-4', 'claude-opus-4'])
+  assert.equal(form.kind, 'form')
+  if (form.kind !== 'form') return
+  assert.ok(form.notes?.includes(t('claudeCode.warning.modelMappingClaudeNames')))
+  assert.ok(form.fields.every((field) => field.suggestions?.includes('claude-sonnet-4')))
+  assert.deepEqual(await seedProjectModelMapping(ctx), {
+    anthropicModel: '',
+    defaultOpusModel: 'old-opus',
+    defaultSonnetModel: '',
+    defaultHaikuModel: 'old-haiku',
+    subagentModel: '',
+  })
+}
+
+async function verifyMappingWrites(
+  ctx: { home: string; projectDir: string },
+  target: string,
+  homeTarget: string,
+  homeContents: string,
+  mappings: FormValues,
+): Promise<void> {
+  await saveProjectModelMapping(ctx, mappings)
+  let written = JSON.parse(await fs.readFile(target, 'utf8')) as JsonObject
+  let env = written['env'] as JsonObject
+  assert.equal(env['ANTHROPIC_MODEL'], 'deepseek-flash[1m]')
+  assert.equal(env['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'opus-router')
+  assert.equal(env['ANTHROPIC_DEFAULT_SONNET_MODEL'], 'sonnet-router')
+  assert.equal(env['ANTHROPIC_DEFAULT_HAIKU_MODEL'], 'haiku-router')
+  assert.equal(env['CLAUDE_CODE_SUBAGENT_MODEL'], 'subagent-router')
+  assert.deepEqual(env['CUSTOM_ENV'], { nested: 'keep-me' })
+  assert.deepEqual(written['permissions'], { allow: ['Read'] })
+  await assertMode600(target)
+
+  await saveProjectModelMapping(ctx, { ...mappings, defaultSonnetModel: '' })
+  written = JSON.parse(await fs.readFile(target, 'utf8')) as JsonObject
+  env = written['env'] as JsonObject
+  assert.equal(Object.hasOwn(env, 'ANTHROPIC_DEFAULT_SONNET_MODEL'), false)
+  assert.equal(env['ANTHROPIC_MODEL'], 'deepseek-flash[1m]')
+  assert.equal(env['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'opus-router')
+  assert.equal(env['ANTHROPIC_DEFAULT_HAIKU_MODEL'], 'haiku-router')
+  assert.equal(env['CLAUDE_CODE_SUBAGENT_MODEL'], 'subagent-router')
+  assert.equal(await fs.readFile(homeTarget, 'utf8'), homeContents)
+}
+
+async function verifyMalformedMappingBackup(
+  ctx: { home: string; projectDir: string },
+  target: string,
+  mappings: FormValues,
+): Promise<void> {
+  await fs.writeFile(target, '{ malformed', { mode: 0o600 })
+  await assert.rejects(() => saveProjectModelMapping(ctx, mappings), ConfigParseError)
+  const replaced = await saveProjectModelMapping(ctx, mappings, true)
+  assert.ok(replaced.backupPath !== null)
+  assert.equal(
+    replaced.backupPath?.startsWith(path.join(ctx.projectDir, '.claude', 'backups', 'ccset')),
+    true,
+  )
+  assert.equal(await fs.readFile(replaced.backupPath ?? '', 'utf8'), '{ malformed')
+}
+
+async function verifyProjectModelMappings(home: string): Promise<void> {
+  const projectDir = path.join(home, 'workspace')
+  const ctx = { home, projectDir }
+  const target = projectSettingsPath(projectDir)
+  const homeTarget = globalSettingsPath(home)
+  const homeContents = `${JSON.stringify({ env: { HOME_ONLY: 'untouched' }, model: 'home-model' }, null, 2)}\n`
+  const original: JsonObject = {
+    env: {
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: 'old-haiku',
+      ANTHROPIC_DEFAULT_OPUS_MODEL: 'old-opus',
+      CUSTOM_ENV: { nested: 'keep-me' },
+    },
+    permissions: { allow: ['Read'] },
+  }
+  const mappings: FormValues = {
+    anthropicModel: 'deepseek-flash[1m]',
+    defaultOpusModel: 'opus-router',
+    defaultSonnetModel: 'sonnet-router',
+    defaultHaikuModel: 'haiku-router',
+    subagentModel: 'subagent-router',
+  }
+  await fs.mkdir(path.dirname(target), { recursive: true })
+  await fs.mkdir(path.dirname(homeTarget), { recursive: true })
+  await fs.writeFile(homeTarget, homeContents)
+  await fs.writeFile(target, `${JSON.stringify(original, null, 2)}\n`, { mode: 0o600 })
+  await verifyMappingWarningAndSeed(ctx)
+  await verifyMappingWrites(ctx, target, homeTarget, homeContents, mappings)
+  await verifyMalformedMappingBackup(ctx, target, mappings)
+}
+
 async function main(): Promise<void> {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'ccset-provider-'))
   try {
@@ -164,6 +260,7 @@ async function main(): Promise<void> {
     checkPlaintextWarning()
     await verifyProbeErrorIsSanitized()
     await verifyProbeDoesNotFollowRedirects()
+    await verifyProjectModelMappings(home)
 
     process.stdout.write('Provider settings and credential safety verification passed.\n')
   } finally {

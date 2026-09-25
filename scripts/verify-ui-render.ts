@@ -14,10 +14,11 @@ import { ASCII_TERMINAL, UNICODE_TERMINAL, type Terminal } from '../src/ui/termi
 import { AGENTS } from '../src/registry.js'
 import { t } from '../src/i18n/index.js'
 import type { Viewport } from '../src/types.js'
-import { DOWN, ENTER, ESC, UiSession } from './ui-session.js'
+import { DOWN, ENTER, ESC, UP, UiSession } from './ui-session.js'
 import { assertGlyphSetsAreSelectable, assertPaintsAreAscii, assertPaintsFit } from './ui-assertions.js'
 import { verifyAgentDiscovery } from './verify-agent-discovery.js'
 import { verifyViewportScenarios } from './verify-viewport.js'
+import { verifyClaudeMappingFlow } from './verify-claude-mapping-flow.js'
 
 /**
  * The one gate that renders. The other five assert on data and on the CLI
@@ -60,6 +61,7 @@ async function seedHome(home: string): Promise<void> {
   await write(globalSettingsPath(home), { unmanaged: 'kept' })
   await write(providerSettingsPath(home, PROVIDER), {
     env: { ANTHROPIC_BASE_URL: BASE_URL, ANTHROPIC_AUTH_TOKEN: TOKEN },
+    model: 'claude-sonnet-4',
   })
 }
 
@@ -75,7 +77,8 @@ async function assertBusyLabelsAreSpecificAndSecretFree(home: string): Promise<v
     t('app.busyWriting', { path: globalSettingsPath(home) }),
   )
 
-  const providersScreen = await providersAction.run({ home })
+  const projectDir = path.join(home, 'project')
+  const providersScreen = await providersAction.run({ home, projectDir })
   assert.equal(providersScreen.kind, 'list')
   if (providersScreen.kind !== 'list') return
   const providerScreen = await providersScreen.items.find((item) => item.id === PROVIDER)?.run()
@@ -84,6 +87,7 @@ async function assertBusyLabelsAreSpecificAndSecretFree(home: string): Promise<v
   const providerBusy = providerScreen.busyLabel?.(providerScreen.values) ?? ''
   assert.equal(providerBusy, t('app.busyWriting', { path: providerSettingsPath(home, PROVIDER) }))
   assert.equal(providerBusy.includes(TOKEN), false, 'The token reached the provider save label')
+  await verifyClaudeMappingFlow(home, projectDir, providerScreen)
 
   const testScreen = await testAction.run({ home })
   assert.equal(testScreen.kind, 'list')
@@ -159,6 +163,41 @@ async function driveTokenEditor(session: UiSession, terminal: Terminal): Promise
   assertPainted(paint, terminal.glyphs.mask, 'The focused token field is not masked')
 }
 
+async function driveProjectMappingForm(session: UiSession): Promise<void> {
+  await session.sendEach(DOWN, 2)
+  const toggle = session.focusedRow(t('claudeCode.field.customModelMapping'))
+  const togglePaint = await session.waitFor(toggle)
+  session.assertSingleFocus(togglePaint, 'project mapping toggle')
+  await session.send(' ')
+  await session.send(DOWN)
+  const expandedPaint = await session.waitFor(
+    session.focusedRow(t('claudeCode.field.fallbackModel')),
+  )
+  session.assertSingleFocus(expandedPaint, 'expanded provider advanced fields')
+  await session.send(UP)
+  await session.waitFor(toggle)
+  await session.send(' ')
+  await session.send(DOWN)
+  const collapsedPaint = await session.waitFor(session.focusedRow(t('form.showAdvanced')))
+  session.assertSingleFocus(collapsedPaint, 'collapsed provider advanced fields')
+  await session.send(UP)
+  await session.send(UP)
+  const modelPaint = await session.waitFor(session.focusedRow(t('field.providerModel')))
+  session.assertSingleFocus(modelPaint, 'restored provider model field')
+  await session.send(DOWN)
+  await session.send(' ')
+  await session.send(DOWN)
+  await session.waitFor(session.focusedRow(t('claudeCode.field.fallbackModel')))
+  await session.send('\u0013')
+  const paint = await session.waitFor(t('claudeCode.action.projectModelMapping'))
+  session.assertSingleFocus(paint, 'project model mapping form')
+  assertPainted(
+    paint,
+    session.focusedRow(t('claudeCode.field.anthropicModel')),
+    'The project mapping form does not focus its main model field',
+  )
+}
+
 async function driveStatus(session: UiSession): Promise<void> {
   await session.send(ESC)
   await session.waitFor(t('claudeCode.action.providerAddDetail'))
@@ -212,6 +251,7 @@ async function verifyRenderedPaints(home: string, set: string, terminal: Termina
     await driveProviderList(session)
     await driveProviderForm(session)
     await driveTokenEditor(session, terminal)
+    await driveProjectMappingForm(session)
     await driveStatus(session)
     await driveConfirm(session)
     session.assertAlive()
