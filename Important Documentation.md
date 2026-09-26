@@ -2909,3 +2909,30 @@ viewport assertions account for the added menu entry.
 passed. The i18n fixture required approval to spawn its CLI child process after
 the sandbox denied it with `EPERM`. The complete `npm test` suite and a manual
 real-terminal run were not performed.
+
+### 9.61 Follow-up review fixes for discovery, mouse input, and status previews (2026-09-26)
+
+**Scope:** an explicit `--agent` still bypasses discovery for startup, but the
+first return to Agent selection now runs filesystem detection before showing
+choices. A partial SGR mouse code cannot feed digit shortcuts. Mouse decoder
+registrations survive overlapping-list cleanup, mouse reporting is reference
+counted across mounted lists, and an exit handler disables reporting if normal
+unmount cleanup does not run. Status presentations share the `StatusGlance`
+type, and Pi Provider previews label the full model list as “Model ids.”
+
+**Fixtures:** `scripts/verify-agent-discovery.ts`, through
+`npm run verify:ui-render`, confirms an explicit-agent return omits a synthetic
+undetected Agent, ignores a digit during a partial mouse code, retains Escape
+delay after an older decoder unregisters, and covers mouse-mode reference
+counting and process-exit restoration. `scripts/verify-side-info.ts` exercises
+mouse clicks, `scripts/verify-pi-screens.ts` asserts the Pi preview label, and
+`scripts/verify-malformed-dirty.ts` covers PTY mouse-mode activation and normal
+cleanup.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run verify:ui-render`, `npm run verify:side-info`,
+`npm run verify:pi-screens`, `npm run verify:malformed-dirty` (including its
+build), `npm run verify:code-gates` (265 files, 10 baseline exceptions), and
+`git diff --check` passed. `npm test` stalled silently in `verify:codex`; an
+isolated `npm run verify:codex` also stalled after building and was interrupted.
+No manual real-terminal, Windows, or macOS run was made.

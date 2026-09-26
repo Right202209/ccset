@@ -3,7 +3,7 @@ import { readConfigFile } from '../../core/config-file.js'
 import { JsonParseError } from '../../core/errors.js'
 import { fileExists, isPlainObject, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
-import type { Finding, KeyedLine, KeyedStatusSection } from '../../operations/types.js'
+import type { Finding, KeyedStatusSection, StatusGlance } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
 import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { ConfigFile, JsonObject, JsonValue } from '../../types.js'
@@ -238,7 +238,7 @@ export function presentPiStatus(dto: PiStatusDto): KeyedStatusSection[] {
   return sections
 }
 
-export function presentPiGlance(dto: PiStatusDto): { summary: KeyedLine[]; actions: Record<string, KeyedLine[]> } {
+export function presentPiGlance(dto: PiStatusDto): StatusGlance {
   const findings = piStatusFindings(dto)
   return {
     summary: [

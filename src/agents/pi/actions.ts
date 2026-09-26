@@ -129,7 +129,7 @@ function providerPreview(record: ProviderRecord, path: string): StatusLine[] {
   return [
     { label: t('status.path'), value: path },
     { label: t('field.baseUrl'), value: record.baseUrl || t('status.unset') },
-    { label: t('pi.field.defaultModel'), value: record.models.join(', ') || t('status.unset') },
+    { label: t('pi.field.models'), value: record.models.join(', ') || t('status.unset') },
     { label: t('pi.field.apiKey'), value: t(record.apiKey.length > 0 ? 'status.yes' : 'status.no') },
   ]
 }

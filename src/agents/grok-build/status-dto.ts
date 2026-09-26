@@ -3,7 +3,7 @@ import { readConfigFile } from '../../core/config-file.js'
 import { ConfigParseError } from '../../core/errors.js'
 import { fileExists, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
-import type { Finding, KeyedLine, KeyedStatusSection } from '../../operations/types.js'
+import type { Finding, KeyedStatusSection, StatusGlance } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
 import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { ConfigFile, JsonObject } from '../../types.js'
@@ -225,7 +225,7 @@ export function presentGrokStatus(dto: GrokStatusDto): KeyedStatusSection[] {
   return sections
 }
 
-export function presentGrokGlance(dto: GrokStatusDto): { summary: KeyedLine[]; actions: Record<string, KeyedLine[]> } {
+export function presentGrokGlance(dto: GrokStatusDto): StatusGlance {
   const findings = grokStatusFindings(dto)
   return {
     summary: [

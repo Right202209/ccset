@@ -1,7 +1,7 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import { useStdin, useStdout, type DOMElement } from 'ink'
 import type { SelectOption } from './SelectList.js'
-import { MouseDecoder, mouseReport, rowAtPoint, setActiveMouseDecoder } from './mouse.js'
+import { MouseDecoder, registerActiveMouseDecoder, registerMouseMode, rowAtPoint } from './mouse.js'
 
 interface MouseInputOptions {
   rowNodes: React.MutableRefObject<Map<number, DOMElement>>
@@ -10,8 +10,9 @@ interface MouseInputOptions {
   setIndex: Dispatch<SetStateAction<number>>
 }
 
-export function useMouseInput({ rowNodes, options, onSelect, setIndex }: MouseInputOptions): void {
+export function useMouseInput({ rowNodes, options, onSelect, setIndex }: MouseInputOptions): () => boolean {
   const latest = useRef({ options, onSelect })
+  const decoderRef = useRef<MouseDecoder | null>(null)
   latest.current = { options, onSelect }
   const { stdin, isRawModeSupported, internal_eventEmitter } = useStdin()
   const { stdout } = useStdout()
@@ -25,16 +26,19 @@ export function useMouseInput({ rowNodes, options, onSelect, setIndex }: MouseIn
       setIndex(target)
       latest.current.onSelect(option, target)
     })
+    decoderRef.current = decoder
     const onInput = (input: unknown): void => decoder.push(String(input))
     internal_eventEmitter.prependListener('input', onInput)
-    setActiveMouseDecoder(decoder)
     const enabled = stdin.isTTY === true && isRawModeSupported && stdout.isTTY === true
-    if (enabled) stdout.write(mouseReport.enable)
+    const unregisterDecoder = registerActiveMouseDecoder(decoder)
+    const unregisterMouseMode = enabled ? registerMouseMode(stdout) : undefined
     return () => {
       internal_eventEmitter.removeListener('input', onInput)
+      if (decoderRef.current === decoder) decoderRef.current = null
+      unregisterDecoder()
       decoder.dispose()
-      setActiveMouseDecoder(undefined)
-      if (enabled) stdout.write(mouseReport.disable)
+      unregisterMouseMode?.()
     }
   }, [internal_eventEmitter, isRawModeSupported, rowNodes, setIndex, stdin, stdout])
+  return () => decoderRef.current?.hasPendingMouseCode() ?? false
 }

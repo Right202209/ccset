@@ -5,9 +5,11 @@ import path from 'node:path'
 import { claudeCode } from '../src/agents/claude-code/index.js'
 import { claudeDir } from '../src/agents/claude-code/paths.js'
 import { opencode } from '../src/agents/opencode/index.js'
+import { opencodeDir } from '../src/agents/opencode/paths.js'
 import { t } from '../src/i18n/index.js'
 import { AGENTS } from '../src/registry.js'
 import type { Agent, Viewport } from '../src/types.js'
+import { handleEscape, MouseDecoder, registerActiveMouseDecoder, registerMouseMode } from '../src/ui/mouse.js'
 import type { Terminal } from '../src/ui/terminal.js'
 import { DOWN, ENTER, ESC, UiSession } from './ui-session.js'
 
@@ -25,6 +27,13 @@ const THROWING_AGENT: Agent = {
   detect: async () => {
     throw new Error('detect failed')
   },
+}
+
+const UNDETECTED_AGENT: Agent = {
+  ...opencode,
+  id: 'uninstalled-agent',
+  name: 'Uninstalled Agent',
+  detect: async () => false,
 }
 
 async function withScratchHome(run: (home: string) => Promise<void>): Promise<void> {
@@ -123,6 +132,78 @@ async function verifyCanChangeAgent(
   })
 }
 
+async function verifyExplicitAgentChangeFilters(
+  terminal: Terminal,
+  viewport: Viewport,
+): Promise<void> {
+  await withScratchHome(async (home) => {
+    await Promise.all([
+      fs.mkdir(claudeDir(home), { recursive: true }),
+      fs.mkdir(opencodeDir(home), { recursive: true }),
+    ])
+    const agents = [claudeCode, opencode, UNDETECTED_AGENT]
+    const session = new UiSession(home, terminal, { agents, agentId: opencode.id, viewport })
+    await withSession(session, async () => {
+      await session.waitFor(t('app.agent', { name: opencode.name }))
+      await session.sendEach(DOWN, opencode.getActions().length)
+      await session.send(ENTER)
+      const selector = await session.waitFor(t('menu.agentTitle'))
+      assert.ok(selector.includes(claudeCode.name), selector)
+      assert.ok(selector.includes(opencode.name), selector)
+      assert.equal(selector.includes(UNDETECTED_AGENT.name), false, selector)
+    })
+  })
+}
+
+async function verifyPartialMouseDigitIsIgnored(terminal: Terminal, viewport: Viewport): Promise<void> {
+  await withScratchHome(async (home) => {
+    await fs.mkdir(claudeDir(home), { recursive: true })
+    const session = new UiSession(home, terminal, { agents: [claudeCode], agentId: claudeCode.id, viewport })
+    await withSession(session, async () => {
+      await session.waitFor(t('menu.changeAgent'))
+      await session.send('\x1b[<0;1;')
+      await session.send('4')
+      assert.ok(session.paint().includes(t('menu.changeAgent')), 'A digit inside a partial mouse code selected a row')
+    })
+  })
+}
+
+async function verifyMouseRegistrations(): Promise<void> {
+  const exitWrites: string[] = []
+  const exitOutput = { write: (sequence: string): number => exitWrites.push(sequence) }
+  const listenersBefore = process.listeners('exit')
+  const releaseExitMode = registerMouseMode(exitOutput)
+  const exitRestore = process.listeners('exit').find((listener) => !listenersBefore.includes(listener))
+  assert.ok(exitRestore, 'Mouse mode did not register process-exit cleanup')
+  Reflect.apply(exitRestore, process, [0])
+  assert.deepEqual(exitWrites, ['\x1b[?1000h\x1b[?1006h', '\x1b[?1006l\x1b[?1000l'])
+  releaseExitMode()
+
+  const writes: string[] = []
+  const output = { write: (sequence: string): number => writes.push(sequence) }
+  const releaseMode = registerMouseMode(output)
+  const releaseSecondMode = registerMouseMode(output)
+  releaseMode()
+  assert.deepEqual(writes, ['\x1b[?1000h\x1b[?1006h'])
+  releaseSecondMode()
+  assert.deepEqual(writes, ['\x1b[?1000h\x1b[?1006h', '\x1b[?1006l\x1b[?1000l'])
+
+  const oldDecoder = new MouseDecoder(() => undefined)
+  const currentDecoder = new MouseDecoder(() => undefined)
+  const unregisterOld = registerActiveMouseDecoder(oldDecoder)
+  const unregisterCurrent = registerActiveMouseDecoder(currentDecoder)
+  currentDecoder.push('\x1b[<0;1;')
+  unregisterOld()
+  let escaped = false
+  handleEscape(() => (escaped = true))
+  assert.equal(escaped, false, 'Cleaning up an older list removed the active mouse decoder')
+  await new Promise((resolve) => setTimeout(resolve, 150))
+  assert.equal(escaped, true, 'Escape was not released after the partial mouse code timed out')
+  unregisterCurrent()
+  oldDecoder.dispose()
+  currentDecoder.dispose()
+}
+
 /** `home` must already hold Claude Code and opencode files. */
 export async function verifyAgentDiscovery(
   home: string,
@@ -132,5 +213,8 @@ export async function verifyAgentDiscovery(
   await verifyEmptyHome(terminal, viewport)
   await verifySingleDetectedOpensDirectly(terminal, viewport)
   await verifyCanChangeAgent(home, terminal, viewport)
+  await verifyExplicitAgentChangeFilters(terminal, viewport)
+  await verifyPartialMouseDigitIsIgnored(terminal, viewport)
   await verifyFailedDetectionIsHidden(home, terminal, viewport)
+  await verifyMouseRegistrations()
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Agent, Ctx } from '../types.js'
 
 /**
@@ -40,10 +40,12 @@ export function useAgentDiscovery(agents: Agent[], ctx: Ctx, agentId?: string): 
   const [available, setAvailable] = useState<Agent[] | null>(() =>
     agentId === undefined ? null : agents,
   )
+  const [shouldDiscover, setShouldDiscover] = useState(agentId === undefined)
+  const discoveryStarted = useRef(agentId === undefined)
   const [detected, setDetected] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (agentId !== undefined) return
+    if (!shouldDiscover) return
     let active = true
     void discoverAgents(agents, ctx).then((found) => {
       if (!active) return
@@ -53,7 +55,7 @@ export function useAgentDiscovery(agents: Agent[], ctx: Ctx, agentId?: string): 
     return () => {
       active = false
     }
-  }, [agentId, agents, ctx])
+  }, [agents, ctx, shouldDiscover])
 
   useEffect(() => {
     let active = true
@@ -71,6 +73,10 @@ export function useAgentDiscovery(agents: Agent[], ctx: Ctx, agentId?: string): 
   function backToSelection(): void {
     setAgent(null)
     setDetected(null)
+    if (discoveryStarted.current) return
+    discoveryStarted.current = true
+    setAvailable(null)
+    setShouldDiscover(true)
   }
 
   return { agent, choose: setAgent, backToSelection, available, detected }

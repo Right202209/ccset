@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { backupsDir, globalSettingsPath } from '../src/agents/claude-code/paths.js'
 import { saveLocale } from '../src/core/settings.js'
-import { CliSession, DOWN, ENTER, ESC, terminalEnv, UP } from './pty-session.js'
+import { CliSession, DOWN, ENTER, ESC, KEY_DELAY_MS, terminalEnv, UP } from './pty-session.js'
 
 async function backupFiles(home: string): Promise<string[]> {
   try {
@@ -140,9 +140,11 @@ async function verifyMouseMode(home: string): Promise<void> {
   const session = startSession(home)
   try {
     await session.waitFor('Providers')
+    await new Promise((resolve) => setTimeout(resolve, KEY_DELAY_MS))
     assert.ok(session.raw().includes('\x1b[?1000h\x1b[?1006h'), 'The TTY did not enable SGR mouse reporting')
-    session.send(ESC)
-    assert.equal(await session.waitExit(), 0, 'Escape did not exit the menu')
+    await session.sendEach(DOWN, 5)
+    session.send(ENTER)
+    assert.equal(await session.waitExit(), 0, 'Selecting Exit did not leave the menu')
     assert.ok(session.raw().includes('\x1b[?1006l\x1b[?1000l'), 'The TTY did not disable SGR mouse reporting')
   } finally {
     await session.stop()

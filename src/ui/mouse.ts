@@ -7,11 +7,22 @@ export interface MouseEvent {
   action: 'press' | 'release'
 }
 
+interface MouseOutput {
+  write: (sequence: string) => unknown
+}
+
+interface MouseMode {
+  users: number
+  restore: () => void
+}
+
 const SGR_MOUSE = /\x1b\[<(\d+);(\d+);(\d+)([Mm])/g
 const MAX_PENDING_LENGTH = 48
 const ESCAPE_DELAY_MS = 120
 const ENABLE_MOUSE = '\x1b[?1000h\x1b[?1006h'
 const DISABLE_MOUSE = '\x1b[?1006l\x1b[?1000l'
+const activeDecoders = new Set<MouseDecoder>()
+const activeMouseModes = new Map<MouseOutput, MouseMode>()
 
 function pendingSuffix(input: string): string {
   const start = input.lastIndexOf('\x1b')
@@ -44,6 +55,10 @@ export class SgrMouseParser {
     return this.pending.length > 0
   }
 
+  hasPendingMouseCode(): boolean {
+    return this.pending.startsWith('\x1b[<')
+  }
+
   reset(): void {
     this.pending = ''
   }
@@ -55,6 +70,14 @@ export class MouseDecoder {
   private timer: ReturnType<typeof setTimeout> | undefined
 
   constructor(private readonly onMouse: (event: MouseEvent) => void) {}
+
+  hasPending(): boolean {
+    return this.parser.hasPending()
+  }
+
+  hasPendingMouseCode(): boolean {
+    return this.parser.hasPendingMouseCode()
+  }
 
   push(input: string): void {
     const hadPending = this.parser.hasPending()
@@ -104,15 +127,49 @@ export class MouseDecoder {
   }
 }
 
-let activeDecoder: MouseDecoder | undefined
+export function registerActiveMouseDecoder(decoder: MouseDecoder): () => void {
+  activeDecoders.add(decoder)
+  return () => {
+    activeDecoders.delete(decoder)
+  }
+}
 
-export function setActiveMouseDecoder(decoder: MouseDecoder | undefined): void {
-  activeDecoder = decoder
+export function registerMouseMode(output: MouseOutput): () => void {
+  const active = activeMouseModes.get(output)
+  if (active !== undefined) active.users += 1
+  else {
+    const restore = (): void => {
+      output.write(DISABLE_MOUSE)
+    }
+    output.write(ENABLE_MOUSE)
+    process.once('exit', restore)
+    activeMouseModes.set(output, { users: 1, restore })
+  }
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    releaseMouseMode(output)
+  }
+}
+
+function releaseMouseMode(output: MouseOutput): void {
+  const active = activeMouseModes.get(output)
+  if (active === undefined) return
+  active.users -= 1
+  if (active.users > 0) return
+  activeMouseModes.delete(output)
+  process.removeListener('exit', active.restore)
+  active.restore()
 }
 
 export function handleEscape(action: () => void): void {
-  if (activeDecoder === undefined) action()
-  else activeDecoder.deferEscape(action)
+  let pending: MouseDecoder | undefined
+  for (const decoder of activeDecoders) {
+    if (decoder.hasPending()) pending = decoder
+  }
+  if (pending === undefined) action()
+  else pending.deferEscape(action)
 }
 
 export function rowAtPoint(rows: Map<number, DOMElement>, x: number, y: number): number | null {

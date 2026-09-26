@@ -1,5 +1,4 @@
-import type { KeyedStatusSection } from '../../operations/types.js'
-import type { KeyedLine } from '../../operations/types.js'
+import type { KeyedLine, KeyedStatusSection, StatusGlance } from '../../operations/types.js'
 import { backupsSection } from '../../operations/status-sections.js'
 import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { JsonValue } from '../../types.js'
@@ -23,7 +22,7 @@ export function presentClaudeStatus(dto: ClaudeStatusDto): KeyedStatusSection[] 
   return sections
 }
 
-export function presentClaudeGlance(dto: ClaudeStatusDto): { summary: KeyedLine[]; actions: Record<string, KeyedLine[]> } {
+export function presentClaudeGlance(dto: ClaudeStatusDto): StatusGlance {
   const findings = claudeStatusFindings(dto)
   const actions = statusGlanceActions({
     path: dto.global.path,

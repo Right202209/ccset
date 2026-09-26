@@ -3,7 +3,7 @@ import { readConfigFile } from '../../core/config-file.js'
 import { JsonParseError } from '../../core/errors.js'
 import { fileExists, isPlainObject, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
-import type { Finding, KeyedLine, KeyedStatusSection } from '../../operations/types.js'
+import type { Finding, KeyedStatusSection, StatusGlance } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
 import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { JsonObject, JsonValue } from '../../types.js'
@@ -239,7 +239,7 @@ export function presentOpencodeStatus(dto: OpencodeStatusDto): KeyedStatusSectio
   return sections
 }
 
-export function presentOpencodeGlance(dto: OpencodeStatusDto): { summary: KeyedLine[]; actions: Record<string, KeyedLine[]> } {
+export function presentOpencodeGlance(dto: OpencodeStatusDto): StatusGlance {
   const findings = opencodeStatusFindings(dto)
   return {
     summary: [

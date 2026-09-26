@@ -160,6 +160,11 @@ export interface KeyedLine {
   tone?: 'success' | 'error' | 'info' | 'warn'
 }
 
+export interface StatusGlance {
+  summary: KeyedLine[]
+  actions: Record<string, KeyedLine[]>
+}
+
 export interface KeyedStatusSection {
   titleKey: string
   titleParams?: Record<string, string>

@@ -77,7 +77,7 @@ export function SelectList({
 }: SelectListProps): React.ReactElement {
   const [index, setIndex] = useState(initialIndex)
   const rowNodes = useRef(new Map<number, DOMElement>())
-  useMouseInput({ rowNodes, options, onSelect, setIndex })
+  const isMouseCodePending = useMouseInput({ rowNodes, options, onSelect, setIndex })
   const count = options.length
   const viewport = useViewport()
   const { fold } = useTerminal()
@@ -89,7 +89,7 @@ export function SelectList({
   usePublishFocusPreview(preview)
 
   useInput((input, key) => {
-    if (count === 0) return
+    if (count === 0 || isMouseCodePending()) return
     const delta = moveDelta(input, key)
     if (delta !== 0) setIndex((current) => (current + delta + count) % count)
     else selectAt(selectTarget(input, key, { index, window }))
