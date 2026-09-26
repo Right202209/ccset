@@ -75,6 +75,7 @@ export interface ListItem {
   id: string
   label: string
   detail?: string
+  preview?: StatusLine[]
   tone?: MessageTone
   run: () => Promise<ActionResult>
 }

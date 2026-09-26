@@ -75,7 +75,7 @@ async function withSession(created: UiSession, run: (active: UiSession) => Promi
  * checked in place too.
  */
 async function verifyFrameGeometry(home: string, terminal: Terminal): Promise<void> {
-  const viewport = { rows: 24, columns: 80 }
+  const viewport = { rows: 24, columns: 79 }
   await withSession(session(home, viewport, { terminal }), async (active) => {
     const paint = await active.waitFor(MENU_LABEL)
     const lines = paint.split('\n')

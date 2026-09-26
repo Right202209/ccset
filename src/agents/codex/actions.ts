@@ -5,6 +5,7 @@ import type {
   FieldSpec,
   FormValues,
   ListItem,
+  StatusLine,
   MessageTone,
 } from '../../types.js'
 import { clearBackups } from '../../core/backup.js'
@@ -190,6 +191,7 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
       id: record.id,
       label: record.id,
       detail: providerDetail(record),
+      preview: providerPreview(record, profiles, list.path),
       tone: record.problemKey === undefined ? undefined : ('warn' as const),
       run: async () => openProvider(ctx, record.id),
     })),
@@ -210,6 +212,16 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
     empty: t('codex.status.noProviders'),
     items,
   }
+}
+
+function providerPreview(record: ProviderRecord, profiles: AuthProfile[], path: string): StatusLine[] {
+  const profile = profiles.find((item) => item.name === record.id)
+  return [
+    { label: t('status.path'), value: path },
+    { label: t('field.baseUrl'), value: record.baseUrl || t('status.unset') },
+    { label: t('codex.field.wireApi'), value: record.wireApi || t('status.unset') },
+    { label: t('codex.field.apiKey'), value: t(profile?.apiKey ? 'status.yes' : 'status.no') },
+  ]
 }
 
 /* --------------------------------------------------------------- status */

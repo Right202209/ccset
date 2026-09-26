@@ -137,8 +137,20 @@ _Avoid_: Screen size, full screen
 **Panel**:
 A bordered, titled region of the TUI's frame. The main Panel holds the View of the
 current Screen and is titled with the Frame path; side Panels show Agent context on a
-wide terminal. A Panel is layout, not navigation: it is neither a Screen nor a Frame.
+wide terminal, with a compact detail strip at medium widths. A Panel is layout, not
+navigation: it is neither a Screen nor a Frame.
 _Avoid_: Window, pane, box
+
+**Glance**:
+A short, secret-free summary of an Agent's local configuration and findings, derived
+from its read-only status operation for the TUI's side Panels. It is refreshed when an
+Agent is selected and after a new message Screen.
+_Avoid_: Status Screen, config reread
+
+**Preview**:
+Secret-free details about the focused list row, shown before the core user opens it.
+It is temporary focus state, not a Screen or a second read of the row's source.
+_Avoid_: Selection result, detail Screen
 
 **Terminal capability**:
 What the terminal in front of the core user can render: the glyph set and the color

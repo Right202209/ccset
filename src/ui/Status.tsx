@@ -104,6 +104,7 @@ export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactEl
     id: item.id,
     label: item.label,
     detail: item.detail,
+    preview: item.preview,
     tone: item.tone,
   }))
   return (

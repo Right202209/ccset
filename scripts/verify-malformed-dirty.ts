@@ -135,6 +135,20 @@ async function verifyDirtyExit(home: string): Promise<void> {
   }
 }
 
+async function verifyMouseMode(home: string): Promise<void> {
+  await chooseEnglishOnce(home)
+  const session = startSession(home)
+  try {
+    await session.waitFor('Providers')
+    assert.ok(session.raw().includes('\x1b[?1000h\x1b[?1006h'), 'The TTY did not enable SGR mouse reporting')
+    session.send(ESC)
+    assert.equal(await session.waitExit(), 0, 'Escape did not exit the menu')
+    assert.ok(session.raw().includes('\x1b[?1006l\x1b[?1000l'), 'The TTY did not disable SGR mouse reporting')
+  } finally {
+    await session.stop()
+  }
+}
+
 async function main(): Promise<void> {
   assert.ok(
     process.platform === 'linux' || process.platform === 'darwin',
@@ -146,6 +160,7 @@ async function main(): Promise<void> {
     await fs.rm(home, { recursive: true, force: true })
     await fs.mkdir(home)
     await verifyDirtyExit(home)
+    await verifyMouseMode(home)
     process.stdout.write('Malformed recovery and dirty-exit verification passed.\n')
   } finally {
     await fs.rm(home, { recursive: true, force: true })

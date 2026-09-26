@@ -3,8 +3,9 @@ import { readConfigFile } from '../../core/config-file.js'
 import { JsonParseError } from '../../core/errors.js'
 import { fileExists, isPlainObject, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
-import type { Finding, KeyedStatusSection } from '../../operations/types.js'
+import type { Finding, KeyedLine, KeyedStatusSection } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
+import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { JsonObject, JsonValue } from '../../types.js'
 import {
   GLOBAL_FIELDS,
@@ -236,4 +237,23 @@ export function presentOpencodeStatus(dto: OpencodeStatusDto): KeyedStatusSectio
   }
   sections.push(backupsSection(dto.backups))
   return sections
+}
+
+export function presentOpencodeGlance(dto: OpencodeStatusDto): { summary: KeyedLine[]; actions: Record<string, KeyedLine[]> } {
+  const findings = opencodeStatusFindings(dto)
+  return {
+    summary: [
+      { labelKey: 'field.globalModel', value: String(dto.config.managed?.['model'] ?? ''), valueKey: dto.config.managed?.['model'] === undefined ? 'status.unset' : undefined },
+      { labelKey: 'glance.providers', value: String(dto.providers.length) },
+      { labelKey: 'glance.backups', value: String(dto.backups.count) },
+    ],
+    actions: statusGlanceActions({
+      path: dto.config.path,
+      mode: dto.config.mode,
+      unmanagedKeys: dto.config.unmanagedKeys ?? 0,
+      providers: dto.providers.map((provider) => provider.id),
+      warningCount: findings.warnings.length,
+      errorCount: findings.errors.length,
+    }),
+  }
 }

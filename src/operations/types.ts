@@ -117,6 +117,11 @@ export interface CommandPresentation {
   successTitleKey: (result: OperationResult) => string
   /** Renders the raw status DTO as keyed sections for the human report. */
   presentStatus?: (data: Record<string, unknown>) => KeyedStatusSection[]
+  /** Secret-free summary and per-action previews for the TUI's side panels. */
+  presentGlance?: (data: Record<string, unknown>) => {
+    summary: KeyedLine[]
+    actions: Record<string, KeyedLine[]>
+  }
 }
 
 export interface CommandDeclaration {

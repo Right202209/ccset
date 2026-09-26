@@ -5,6 +5,7 @@ import type {
   FieldSpec,
   FormValues,
   ListItem,
+  StatusLine,
 } from '../../types.js'
 import { clearBackups } from '../../core/backup.js'
 import { readConfigFile } from '../../core/config-file.js'
@@ -111,6 +112,7 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
       id: record.id,
       label: record.id,
       detail: providerDetail(record),
+      preview: providerPreview(record, list.path),
       tone: record.problemKey === undefined ? undefined : ('warn' as const),
       run: async () => openProviderForm(ctx, record.id),
     })),
@@ -121,6 +123,15 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
     empty: t('pi.status.noProviders'),
     items,
   }
+}
+
+function providerPreview(record: ProviderRecord, path: string): StatusLine[] {
+  return [
+    { label: t('status.path'), value: path },
+    { label: t('field.baseUrl'), value: record.baseUrl || t('status.unset') },
+    { label: t('pi.field.defaultModel'), value: record.models.join(', ') || t('status.unset') },
+    { label: t('pi.field.apiKey'), value: t(record.apiKey.length > 0 ? 'status.yes' : 'status.no') },
+  ]
 }
 
 /* ---------------------------------------------------------------- status */

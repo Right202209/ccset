@@ -14,12 +14,15 @@ import { t } from '../i18n/index.js'
 import { helpFor, type ScreenKind } from './keymap.js'
 import { Layout } from './Layout.js'
 import { AgentSelect, MainMenu, NoAgents } from './Menu.js'
-import { SidePanels, useLastResult, type LastResult, type SideState } from './SidePanels.js'
+import { DetailStrip, SidePanels, useLastResult, type LastResult, type SideState } from './SidePanels.js'
+import { FocusPreviewProvider } from './useFocusPreview.js'
+import { useGlance, type GlanceState } from './useGlance.js'
 import { TerminalContext, type ColorSet, type Terminal } from './terminal.js'
 import { useAgentDiscovery, type Discovery } from './useAgentDiscovery.js'
 import { Busy, Prompt, ScreenView, type ScreenHandlers } from './Views.js'
 import { useScreens, type Screens } from './useScreens.js'
 import { useTerminalViewport } from './Viewport.js'
+import { handleEscape } from './mouse.js'
 
 export interface AppProps {
   ctx: Ctx
@@ -65,7 +68,7 @@ function useScreenFlow(screens: Screens, exit: () => void): Flow {
 
   useInput((_input, key) => {
     if (screens.busy || prompt !== null) return
-    if (key.escape) leave()
+    if (key.escape) handleEscape(leave)
   })
 
   function submit(values: FormValues): void {
@@ -131,13 +134,21 @@ function pathSegments(frameTitles: string[], root: string, prompt: PromptKind | 
   return [root]
 }
 
-function sideState(discovery: Discovery, home: string, last: LastResult | null): SideState {
+interface SideStateInput {
+  discovery: Discovery
+  home: string
+  last: LastResult | null
+  glance: GlanceState
+}
+
+function sideState({ discovery, home, last, glance }: SideStateInput): SideState {
   return {
     agentName: discovery.agent?.name,
     detected: discovery.detected,
     found: discovery.available?.length ?? null,
     home,
     last,
+    glance,
   }
 }
 
@@ -167,11 +178,12 @@ interface BodyProps {
   discovery: Discovery
   screens: Screens
   flow: Flow
+  glance: GlanceState
   exit: () => void
 }
 
 /** What the main Panel holds: the busy line, the Agent choice, the menu, or the top Frame. */
-function Body({ ctx, discovery, screens, flow, exit }: BodyProps): React.ReactElement {
+function Body({ ctx, discovery, screens, flow, glance, exit }: BodyProps): React.ReactElement {
   if (screens.busy) return <Busy label={screens.busyLabel} />
   const { agent } = discovery
   if (agent === null) {
@@ -183,6 +195,7 @@ function Body({ ctx, discovery, screens, flow, exit }: BodyProps): React.ReactEl
       <MainMenu
         agent={agent}
         detected={discovery.detected}
+        previews={glance.actions}
         onRun={(action: Action) => screens.open(() => action.run(ctx))}
         onExit={exit}
       />
@@ -218,6 +231,7 @@ export function App({
   const screens = useScreens()
   const flow = useScreenFlow(screens, exit)
   const last = useLastResult(screens.current)
+  const glance = useGlance(discovery.agent, ctx, last)
   const chrome: ChromeState = {
     busy: screens.busy,
     prompt: flow.prompt,
@@ -227,22 +241,26 @@ export function App({
   }
   const kind = helpKind(chrome)
   const titles = screens.frames.map((frame) => frame.screen.title)
+  const info = sideState({ discovery, home: ctx.home, last, glance })
   const side = showsSide(screens.current)
-    ? <SidePanels state={sideState(discovery, ctx.home, last)} />
+    ? (budget: number, width: number) => <SidePanels state={info} budget={budget} width={width} />
     : undefined
   return (
     <TerminalContext.Provider value={terminal}>
-      <Layout
-        viewport={viewport}
-        name={t('app.title')}
-        tagline={t('app.tagline')}
-        path={pathSegments(titles, rootTitle(discovery.agent, discovery.available), flow.prompt)}
-        color={paneColor(terminal.colors, chrome)}
-        help={kind === null ? '' : helpFor(kind)}
-        side={side}
-      >
-        <Body ctx={ctx} discovery={discovery} screens={screens} flow={flow} exit={exit} />
-      </Layout>
+      <FocusPreviewProvider>
+        <Layout
+          viewport={viewport}
+          name={t('app.title')}
+          tagline={t('app.tagline')}
+          path={pathSegments(titles, rootTitle(discovery.agent, discovery.available), flow.prompt)}
+          color={paneColor(terminal.colors, chrome)}
+          help={kind === null ? '' : helpFor(kind)}
+          side={side}
+          strip={showsSide(screens.current) ? <DetailStrip state={info} width={viewport.columns - 2} /> : undefined}
+        >
+          <Body ctx={ctx} discovery={discovery} screens={screens} flow={flow} glance={glance} exit={exit} />
+        </Layout>
+      </FocusPreviewProvider>
     </TerminalContext.Provider>
   )
 }

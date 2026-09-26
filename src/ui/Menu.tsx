@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
-import type { Action, Agent } from '../types.js'
+import type { Action, Agent, StatusLine } from '../types.js'
 import { hasKey, localeOptions, t, type Locale } from '../i18n/index.js'
 import { Layout } from './Layout.js'
 import { SelectList, type SelectOption } from './SelectList.js'
@@ -8,6 +8,7 @@ import type { Terminal } from './terminal.js'
 import { TerminalContext, useTerminal } from './terminal.js'
 import { wrappedRows } from './text-fit.js'
 import { useTerminalViewport, useViewport } from './Viewport.js'
+import { handleEscape } from './mouse.js'
 
 const EXIT_ID = '__exit__'
 /** The blank row between the not-detected warning and the list. */
@@ -17,22 +18,24 @@ interface MainMenuProps {
   agent: Agent
   /** Result of agent.detect(); null while it is still running. */
   detected: boolean | null
+  previews?: Record<string, StatusLine[]>
   onRun: (action: Action) => void
   onExit: () => void
 }
 
-function actionOption(action: Action): SelectOption {
+function actionOption(action: Action, previews?: Record<string, StatusLine[]>): SelectOption {
   const detailKey = action.detailKey ?? `${action.labelKey}Detail`
   return {
     id: action.id,
     label: t(action.labelKey),
     detail: hasKey(detailKey) ? t(detailKey) : undefined,
+    preview: previews?.[action.id],
   }
 }
 
-export function MainMenu({ agent, detected, onRun, onExit }: MainMenuProps): React.ReactElement {
+export function MainMenu({ agent, detected, previews, onRun, onExit }: MainMenuProps): React.ReactElement {
   const actions = useMemo(() => agent.getActions(), [agent])
-  const options = [...actions.map(actionOption), { id: EXIT_ID, label: t('menu.exit') }]
+  const options = [...actions.map((action) => actionOption(action, previews)), { id: EXIT_ID, label: t('menu.exit') }]
   const { colors, fold } = useTerminal()
   const viewport = useViewport()
   const warning = fold(t('menu.notDetected'))
@@ -150,7 +153,7 @@ interface LanguagePromptProps {
 function LanguagePrompt({ onPick }: LanguagePromptProps): React.ReactElement {
   const { exit } = useApp()
   useInput((_input, key) => {
-    if (key.escape) exit()
+    if (key.escape) handleEscape(exit)
   })
   return (
     <SelectList

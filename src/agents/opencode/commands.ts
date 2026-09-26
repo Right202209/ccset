@@ -31,6 +31,7 @@ import { autoupdateValue } from './global.js'
 import { backupsDir, launchCommand, opencodeTarget } from './paths.js'
 import {
   opencodeStatusFindings,
+  presentOpencodeGlance,
   presentOpencodeStatus,
   readOpencodeStatus,
   type OpencodeStatusDto,
@@ -262,6 +263,7 @@ export const opencodeCommands: CommandDeclaration[] = [
     presentation: {
       successTitleKey: () => 'action.status',
       presentStatus: (data) => presentOpencodeStatus(data as unknown as OpencodeStatusDto),
+      presentGlance: (data) => presentOpencodeGlance(data as unknown as OpencodeStatusDto),
     },
     run: runStatus,
   },

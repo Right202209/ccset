@@ -201,16 +201,26 @@ There is no Test connection for Grok Build either: its three API backends each
 need their own request shape, and the Anthropic-shaped probe ccset ships would
 not be honest about any of them.
 
-Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
-back. Long lists state the visible range and total row count. A form asks before
+Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, and
+in TTYs with SGR mouse support, clicking a visible menu or list row opens it.
+Esc goes back. Long lists state
+the visible range and total row count. A form asks before
 discarding unsaved edits and never asks otherwise. The interface is drawn in a
 bordered frame: the keys the current screen accepts sit in its bottom border, and
 the main panel's title shows the full navigation path of nested screens; narrow
 terminals keep the final two steps visible. On a terminal at least 100 columns
-wide and 16 rows tall, side panels show the agent, whether its config exists, the
-home ccset reads and writes, and the last result. The frame grows only as tall as
-its content, so earlier terminal output stays in the scrollback. Set
-`CCSET_ASCII=1` if your terminal cannot draw the box characters.
+wide and 16 rows tall, side panels show the agent, a config summary, any
+Warnings, the focused row's Preview, and the last result when they fit. At
+80–99 columns and 20 rows or more, a two-line details strip appears below the
+main Panel instead. Below 80 columns, the extra information is hidden. The
+summary and Warnings come from the same local, read-only Status data; provider
+previews show a key only as set or unset. Base-URL previews show the origin and
+an ellipsis for any path; paths, queries, and fragments are omitted, and an
+invalid URL is hidden. At 130 columns the side column widens for longer paths.
+The frame stays at least
+one row shorter than the terminal, so earlier terminal output stays in the
+scrollback. Set `CCSET_ASCII=1`
+if your terminal cannot draw the box characters.
 
 ## What it will not do to your files
 

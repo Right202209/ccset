@@ -3,8 +3,9 @@ import { readConfigFile } from '../../core/config-file.js'
 import { ConfigParseError } from '../../core/errors.js'
 import { fileExists, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
-import type { Finding, KeyedStatusSection } from '../../operations/types.js'
+import type { Finding, KeyedLine, KeyedStatusSection } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
+import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { ConfigFile, JsonObject } from '../../types.js'
 import { MANAGED_GLOBAL_PATHS, PROVIDER_KEYS, providerKeyPath } from './manifest.js'
 import { authPath, backupsDir, configFile } from './paths.js'
@@ -222,4 +223,23 @@ export function presentGrokStatus(dto: GrokStatusDto): KeyedStatusSection[] {
   }
   sections.push(backupsSection(dto.backups))
   return sections
+}
+
+export function presentGrokGlance(dto: GrokStatusDto): { summary: KeyedLine[]; actions: Record<string, KeyedLine[]> } {
+  const findings = grokStatusFindings(dto)
+  return {
+    summary: [
+      { labelKey: 'field.globalModel', value: String(dto.config.managed?.['default'] ?? ''), valueKey: dto.config.managed?.['default'] === undefined ? 'status.unset' : undefined },
+      { labelKey: 'glance.providers', value: String(dto.providers.length) },
+      { labelKey: 'glance.backups', value: String(dto.backups.count) },
+    ],
+    actions: statusGlanceActions({
+      path: dto.config.path,
+      mode: dto.config.mode,
+      unmanagedKeys: dto.config.unmanagedKeys ?? 0,
+      providers: dto.providers.map((provider) => provider.id),
+      warningCount: findings.warnings.length,
+      errorCount: findings.errors.length,
+    }),
+  }
 }

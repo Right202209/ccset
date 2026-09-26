@@ -174,11 +174,18 @@ windows long regions instead of owning a fixed-height screen (ADR 0002); its
 bordered frame is only as tall as its content (ADR 0017).
 
 - `Layout.tsx` owns the frame. `planLayout()` decides once what the borders,
-  side Panels, and key help cost, then gives the View the main Panel's
-  interior as its Viewport; below 7 rows or 30 columns the View paints alone.
-  `Panel.tsx` draws a bordered region with labels set into its top and bottom
-  borders, and `SidePanels.tsx` fills the side column on terminals of at least
-  100 columns and 16 rows, except beside a message Screen.
+  side column or detail strip, and key help cost, then gives the View the main
+  Panel's interior as its Viewport; below 7 rows or 30 columns the View paints
+  alone. At 100 columns and 16 rows it may budget a side column; at 80–99
+  columns and 20 rows it budgets a two-line strip. Both plans reserve one
+  terminal row, keeping the frame content-height and below the viewport. At 130
+  columns the side column widens from 26 to 36 columns. `side-plan.ts` drops or trims
+  side Panels within the row budget, keeping error findings ahead of warnings.
+  `Panel.tsx` draws bordered regions with labels set into their top and bottom
+  borders. `useGlance.ts` gets secret-free summaries and findings from the
+  selected Agent's status operation (ADR 0018); `useFocusPreview.ts` carries
+  the translated Preview from the focused list option. Neither adds a file
+  read path, and message Screens still take the full width.
 - `terminal.ts` owns glyphs (Panel box characters included), colors (Panel
   border roles and the selection bar included), busy frames, and `fold()` for
   catalog text on seven-bit terminals. New paint sites must use the terminal
@@ -190,6 +197,10 @@ bordered frame is only as tall as its content (ADR 0017).
   and `WindowRegion`. A width below the last paint clears the visible screen,
   never the scrollback, before the repaint. Lists, Status, and forms use it to
   keep focused content inside the row budget.
+- `SelectList.tsx` handles keyboard navigation and left-click selection for
+  visible rows. `mouse.ts` parses SGR mouse reports, maps terminal coordinates
+  through the row's Yoga ancestors, enables reporting only on a TTY, and
+  defers Escape briefly when an input chunk may be a fragmented mouse sequence.
 - `keymap.ts` owns bindings and the help text the frame draws in its bottom
   border. It rejects duplicate bindings and missing message keys at load time.
 - `useReviewForm.ts` owns editing state, Advanced fields, validation, row

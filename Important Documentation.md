@@ -2830,3 +2830,62 @@ resizing leaves no ghost rows; the scratch harness was not committed.
 the website's typecheck, test (75 tests), build, and smoke passed unchanged.
 `git diff --check` is clean. No live Provider request or Windows/macOS run was
 made.
+
+### 9.58 Status Glance, focused-row Preview, and responsive side information (2026-09-26)
+
+**Scope:** the bordered TUI now reuses each selected Agent's read-only status
+operation for a secret-free config Glance and its Status findings, and shows a
+focused list row's Preview before it is opened. Wide terminals place Agent,
+Config, Preview, Warnings, and Last result Panels in a separately budgeted side
+column; 80–99 columns use a two-line strip, and narrower layouts hide the extra
+information. At 130 columns the side column widens. The side budget preserves
+ADR 0002's content-height frame and reserves a terminal row. Credential
+presence is rendered only as “set” or “unset”; URL user information,
+credential-like query parameters, and fragments are removed from display
+values. ADR 0018 records the shared status-operation boundary and refresh rules.
+
+**Fixtures:** `scripts/verify-side-info.ts` runs the real Claude Code Agent
+against a scratch home and checks the Config summary, focused menu and Provider
+Previews, warning and parse-error findings, secret exclusion from paints,
+refresh after save, and unchanged file hashes while browsing. It also covers
+the 90/79-column strip breakpoints in English and Simplified Chinese, the
+100×16 and 110×18 height budget, and URL credential and fragment sanitization.
+`scripts/layout-rules.ts` covers side-panel drop and trim priority plus the
+79/80, 99/100, and 129/130-column and 19/20-row layout boundaries. Mutation
+checks confirmed the fixtures fail for a dropped height budget, raw credential
+Preview, skipped refresh, and reversed panel priority. `CCSET_VISUAL=1 npm run
+verify:side-info` prints scratch renders at 130, 100, 90, and 79 columns.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run build`, `npm run verify:code-gates` (263 files,
+10 baseline exceptions), `npm run verify:i18n-zh`, `npm run verify:layout`,
+`npm run verify:ui-render`, `npm run verify:side-info`, and its visual mode
+passed; `git diff --check` is clean. `npm test` did not complete: the suite
+stalled silently in `verify:codex`; running that fixture alone reproduced the
+stall in its synchronous TOML round-trip phase, so both runs were interrupted.
+No live Provider request or Windows/macOS run was made.
+
+### 9.59 SGR mouse selection in the TUI (2026-09-26)
+
+**Scope:** TTY users can click visible menu and list rows to open them. The
+shared `SelectList` maps SGR mouse coordinates to rendered row nodes, including
+windowed lists; it enables click reporting only while a selectable list is
+mounted and disables it on cleanup. A split SGR sequence does not accidentally
+trigger the Escape action; ordinary Escape remains available after a brief
+ambiguity delay. Keyboard navigation and non-TTY rendering remain unchanged.
+
+**Fixtures:** `scripts/verify-side-info.ts` checks an outside-row click is a
+no-op, clicks a menu row with the initial Escape byte split from the remainder,
+then clicks a non-focused provider row and confirms it opens without writing
+the scratch home or painting its token. `scripts/verify-malformed-dirty.ts`
+checks a real PTY enables SGR reporting while the menu is mounted and disables
+it when Escape exits the App.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run build` (also run by the PTY and i18n fixtures),
+`npm run verify:code-gates` (265 files, 10 baseline exceptions),
+`npm run verify:i18n-zh`, `npm run verify:ui-render`, `npm run verify:layout`,
+`npm run verify:side-info`, and `npm run verify:malformed-dirty` passed;
+`git diff --check` is clean. The sandbox initially denied the i18n fixture's
+child process with `EPERM`; rerunning that fixture with approval passed. The
+complete `npm test` suite was not run. No Windows/macOS run was made.

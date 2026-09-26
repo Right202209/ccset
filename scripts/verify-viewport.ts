@@ -26,17 +26,17 @@ async function verifyLongList(home: string, viewport: Viewport): Promise<void> {
   }
   const session = new UiSession(home, UNICODE_TERMINAL, { agents: [agent], agentId: agent.id, viewport })
   try {
-    // 12 rows less the frame's four border rows leave the list 8: 7 rows and a count.
+    // The four borders and one spare terminal row leave seven: six items and a count.
     let paint = await session.waitFor('Long action 1')
-    assertPainted(paint, 'Showing 1-7 of 13', 'The long menu has no count line')
+    assertPainted(paint, 'Showing 1-6 of 13', 'The long menu has no count line')
     await session.sendEach(DOWN, 7)
     paint = await session.waitFor('Long action 8')
-    assertPainted(paint, 'Showing 2-8 of 13', 'The window did not follow focus')
+    assertPainted(paint, 'Showing 3-8 of 13', 'The window did not follow focus')
     await session.send('9')
     assert.equal(selected, '', 'A shortcut selected a hidden row')
     await session.send('1')
-    await session.waitFor('action-2')
-    assert.equal(selected, 'action-2', 'Shortcut 1 did not select the first visible row')
+    await session.waitFor('action-3')
+    assert.equal(selected, 'action-3', 'Shortcut 1 did not select the first visible row')
     assertPaintsFit(session.paints(), viewport)
   } finally {
     session.stop()
@@ -73,7 +73,7 @@ async function verifyLongStatus(home: string, viewport: Viewport): Promise<void>
     await session.waitFor('Long status screen')
     await session.send('1')
     const paint = await session.waitFor('Status action')
-    assertPainted(paint, 'Showing 1-5 of 17', 'The Status sections have no count line')
+    assertPainted(paint, 'Showing 1-4 of 17', 'The Status sections have no count line')
     assertPainted(paint, 'status-value-end', 'The long Status value was truncated instead of wrapped')
     await session.send('1')
     await session.waitFor('status-action-ran')
@@ -166,7 +166,7 @@ async function verifyNarrowList(home: string): Promise<void> {
   try {
     await session.waitFor('Open long list')
     await session.send('1')
-    await session.waitFor('Showing 1-7 of 12')
+    await session.waitFor('Showing 1-6 of 12')
     assertPaintsFit(session.paints(), viewport)
   } finally {
     session.stop()

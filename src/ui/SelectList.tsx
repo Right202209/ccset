@@ -1,17 +1,21 @@
-import React, { useState } from 'react'
-import { Box, Text, useInput, type Key } from 'ink'
+import React, { useMemo, useRef, useState } from 'react'
+import { Box, Text, useInput, type DOMElement, type Key } from 'ink'
 import stringWidth from 'string-width'
-import type { MessageTone } from '../types.js'
+import type { MessageTone, StatusLine } from '../types.js'
 import { t } from '../i18n/index.js'
 import { focusGutter, rowStyle, useTerminal } from './terminal.js'
 import { KEYMAPS } from './keymap.js'
 import { padEnd, truncateEnd } from './text-fit.js'
 import { useViewport, WindowRegion, windowAround, type WindowSlice } from './Viewport.js'
+import { usePublishFocusPreview } from './useFocusPreview.js'
+import { previewLine, safeDisplayValue } from './preview-safety.js'
+import { useMouseInput } from './useMouseInput.js'
 
 export interface SelectOption {
   id: string
   label: string
   detail?: string
+  preview?: StatusLine[]
   tone?: MessageTone
 }
 
@@ -56,6 +60,11 @@ function labelColumn(options: SelectOption[], fold: (text: string) => string, co
   return Math.min(widest, Math.floor(columns / 2))
 }
 
+function focusPreview(focused: SelectOption | undefined): { label: string; lines: StatusLine[] } | null {
+  if (focused?.preview === undefined) return null
+  return { label: safeDisplayValue(focused.label), lines: focused.preview.map(previewLine) }
+}
+
 /**
  * Hand-rolled rather than ink-select-input: the menu needs a detail column and
  * numeric shortcuts (PRD 5.4), neither of which that widget offers.
@@ -67,12 +76,17 @@ export function SelectList({
   rows,
 }: SelectListProps): React.ReactElement {
   const [index, setIndex] = useState(initialIndex)
+  const rowNodes = useRef(new Map<number, DOMElement>())
+  useMouseInput({ rowNodes, options, onSelect, setIndex })
   const count = options.length
   const viewport = useViewport()
   const { fold } = useTerminal()
   const rowBudget = Math.max(1, rows ?? viewport.rows)
   const window = windowAround(options, index, rowBudget)
   const column = labelColumn(options, fold, viewport.columns)
+  const focused = options[index]
+  const preview = useMemo(() => focusPreview(focused), [focused?.id, focused?.label, focused?.preview])
+  usePublishFocusPreview(preview)
 
   useInput((input, key) => {
     if (count === 0) return
@@ -100,6 +114,7 @@ export function SelectList({
           focused={window.start + visiblePosition === index}
           labelWidth={column}
           room={viewport.columns - ROW_LEAD}
+          register={(element) => registerRow(rowNodes.current, window.start + visiblePosition, element)}
         />
       ))}
     </WindowRegion>
@@ -113,27 +128,33 @@ interface SelectRowProps {
   labelWidth: number
   /** Columns after the gutter and the shortcut, shared by the label and the detail. */
   room: number
+  register: (element: DOMElement | null) => void
 }
 
 /**
  * The selection bar spans gutter, number, and the padded label, so it is one
  * width down the list. The detail takes whatever the label leaves.
  */
-function SelectRow({ option, position, focused, labelWidth, room }: SelectRowProps): React.ReactElement {
+function registerRow(rows: Map<number, DOMElement>, index: number, element: DOMElement | null): void {
+  if (element === null) rows.delete(index)
+  else rows.set(index, element)
+}
+
+function SelectRow({ option, position, focused, labelWidth, room, register }: SelectRowProps): React.ReactElement {
   const { glyphs, colors, fold } = useTerminal()
   const style = rowStyle(colors, focused, option.tone)
   const ellipsis = fold('…')
   const label = padEnd(truncateEnd(fold(option.label), room, ellipsis), labelWidth)
   const detailRoom = room - stringWidth(label)
   return (
-    <Box height={1} overflow="hidden">
+    <Box ref={register} height={1} overflow="hidden">
       <Text {...style}>{focusGutter(glyphs, focused)}</Text>
       <Text {...(focused ? style : {})} dimColor={!focused}>
         {position < 9 ? `${position + 1}. ` : '   '}
       </Text>
       <Text {...style}>{label}</Text>
       {option.detail !== undefined && detailRoom > 0 && (
-        <Text dimColor>{truncateEnd(fold(`  ${option.detail}`), detailRoom, ellipsis)}</Text>
+        <Text dimColor>{truncateEnd(fold(`  ${safeDisplayValue(option.detail)}`), detailRoom, ellipsis)}</Text>
       )}
     </Box>
   )

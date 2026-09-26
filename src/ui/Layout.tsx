@@ -15,6 +15,10 @@ export const FRAME_MIN_COLUMNS = 30
 export const SIDEBAR_MIN_COLUMNS = 100
 export const SIDEBAR_MIN_ROWS = 16
 export const SIDEBAR_WIDTH = 26
+export const SIDEBAR_WIDE_WIDTH = 36
+export const STRIP_MIN_COLUMNS = 80
+export const STRIP_MIN_ROWS = 20
+export const STRIP_ROWS = 4
 const SIDEBAR_GAP = 1
 /** The top and bottom borders of the frame and of the main Panel. */
 const CHROME_ROWS = 4
@@ -27,7 +31,9 @@ const HELP_PADDING = 1
 
 export interface LayoutPlan {
   framed: boolean
-  sidebar: boolean
+  mode: 'side' | 'strip' | 'none'
+  sideBudget: number
+  sidebarWidth: number
   /** The main Panel's outer width. */
   paneWidth: number
   helpInBorder: boolean
@@ -44,23 +50,44 @@ export interface LayoutPlan {
 export function planLayout(viewport: Viewport, help: string, side: boolean): LayoutPlan {
   const { rows, columns } = viewport
   if (rows < FRAME_MIN_ROWS || columns < FRAME_MIN_COLUMNS) {
-    return { framed: false, sidebar: false, paneWidth: columns, helpInBorder: false, helpLines: [], body: viewport }
+    return {
+      framed: false,
+      mode: 'none',
+      sideBudget: 0,
+      sidebarWidth: SIDEBAR_WIDTH,
+      paneWidth: columns,
+      helpInBorder: false,
+      helpLines: [],
+      body: viewport,
+    }
   }
   const helpInBorder = stringWidth(help) + LABEL_CHROME <= columns
   const helpLines = helpInBorder || rows < HELP_LINES_MIN_ROWS ? [] : wrapHelp(help, columns)
-  const sidebar = side && columns >= SIDEBAR_MIN_COLUMNS && rows >= SIDEBAR_MIN_ROWS
-  const paneWidth = columns - FRAME_SIDES - (sidebar ? SIDEBAR_WIDTH + SIDEBAR_GAP : 0)
+  const mode = layoutMode(columns, rows, side)
+  const sidebarWidth = columns >= 130 ? SIDEBAR_WIDE_WIDTH : SIDEBAR_WIDTH
+  const paneWidth = columns - FRAME_SIDES - (mode === 'side' ? sidebarWidth + SIDEBAR_GAP : 0)
+  const sideBudget = Math.max(0, rows - FRAME_SIDES - helpLines.length - 1)
   return {
     framed: true,
-    sidebar,
+    mode,
+    sideBudget,
+    sidebarWidth,
     paneWidth,
     helpInBorder,
     helpLines,
     body: {
-      rows: Math.max(1, rows - CHROME_ROWS - helpLines.length),
+      rows: Math.max(1, rows - CHROME_ROWS - helpLines.length - (mode === 'strip' ? STRIP_ROWS : 0) - 1),
       columns: Math.max(1, paneWidth - PANEL_CHROME_COLUMNS),
     },
   }
+}
+
+function layoutMode(columns: number, rows: number, side: boolean): LayoutPlan['mode'] {
+  if (side && columns >= SIDEBAR_MIN_COLUMNS && rows >= SIDEBAR_MIN_ROWS) return 'side'
+  if (side && columns >= STRIP_MIN_COLUMNS && columns < SIDEBAR_MIN_COLUMNS && rows >= STRIP_MIN_ROWS) {
+    return 'strip'
+  }
+  return 'none'
 }
 
 function wrapHelp(help: string, columns: number): string[] {
@@ -107,7 +134,8 @@ export interface LayoutProps {
   /** The key help of whatever holds the keys now; empty while nothing does. */
   help: string
   /** Side Panels, drawn only where the terminal has room for them. */
-  side?: React.ReactNode
+  side?: (budget: number, width: number) => React.ReactNode
+  strip?: React.ReactNode
   children: React.ReactNode
 }
 
@@ -117,11 +145,12 @@ export interface LayoutProps {
  * terminal. It is as tall as its content (ADR 0002) -- it never fills or owns
  * the terminal -- and below the minimums it steps aside entirely.
  */
-export function Layout({ viewport, name, tagline = '', path, color, help, side, children }: LayoutProps): React.ReactElement {
+export function Layout({ viewport, name, tagline = '', path, color, help, side, strip, children }: LayoutProps): React.ReactElement {
   const { colors, fold } = useTerminal()
   const shownHelp = fold(help)
-  const plan = planLayout(viewport, shownHelp, side !== undefined)
+  const plan = planLayout(viewport, shownHelp, side !== undefined || strip !== undefined)
   const body = <ViewportProvider viewport={plan.body}>{children}</ViewportProvider>
+  const sideContent = side?.(plan.sideBudget, plan.sidebarWidth)
   if (!plan.framed) return body
   return (
     <Panel
@@ -135,12 +164,13 @@ export function Layout({ viewport, name, tagline = '', path, color, help, side, 
         <MainPanel width={plan.paneWidth} path={path} color={color}>
           {body}
         </MainPanel>
-        {plan.sidebar && (
-          <Box flexDirection="column" width={SIDEBAR_WIDTH} marginLeft={SIDEBAR_GAP}>
-            {side}
+        {plan.mode === 'side' && sideContent !== undefined && (
+          <Box flexDirection="column" width={plan.sidebarWidth} marginLeft={SIDEBAR_GAP}>
+            {sideContent}
           </Box>
         )}
       </Box>
+      {plan.mode === 'strip' && strip}
       {plan.helpLines.map((line, index) => (
         <Box key={`${index}:${line}`} paddingX={HELP_PADDING}>
           <Text dimColor>{line}</Text>

@@ -14,6 +14,7 @@ import { SelectList, type SelectOption } from './SelectList.js'
 import { StatusView } from './Status.js'
 import { toneColor, useTerminal } from './terminal.js'
 import { pressed } from './keymap.js'
+import { handleEscape } from './mouse.js'
 
 /** The cursor starts on the safe row: a confirm screen guards a real effect. */
 const CANCEL_INDEX = 1
@@ -34,7 +35,7 @@ export function Busy({ label }: { label?: string }): React.ReactElement {
 }
 
 function toOption(item: ListItem): SelectOption {
-  return { id: item.id, label: item.label, detail: item.detail, tone: item.tone }
+  return { id: item.id, label: item.label, detail: item.detail, preview: item.preview, tone: item.tone }
 }
 
 interface ListViewProps {
@@ -122,7 +123,7 @@ interface PromptProps {
 export function Prompt({ lineKey, confirmKey, onConfirm, onCancel }: PromptProps): React.ReactElement {
   const { fold } = useTerminal()
   useInput((_input, key) => {
-    if (key.escape) onCancel()
+    if (key.escape) handleEscape(onCancel)
   })
   const options: SelectOption[] = [
     { id: 'confirm', label: t(confirmKey), tone: 'warn' },

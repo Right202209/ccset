@@ -69,10 +69,11 @@ opencode、Codex、pi 和 Grok Build 没有 Test connection：现有的探测请
 
 Frame 标题组成主面板标题中的导航路径，空间不足时从前面开始省略。TUI 把输出留在终端的回滚缓冲区中，并对过长的区域做窗口化，而不是占用一个固定高度的屏幕（ADR 0002）；带边框的框架只与其内容等高（ADR 0017）。
 
-- `Layout.tsx` 负责框架。`planLayout()` 一次性算出边框、侧面板和按键帮助所占的空间，再把主面板的内部区域作为 Viewport 交给 View；低于 7 行或 30 列时，View 单独绘制。`Panel.tsx` 绘制带边框的区域，并把标签嵌入上下边框；`SidePanels.tsx` 在至少 100 列、16 行的终端上填充侧栏，message Screen 旁除外。
+- `Layout.tsx` 负责框架。`planLayout()` 一次性计算边框、侧栏或详情条以及按键帮助的行列预算，再把主面板内部区域作为 Viewport 交给 View；低于 7 行或 30 列时，View 单独绘制。终端至少 100 列、16 行时可预算侧栏；80–99 列且至少 20 行时预算两行详情条。两种布局都会预留一行，确保框架内容高度始终短于终端；达到 130 列时侧栏从 26 列扩展到 36 列。`side-plan.ts` 在侧面板预算内按优先级丢弃或裁剪面板，并让错误诊断排在警告之前。`Panel.tsx` 绘制带边框区域，并把标签嵌入上下边框。`useGlance.ts` 从所选 Agent 的 status operation 获取无密钥摘要与诊断信息（ADR 0018）；`useFocusPreview.ts` 传递聚焦列表项的已翻译 Preview。两者都不增加文件读取路径；message Screen 仍使用完整宽度。
 - `terminal.ts` 负责字形（包括面板的边框字符）、颜色（包括面板边框的角色色与选中条）、忙碌动画帧，以及七位终端上折叠文案目录文本的 `fold()`。新的绘制位置必须使用终端辅助函数。
 - `text-fit.ts` 按显示宽度补齐和截断，省略号由调用方先经过折叠。Ink 自带的截断总会插入 `…`，因此需要截断以适应一行的文本一律在这里截断。
 - `Viewport.tsx` 负责终端尺寸、调整大小的处理、`windowAround()` 和 `WindowRegion`。宽度小于上一次绘制时，先清除可见屏幕（绝不清除回滚缓冲区）再重绘。列表、Status 和表单借助它把聚焦内容保持在行预算内。
+- `SelectList.tsx` 处理键盘导航和可见行的鼠标左键选择。`mouse.ts` 解析 SGR 鼠标报告，通过行节点的 Yoga 父级映射终端坐标；仅在 TTY 中启用鼠标报告，并在输入块可能是分片鼠标序列时短暂延迟 Esc。
 - `keymap.ts` 负责按键绑定，以及框架绘制在底部边框中的帮助文本。它在加载时拒绝重复的绑定和缺失的消息键。
 - `useReviewForm.ts` 负责编辑状态、Advanced 字段、校验、行窗口化和 `ctrl+s`；`ReviewForm.tsx` 渲染这一状态。
 

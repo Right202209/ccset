@@ -1,9 +1,11 @@
 import type { KeyedStatusSection } from '../../operations/types.js'
+import type { KeyedLine } from '../../operations/types.js'
 import { backupsSection } from '../../operations/status-sections.js'
+import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { JsonValue } from '../../types.js'
 import { SWITCH_OFF, SWITCH_ON } from './constants.js'
 import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
-import type { ClaudeProviderStatus, ClaudeStatusDto } from './status-dto.js'
+import { claudeStatusFindings, type ClaudeProviderStatus, type ClaudeStatusDto } from './status-dto.js'
 
 /**
  * The agent's own keyed rendering of its status DTO for the human report.
@@ -19,6 +21,28 @@ export function presentClaudeStatus(dto: ClaudeStatusDto): KeyedStatusSection[] 
   for (const provider of dto.providers) sections.push(providerSection(provider))
   sections.push(backupsSection(dto.backups))
   return sections
+}
+
+export function presentClaudeGlance(dto: ClaudeStatusDto): { summary: KeyedLine[]; actions: Record<string, KeyedLine[]> } {
+  const findings = claudeStatusFindings(dto)
+  const actions = statusGlanceActions({
+    path: dto.global.path,
+    mode: dto.global.mode,
+    unmanagedKeys: dto.global.unmanagedKeys ?? 0,
+    providers: dto.providers.map((provider) => provider.name),
+    warningCount: findings.warnings.length,
+    errorCount: findings.errors.length,
+  })
+  return {
+    summary: [
+      { labelKey: 'status.path', value: dto.global.path },
+      { labelKey: 'status.present', valueKey: dto.global.exists ? 'status.yes' : 'status.no' },
+      { labelKey: 'field.globalModel', value: String(dto.global.managed?.['model'] ?? ''), valueKey: dto.global.managed?.['model'] === undefined ? 'status.unset' : undefined },
+      { labelKey: 'glance.providers', value: String(dto.providers.length) },
+      { labelKey: 'glance.backups', value: String(dto.backups.count) },
+    ],
+    actions,
+  }
 }
 
 function stateSection(dto: ClaudeStatusDto): KeyedStatusSection {
