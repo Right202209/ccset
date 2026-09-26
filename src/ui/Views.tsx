@@ -13,7 +13,7 @@ import { ReviewForm } from './ReviewForm.js'
 import { SelectList, type SelectOption } from './SelectList.js'
 import { StatusView } from './Status.js'
 import { toneColor, useTerminal } from './terminal.js'
-import { helpFor, pressed } from './keymap.js'
+import { pressed } from './keymap.js'
 
 /** The cursor starts on the safe row: a confirm screen guards a real effect. */
 const CANCEL_INDEX = 1
@@ -48,18 +48,13 @@ export function ListView({ screen, onSelect }: ListViewProps): React.ReactElemen
     return <Text dimColor>{fold(screen.empty ?? t('list.empty'))}</Text>
   }
   return (
-    <Box flexDirection="column">
-      <SelectList
-        options={screen.items.map(toOption)}
-        onSelect={(_option, index) => {
-          const item = screen.items[index]
-          if (item !== undefined) onSelect(item)
-        }}
-      />
-      <Box marginTop={1}>
-        <Text dimColor>{fold(helpFor('list'))}</Text>
-      </Box>
-    </Box>
+    <SelectList
+      options={screen.items.map(toOption)}
+      onSelect={(_option, index) => {
+        const item = screen.items[index]
+        if (item !== undefined) onSelect(item)
+      }}
+    />
   )
 }
 
@@ -83,9 +78,6 @@ export function MessageView({ screen, onDone }: MessageViewProps): React.ReactEl
           {fold(line)}
         </Text>
       ))}
-      <Box marginTop={1}>
-        <Text dimColor>{fold(helpFor('message'))}</Text>
-      </Box>
     </Box>
   )
 }

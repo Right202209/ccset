@@ -38,10 +38,13 @@ function escapeRegExp(text: string): string {
 /**
  * Counted line-anchored rather than by substring, because the ASCII glyph set
  * marks focus with '>' and painted text contains that character too
- * ('settings.<name>.json'). Only a marker in a row's gutter means focus.
+ * ('settings.<name>.json'). Only a marker in a row's gutter means focus. The
+ * gutter sits inside the Panels now, so the side borders that open a row --
+ * `side` is the glyph they are drawn with -- may stand before it; a border
+ * line opens with a corner instead, so a title or help text never counts.
  */
-export function focusMarkers(paint: string, marker: string): number {
-  const gutter = new RegExp(`^\\s*${escapeRegExp(marker)} `)
+export function focusMarkers(paint: string, marker: string, side: string): number {
+  const gutter = new RegExp(`^[\\s${escapeRegExp(side)}]*${escapeRegExp(marker)} `)
   return paint.split('\n').filter((line) => gutter.test(line)).length
 }
 
@@ -58,6 +61,7 @@ export function focusMarkers(paint: string, marker: string): number {
 export class UiSession {
   private readonly instance: ReturnType<typeof render>
   private readonly marker: string
+  private readonly side: string
 
   constructor(
     home: string,
@@ -65,6 +69,7 @@ export class UiSession {
     options: { agents?: Agent[]; agentId?: string; viewport?: Viewport } = {},
   ) {
     this.marker = terminal.glyphs.focus
+    this.side = terminal.glyphs.box.left
     this.instance = render(
       createElement(App, {
         ctx: { home },
@@ -118,7 +123,7 @@ export class UiSession {
 
   /** The exactly-one half of the focus invariant, for a Screen that has focus. */
   assertSingleFocus(paint: string, screen: string): void {
-    const found = focusMarkers(paint, this.marker)
+    const found = focusMarkers(paint, this.marker, this.side)
     assert.equal(found, 1, `The ${screen} paint has no single focused row:\n${paint}`)
   }
 
@@ -130,7 +135,8 @@ export class UiSession {
    */
   assertFocusIsSingular(): void {
     for (const paint of this.paints()) {
-      assert.ok(focusMarkers(paint, this.marker) <= 1, `Two rows carry the focus marker:\n${paint}`)
+      const found = focusMarkers(paint, this.marker, this.side)
+      assert.ok(found <= 1, `Two rows carry the focus marker:\n${paint}`)
     }
   }
 

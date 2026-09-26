@@ -63,6 +63,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:codex` | TOML corpus, provider invariants, Auth profiles, switching/adoption, recovery failures, screen string resolution |
 | `npm run verify:ui-render` | Full Ink component flow, local Agent filtering, focus, masking, Unicode/ASCII paints, short viewports and scrolling |
 | `npm run verify:header-path` | Frame titles on push/back and path elision at narrow widths |
+| `npm run verify:layout` | Application frame and Panels: aligned borders under Unicode and ASCII, key help in the border or wrapped and reserved in both locales at 80 and 100 columns, side Panels at 100+ columns and never beside a message, the frameless short terminal, visible-screen clear on narrowing |
 | `npm run verify:review-form` | Changed rows, hints, Advanced toggle, `ctrl+s`, long-value cursor visibility |
 | `npm run verify:error-recovery` | Failed-save draft retention and partial-backup listing/cleanup |
 | `npm run verify:malformed-dirty` | Malformed-target confirmation and unsaved-edit prompts through a real PTY |
@@ -99,7 +100,8 @@ Other fixtures import source modules and are bundled for execution by tsup.
 
 Not every `scripts/verify-*.ts` file is independently runnable. Codec corpora and
 Codex recovery helpers run inside the Agent fixtures; `verify-viewport.ts` and
-`verify-agent-discovery.ts` run inside `verify:ui-render`. `ui-session.ts` and
+`verify-agent-discovery.ts` run inside `verify:ui-render`, and `layout-rules.ts`
+runs inside `verify:layout`. `ui-session.ts` and
 `ui-assertions.ts` drive component tests; `pty-session.ts` drives a real terminal; `cli-harness.ts` runs commands with
 isolated homes; `kill-harness.ts` supports `verify:write-safety`.
 

@@ -203,8 +203,14 @@ not be honest about any of them.
 
 Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
 back. Long lists state the visible range and total row count. A form asks before
-discarding unsaved edits and never asks otherwise. Nested screens show their full
-navigation path in the header; narrow terminals keep the final two steps visible.
+discarding unsaved edits and never asks otherwise. The interface is drawn in a
+bordered frame: the keys the current screen accepts sit in its bottom border, and
+the main panel's title shows the full navigation path of nested screens; narrow
+terminals keep the final two steps visible. On a terminal at least 100 columns
+wide and 16 rows tall, side panels show the agent, whether its config exists, the
+home ccset reads and writes, and the last result. The frame grows only as tall as
+its content, so earlier terminal output stays in the scrollback. Set
+`CCSET_ASCII=1` if your terminal cannot draw the box characters.
 
 ## What it will not do to your files
 

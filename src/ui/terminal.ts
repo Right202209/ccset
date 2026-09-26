@@ -14,6 +14,22 @@ import { createContext, useContext } from 'react'
 import type { MessageTone } from '../types.js'
 
 /**
+ * The eight characters a Panel border is drawn with. The shape matches Ink's
+ * `borderStyle` object, so the same set draws the sides Ink paints and the
+ * titled top and bottom lines Panel paints itself.
+ */
+export interface BoxGlyphs {
+  topLeft: string
+  top: string
+  topRight: string
+  right: string
+  bottomRight: string
+  bottom: string
+  bottomLeft: string
+  left: string
+}
+
+/**
  * Decorative glyphs, plus the character the secret editor masks with. `MASK_CHAR`
  * in `core/constants.ts` still owns what `maskSecret()` produces, because that
  * output is Status *data* an agent assembles and the agent layer knows nothing
@@ -28,15 +44,34 @@ export interface GlyphSet {
   radioOn: string
   radioOff: string
   mask: string
-  /** Separates Frame titles in the header's navigation path. */
+  /** Separates Frame titles in the main Panel's navigation path. */
   pathSeparator: string
+  box: BoxGlyphs
+}
+
+/** The main Panel's border says what its Screen asks of the core user. */
+export interface PanelColors {
+  /** Lists, menus, Status: nothing is being changed yet. */
+  browse: string
+  /** A review form: values are being edited. */
+  edit: string
+  /** A confirm or the unsaved-edits prompt: a decision is pending. */
+  decide: string
 }
 
 export interface ColorSet {
   /** The focused row of a list, a form, or a Status item. */
   focus: string
+  /**
+   * The focused row's selection bar. Color is never the only cue: the focus
+   * glyph still marks the row where a terminal draws no color at all.
+   */
+  selection: { color: string; background: string }
   /** The application title and a Status section title. */
   heading: string
+  /** The application frame around every Screen. */
+  frame: string
+  panel: PanelColors
   tone: Record<MessageTone, string>
 }
 
@@ -54,6 +89,16 @@ export const UNICODE_GLYPHS: GlyphSet = {
   radioOff: '( )',
   mask: '•',
   pathSeparator: '›',
+  box: {
+    topLeft: '┌',
+    top: '─',
+    topRight: '┐',
+    right: '│',
+    bottomRight: '┘',
+    bottom: '─',
+    bottomLeft: '└',
+    left: '│',
+  },
 }
 
 /**
@@ -67,6 +112,16 @@ export const ASCII_GLYPHS: GlyphSet = {
   radioOff: '( )',
   mask: '*',
   pathSeparator: '>',
+  box: {
+    topLeft: '+',
+    top: '-',
+    topRight: '+',
+    right: '|',
+    bottomRight: '+',
+    bottom: '-',
+    bottomLeft: '+',
+    left: '|',
+  },
 }
 
 export const UNICODE_BUSY_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const
@@ -107,7 +162,10 @@ const identity = (text: string): string => text
  */
 export const COLORS: ColorSet = {
   focus: 'cyan',
+  selection: { color: 'black', background: 'cyan' },
   heading: 'cyan',
+  frame: 'blue',
+  panel: { browse: 'cyan', edit: 'green', decide: 'yellow' },
   tone: {
     success: 'green',
     error: 'red',
@@ -182,4 +240,19 @@ export function markerGutter(marker: string, shown: boolean): string {
 
 export function focusGutter(glyphs: GlyphSet, focused: boolean): string {
   return markerGutter(glyphs.focus, focused)
+}
+
+export interface TextStyle {
+  color?: string
+  backgroundColor?: string
+  bold?: boolean
+}
+
+/**
+ * The focused row's selection bar, gutter included. An unfocused row keeps its
+ * tone, so the list and the form draw focus the same way through one rule.
+ */
+export function rowStyle(colors: ColorSet, focused: boolean, tone?: MessageTone): TextStyle {
+  if (!focused) return { color: toneColor(colors, tone) }
+  return { color: colors.selection.color, backgroundColor: colors.selection.background, bold: true }
 }

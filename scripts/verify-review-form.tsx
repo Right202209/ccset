@@ -4,10 +4,14 @@ import { render } from 'ink-testing-library'
 import stringWidth from 'string-width'
 import type { FieldSpec, FormScreen, FormValues } from '../src/types.js'
 import { t } from '../src/i18n/index.js'
+import { helpFor } from '../src/ui/keymap.js'
 import { ReviewForm } from '../src/ui/ReviewForm.js'
 import { ViewportProvider } from '../src/ui/Viewport.js'
 import { stripAnsi } from './ui-assertions.js'
 import { ASCII_TERMINAL, TerminalContext, UNICODE_TERMINAL, type Terminal } from '../src/ui/terminal.js'
+
+// Mounted alone, the form's Viewport is what the Layout hands it: the main
+// Panel's interior, with the frame and the key help already paid for.
 
 const CTRL_S = '\x13'
 const ENTER = '\r'
@@ -77,7 +81,8 @@ async function verifyCtrlSSavesFromAField(): Promise<void> {
   const { instance, submissions } = mount(screen())
   await send(instance, CTRL_S)
   assert.deepEqual(submissions, [{ name: 'acme', advanced: 'https://example.com' }])
-  assert.match(instance.lastFrame() ?? '', /ctrl\+s save/)
+  // The frame paints this help for a form; verify:layout asserts it lands there.
+  assert.match(helpFor('form'), /ctrl\+s save/)
   instance.unmount()
 }
 
@@ -141,7 +146,7 @@ async function verifyAdvancedToggleKeepsFocus(): Promise<void> {
     { id: 'two', labelKey: 'Basic two', type: 'text' },
     ...Array.from({ length: 6 }, (_, index) => ({ id: `advanced-${index + 1}`, labelKey: `Advanced ${index + 1}`, type: 'text' as const, advanced: true })),
   ]
-  const { instance } = mount(screen({ fields: manyFields }), { rows: 10 })
+  const { instance } = mount(screen({ fields: manyFields }), { rows: 5 })
   await send(instance, DOWN)
   await send(instance, DOWN)
   await send(instance, ENTER)
@@ -163,7 +168,7 @@ async function verifyHintsAndErrorConsumeRows(): Promise<void> {
     fields: detailedFields,
     values: { required: '' },
     baseline: { required: '' },
-  }), { rows: 10 })
+  }), { rows: 5 })
   for (let index = 0; index < detailedFields.length; index += 1) await send(instance, DOWN)
   await send(instance, ENTER)
   const paint = instance.lastFrame() ?? ''
@@ -177,7 +182,7 @@ async function verifyHintsAndErrorConsumeRows(): Promise<void> {
     fields: detailedFields,
     values: { required: '' },
     baseline: { required: '' },
-  }), { rows: 8 }).instance
+  }), { rows: 3 }).instance
   for (let index = 0; index < detailedFields.length; index += 1) await send(tiny, DOWN)
   await send(tiny, ENTER)
   const tinyPaint = tiny.lastFrame() ?? ''
@@ -196,7 +201,7 @@ async function verifyControlsStayReachable(): Promise<void> {
       advanced: true,
     })),
   ]
-  const { instance } = mount(screen({ fields: manyFields }), { rows: 6 })
+  const { instance } = mount(screen({ fields: manyFields }), { rows: 1 })
   await send(instance, DOWN)
   await send(instance, ENTER)
   await send(instance, DOWN)
@@ -271,18 +276,8 @@ async function verifyChoicesStayVisibleWhileCycling(): Promise<void> {
   instance.unmount()
 }
 
-// The help line wraps at narrow widths; the footer must reserve what it renders.
-async function verifyWrappedFooterStaysInBudget(): Promise<void> {
-  const many = Array.from({ length: 14 }, (_, index) => ({
-    id: `field-${index + 1}`,
-    labelKey: `Field ${index + 1}`,
-    type: 'text' as const,
-  }))
-  const { instance } = mount(screen({ fields: many }), { rows: 21, columns: 60 })
-  const lines = (instance.lastFrame() ?? '').split('\n').length
-  assert.ok(lines <= 16, `the form painted ${lines} rows against a 16-row budget`)
-  instance.unmount()
-}
+// The help that once wrapped below the form is the frame's now: verify:layout
+// asserts a long form and its wrapped help together fit the terminal.
 
 await verifyCtrlSSavesFromAField()
 await verifyEnterStillMoves()
@@ -290,7 +285,6 @@ await verifyCtrlSRevealsInvalidAdvancedField()
 await verifyCtrlSLeavesTheTextAlone()
 await verifyLongValueKeepsCursorVisible()
 await verifyChoicesStayVisibleWhileCycling()
-await verifyWrappedFooterStaysInBudget()
 await verifyAdvancedToggleKeepsFocus()
 await verifyHintsAndErrorConsumeRows()
 await verifyControlsStayReachable()

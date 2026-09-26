@@ -23,6 +23,17 @@ export const en: Record<string, string> = {
   'menu.noAgentsTitle': 'No local agents',
   'menu.agentTitle': 'Select an agent',
 
+  /* ----------------------------------------------------------- side panels */
+  'side.agentTitle': 'Agent',
+  'side.noAgent': 'None selected',
+  'side.checking': 'Checking…',
+  'side.configFound': 'Config found',
+  'side.configMissing': 'No config yet',
+  'side.agentsFound': 'Detected here: {count}',
+  'side.home': 'Home',
+  'side.resultTitle': 'Last result',
+  'side.noResult': 'Nothing yet',
+
   /* --------------------------------------------------------------- actions */
   'action.global': 'Global settings',
   'action.providers': 'Providers',

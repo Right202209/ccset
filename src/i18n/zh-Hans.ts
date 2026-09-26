@@ -24,6 +24,17 @@ export const zhHans: Record<string, string> = {
   'menu.noAgentsTitle': '没有本地 Agent',
   'menu.agentTitle': '选择 Agent',
 
+  /* ----------------------------------------------------------- side panels */
+  'side.agentTitle': '当前 Agent',
+  'side.noAgent': '尚未选择',
+  'side.checking': '检测中…',
+  'side.configFound': '已有配置',
+  'side.configMissing': '尚无配置',
+  'side.agentsFound': '本机检测到：{count}',
+  'side.home': '主目录',
+  'side.resultTitle': '最近结果',
+  'side.noResult': '暂无',
+
   /* --------------------------------------------------------------- actions */
   'action.global': '全局设置',
   'action.providers': '提供商',

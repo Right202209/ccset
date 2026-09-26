@@ -42,14 +42,15 @@ function requireAgent(id: string): Agent {
 const claudeCode = requireAgent('claude-code')
 
 /**
- * Both sides stripped of whitespace. The terminal soft-wraps a line at the
- * viewport width, and a home under a long temporary directory (macOS runners'
- * /var/folders/...) pushes the permission line past 80 columns, so the paint
- * carries the message across several rows. What the gate cares about is that
- * the failure is named, not where the line breaks fall.
+ * Both sides stripped of whitespace and of the Panel borders (U+2500-U+257F).
+ * The terminal soft-wraps a line at the viewport width, and a home under a
+ * long temporary directory (macOS runners' /var/folders/...) pushes the
+ * permission line past 80 columns, so the paint carries the message across
+ * several rows, each between the Panels' side borders. What the gate cares
+ * about is that the failure is named, not where the line breaks fall.
  */
 function flattened(text: string): string {
-  return text.replace(/\s+/g, '')
+  return text.replace(/[\s─-╿]+/g, '')
 }
 
 /** One finished backup and one partial copy, both holding a credential. */
@@ -162,7 +163,8 @@ async function checkPartialIsClearable(home: string): Promise<void> {
     assert.ok(status.includes(t('status.partials')), `Status hides the partial copy:\n${status}`)
 
     await session.send(ENTER)
-    await session.waitFor(t('confirm.clearBackups'))
+    // The option, not the warning: the warning wraps inside an 80-column Panel.
+    await session.waitFor(t('confirm.clear'))
     await session.send(UP)
     await session.send(ENTER)
     await session.waitFor(t('write.backupsCleared', { count: 2 }))

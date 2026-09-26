@@ -47,6 +47,7 @@ npm 脚本使用 POSIX shell 语法。PTY fixture 需要 `python3` 及其 POSIX 
 | `npm run verify:codex` | TOML 语料、provider 不变量、Auth profile、切换/采纳、恢复失败、Screen 文案解析 |
 | `npm run verify:ui-render` | 完整的 Ink 组件流程、本地 Agent 过滤、焦点、遮罩、Unicode/ASCII 绘制、短视口与滚动 |
 | `npm run verify:header-path` | 压栈/返回时的 Frame 标题，以及窄宽度下的路径省略 |
+| `npm run verify:layout` | 应用框架与面板：Unicode 与 ASCII 下边框对齐；按键帮助位于边框中，或在两种语言、80 与 100 列下换行并预留行数；侧面板仅在 100 列以上出现且从不紧挨 message；过矮终端不绘制框架；变窄时清除可见屏幕 |
 | `npm run verify:review-form` | 变更行、提示、Advanced 开关、`ctrl+s`、长值下的光标可见性 |
 | `npm run verify:error-recovery` | 保存失败时草稿的保留，以及残缺备份的列出/清理 |
 | `npm run verify:malformed-dirty` | 经由真实 PTY 的损坏目标确认与未保存修改提示 |
@@ -76,7 +77,7 @@ npm 脚本使用 POSIX shell 语法。PTY fixture 需要 `python3` 及其 POSIX 
 
 所有 `verify:commands` / `verify:commands-*` 脚本先构建再运行，演练的是 `dist/cli.js`；其中一些还会直接对 operation 接缝做断言。`verify:malformed-dirty`、`verify:first-run-locale`、`verify:status-terminal` 和 `verify:i18n-zh` 也先构建。release-artifact fixture 在内部完成构建，把 tarball 打包并安装到一个临时项目中；它不执行发布。其他 fixture 导入源码模块，由 tsup 打包后执行。
 
-并非每个 `scripts/verify-*.ts` 文件都能独立运行。Codec 语料与 Codex 恢复辅助模块运行在 Agent fixture 内部；`verify-viewport.ts` 与 `verify-agent-discovery.ts` 运行在 `verify:ui-render` 内部。`ui-session.ts` 与 `ui-assertions.ts` 驱动组件测试；`pty-session.ts` 驱动真实终端；`cli-harness.ts` 以隔离 home 运行命令；`kill-harness.ts` 支撑 `verify:write-safety`。
+并非每个 `scripts/verify-*.ts` 文件都能独立运行。Codec 语料与 Codex 恢复辅助模块运行在 Agent fixture 内部；`verify-viewport.ts` 与 `verify-agent-discovery.ts` 运行在 `verify:ui-render` 内部，`layout-rules.ts` 运行在 `verify:layout` 内部。`ui-session.ts` 与 `ui-assertions.ts` 驱动组件测试；`pty-session.ts` 驱动真实终端；`cli-harness.ts` 以隔离 home 运行命令；`kill-harness.ts` 支撑 `verify:write-safety`。
 
 ## 新增或扩展验证
 

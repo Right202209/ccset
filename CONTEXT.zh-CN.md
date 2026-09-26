@@ -115,8 +115,14 @@ _避免_: Frame, screenshot
 
 **Viewport（视口）**:
 窗口化区域被裁剪到的行列预算。ccset 不占有整个终端，因此 Viewport 界定的是一个区域，
-绝不是整个应用。
+绝不是整个应用。App 把主面板的内部区域作为 Viewport 交给每个 View。
 _避免_: Screen size, full screen
+
+**Panel（面板）**:
+TUI 框架中带边框和标题的区域。主面板容纳当前 Screen 的 View，标题为 Frame 路径；
+宽终端上的侧面板显示 Agent 的上下文。Panel 属于布局而非导航：它既不是 Screen，
+也不是 Frame。
+_避免_: Window, pane, box
 
 **Terminal capability（终端能力）**:
 核心用户面前的终端能够渲染的内容：字形集合与颜色集合。它是环境的属性，不是用户偏好。

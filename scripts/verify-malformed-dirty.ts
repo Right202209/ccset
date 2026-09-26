@@ -37,11 +37,18 @@ async function chooseEnglishOnce(home: string): Promise<void> {
   await saveLocale(home, 'en')
 }
 
+/**
+ * What proves the review form is the Screen on top. The frame paints every
+ * Screen's key help, so 'esc cancel' also shows on the malformed-file confirm
+ * and the unsaved-edits prompt; only the form's keymap carries ctrl+s.
+ */
+const FORM_HELP = 'ctrl+s save'
+
 async function openGlobal(session: CliSession, from = 0): Promise<number> {
   await session.waitFor('Global settings', from)
   await new Promise((resolve) => setTimeout(resolve, 100))
   session.send(ENTER)
-  return session.waitFor('esc cancel', from)
+  return session.waitFor(FORM_HELP, from)
 }
 
 async function submitSave(session: CliSession, from: number, downCount: number): Promise<number> {
@@ -68,7 +75,7 @@ async function verifyMalformedRecovery(home: string): Promise<void> {
     cursor = await session.waitFor('Back it up and start fresh', cursor)
 
     session.send(ENTER)
-    cursor = await session.waitFor('esc cancel', cursor + 1)
+    cursor = await session.waitFor(FORM_HELP, cursor + 1)
     assert.equal(await fs.readFile(target, 'utf8'), malformed)
     assert.deepEqual(await backupFiles(home), [])
     const returnedForm = session.snapshot().slice(session.snapshot().lastIndexOf('Global settings'))
@@ -109,11 +116,11 @@ async function verifyDirtyExit(home: string): Promise<void> {
     // Esc on the prompt itself means stay: the form with its edits stays up,
     // and a second Esc asks again rather than leaving through the guard.
     session.send(ESC)
-    cursor = await session.waitFor('esc cancel', cursor)
+    cursor = await session.waitFor(FORM_HELP, cursor)
     session.send(ESC)
     cursor = await session.waitFor('Unsaved edits', cursor + 1)
     session.send(ENTER)
-    cursor = await session.waitFor('esc cancel', cursor + 1)
+    cursor = await session.waitFor(FORM_HELP, cursor + 1)
     const returnedForm = session.snapshot().slice(session.snapshot().lastIndexOf('Global settings'))
     assert.match(returnedForm, /Proxy\s+\* On/)
 

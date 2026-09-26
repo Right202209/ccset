@@ -1,19 +1,77 @@
 import React, { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
+import stringWidth from 'string-width'
 import wrapAnsi from 'wrap-ansi'
 import type { ListItem, StatusScreen, StatusSection } from '../types.js'
-import { t } from '../i18n/index.js'
 import { SelectList, type SelectOption } from './SelectList.js'
 import { toneColor, useTerminal } from './terminal.js'
-import { helpFor } from './keymap.js'
-import { useViewport, WindowCount, WindowRegion, windowAround } from './Viewport.js'
+import { truncateEnd } from './text-fit.js'
+import { useViewport, WindowCount, WindowRegion, windowAround, type WindowSlice } from './Viewport.js'
 import { sanitizeForTerminal } from '../core/terminal-text.js'
 
-const LABEL_WIDTH = 22
+/** Labels indent under their section title and always keep a blank before the value. */
+const LABEL_INDENT = 2
+const LABEL_GAP = 1
+/**
+ * The most of the Panel's width the label column may take: values are often
+ * paths the core user copies, so they keep the larger share.
+ */
+const LABEL_SHARE = 1 / 3
 
 interface StatusViewProps {
   screen: StatusScreen
   onSelect: (item: ListItem) => void
+}
+
+/**
+ * As wide as the widest label on the Screen, so short labels leave the values
+ * room and a long one is cut only when the Panel is too narrow for it.
+ */
+function labelColumn(sections: StatusSection[], width: number, fold: (text: string) => string): number {
+  const labels = sections.flatMap((section) => section.lines.map((line) => fold(sanitizeForTerminal(line.label))))
+  const widest = Math.max(0, ...labels.map((label) => stringWidth(label)))
+  const chrome = LABEL_INDENT + LABEL_GAP
+  return Math.max(chrome + 1, Math.min(widest + chrome, Math.floor(width * LABEL_SHARE)))
+}
+
+interface StatusPlan {
+  actionBudget: number
+  actionMargin: number
+  statusBudget: number
+  window: WindowSlice<StatusRow>
+  maxStart: number
+}
+
+/**
+ * The Viewport's rows split between the windowed status rows and the pinned
+ * action list below them. Actions are never the part that gives way: a hidden
+ * action is worse than a hidden status line (ADR 0002).
+ */
+function planStatus(
+  rows: StatusRow[],
+  items: ListItem[],
+  { bodyRows, offset }: { bodyRows: number; offset: number },
+): StatusPlan {
+  const desiredActionRows = items.length > 1 ? 2 : 1
+  const reservedStatusRows = bodyRows > 1 ? 1 : 0
+  const actionBudget = items.length > 0
+    ? Math.min(desiredActionRows, Math.max(1, bodyRows - reservedStatusRows))
+    : 0
+  const actionWindow = windowAround(items, 0, actionBudget)
+  const actionCountRows = actionWindow.total > actionWindow.items.length && actionBudget > 1 ? 1 : 0
+  const renderedActionRows = actionWindow.items.length + actionCountRows
+  const actionMargin = items.length > 0 && bodyRows > renderedActionRows + 1 ? 1 : 0
+  const statusBudget = Math.max(0, bodyRows - renderedActionRows - actionMargin)
+  // Same sizing rule windowAround applies: an overflowing window keeps one row
+  // of the budget for the count line, so the region never overflows.
+  const size = rows.length <= statusBudget ? statusBudget : Math.max(1, statusBudget - 1)
+  const maxStart = Math.max(0, rows.length - size)
+  const start = Math.min(offset, maxStart)
+  const end = Math.min(rows.length, start + size)
+  const window = statusBudget > 0
+    ? { items: rows.slice(start, end), start, end, total: rows.length }
+    : { items: [], start: 0, end: 0, total: rows.length }
+  return { actionBudget, actionMargin, statusBudget, window, maxStart }
 }
 
 /**
@@ -30,43 +88,18 @@ export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactEl
   const viewport = useViewport()
   const { fold } = useTerminal()
   const [offset, setOffset] = useState(0)
-  const contentWidth = Math.max(1, viewport.columns - 2)
-  const rows = screen.sections.flatMap((section) => statusRows(section, contentWidth, fold))
-  const showHelp = viewport.rows >= 16 && viewport.columns >= 60
-  const bodyRows = viewport.rows < 7
-    ? Math.max(1, viewport.rows)
-    : Math.max(2, viewport.rows - 5 - (showHelp ? 2 : 0))
-  const desiredActionRows = screen.items.length > 1 ? 2 : 1
-  const reservedStatusRows = bodyRows > 1 ? 1 : 0
-  const actionBudget = screen.items.length > 0
-    ? Math.min(desiredActionRows, Math.max(1, bodyRows - reservedStatusRows))
-    : 0
-  const actionWindow = windowAround(screen.items, 0, actionBudget)
-  const actionCountRows = actionWindow.total > actionWindow.items.length && actionBudget > 1 ? 1 : 0
-  const renderedActionRows = actionWindow.items.length + actionCountRows
-  const actionMargin = screen.items.length > 0 && bodyRows > renderedActionRows + 1 ? 1 : 0
-  const statusBudget = Math.max(0, bodyRows - renderedActionRows - actionMargin)
-  // Same sizing rule windowAround applies: an overflowing window keeps one row
-  // of the budget for the count line, so the region never overflows.
-  const size = rows.length <= statusBudget ? statusBudget : Math.max(1, statusBudget - 1)
-  const maxStart = Math.max(0, rows.length - size)
-  const start = Math.min(offset, maxStart)
-  const window = statusBudget > 0
-    ? {
-        items: rows.slice(start, start + size),
-        start,
-        end: Math.min(rows.length, start + size),
-        total: rows.length,
-      }
-    : { items: [], start: 0, end: 0, total: rows.length }
+  const labelWidth = labelColumn(screen.sections, viewport.columns, fold)
+  const layout = { width: viewport.columns, labelWidth, fold }
+  const rows = screen.sections.flatMap((section) => statusRows(section, layout))
+  const plan = planStatus(rows, screen.items, { bodyRows: Math.max(1, viewport.rows), offset })
+  const { start } = plan.window
 
   useInput((input, key) => {
-    if (statusBudget === 0 || maxStart === 0) return
+    if (plan.statusBudget === 0 || plan.maxStart === 0) return
     if (key.upArrow || input === 'k') setOffset(Math.max(0, start - 1))
-    else if (key.downArrow || input === 'j') setOffset(Math.min(maxStart, start + 1))
+    else if (key.downArrow || input === 'j') setOffset(Math.min(plan.maxStart, start + 1))
   })
 
-  const countOnlyWindow = { items: [], start: 0, end: 0, total: window.total }
   const options: SelectOption[] = screen.items.map((item) => ({
     id: item.id,
     label: item.label,
@@ -75,18 +108,12 @@ export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactEl
   }))
   return (
     <Box flexDirection="column">
-      {statusBudget === 0 ? null : statusBudget === 1 && window.total > window.items.length ? (
-        <WindowCount window={countOnlyWindow} />
-      ) : (
-        <WindowRegion window={window} rows={statusBudget}>
-          {window.items.map((row) => <StatusRowView key={row.key} row={row} />)}
-        </WindowRegion>
-      )}
+      <StatusRegion plan={plan} labelWidth={labelWidth} />
       {screen.items.length > 0 && (
-        <Box marginTop={actionMargin}>
+        <Box marginTop={plan.actionMargin}>
           <SelectList
             options={options}
-            rows={actionBudget}
+            rows={plan.actionBudget}
             onSelect={(_option, index) => {
               const item = screen.items[index]
               if (item !== undefined) onSelect(item)
@@ -94,12 +121,20 @@ export function StatusView({ screen, onSelect }: StatusViewProps): React.ReactEl
           />
         </Box>
       )}
-      {showHelp && (
-        <Box marginTop={1}>
-          <Text dimColor>{fold(helpFor('status'))}</Text>
-        </Box>
-      )}
     </Box>
+  )
+}
+
+function StatusRegion({ plan, labelWidth }: { plan: StatusPlan; labelWidth: number }): React.ReactElement | null {
+  const { statusBudget, window } = plan
+  if (statusBudget === 0) return null
+  if (statusBudget === 1 && window.total > window.items.length) {
+    return <WindowCount window={{ items: [], start: 0, end: 0, total: window.total }} />
+  }
+  return (
+    <WindowRegion window={window} rows={statusBudget}>
+      {window.items.map((row) => <StatusRowView key={row.key} row={row} labelWidth={labelWidth} />)}
+    </WindowRegion>
   )
 }
 
@@ -114,17 +149,19 @@ type StatusRow =
     }
   | { kind: 'note'; key: string; text: string }
 
-function statusRows(
-  section: StatusSection,
-  width: number,
-  fold: (text: string) => string,
-): StatusRow[] {
+interface RowLayout {
+  width: number
+  labelWidth: number
+  fold: (text: string) => string
+}
+
+function statusRows(section: StatusSection, { width, labelWidth, fold }: RowLayout): StatusRow[] {
   const rows: StatusRow[] = wrapLines(fold(sanitizeForTerminal(section.title)), width).map((text, index) => ({
     kind: 'title',
     key: `title:${section.title}:${index}`,
     text,
   }))
-  const valueWidth = Math.max(1, width - LABEL_WIDTH)
+  const valueWidth = Math.max(1, width - labelWidth)
   for (const line of section.lines) {
     rows.push(...wrapLines(fold(sanitizeForTerminal(line.value)), valueWidth).map((value, index) => ({
       kind: 'line' as const,
@@ -148,7 +185,7 @@ function wrapLines(text: string, width: number): string[] {
   return wrapAnsi(text, width, { hard: true, trim: false, wordWrap: true }).split('\n')
 }
 
-function StatusRowView({ row }: { row: StatusRow }): React.ReactElement {
+function StatusRowView({ row, labelWidth }: { row: StatusRow; labelWidth: number }): React.ReactElement {
   const { colors, fold } = useTerminal()
   if (row.kind === 'title') {
     return (
@@ -161,15 +198,16 @@ function StatusRowView({ row }: { row: StatusRow }): React.ReactElement {
   }
   if (row.kind === 'note') {
     return (
-      <Box height={1} overflow="hidden" paddingLeft={2}>
+      <Box height={1} overflow="hidden" paddingLeft={LABEL_INDENT}>
         <Text dimColor wrap="wrap">{fold(row.text)}</Text>
       </Box>
     )
   }
+  const label = `${' '.repeat(LABEL_INDENT)}${row.label}`
   return (
     <Box height={1} overflow="hidden">
-      <Box width={LABEL_WIDTH}>
-        <Text dimColor wrap="truncate-end">{fold(`  ${row.label}`)}</Text>
+      <Box width={labelWidth} flexShrink={0}>
+        <Text dimColor>{truncateEnd(label, labelWidth - LABEL_GAP, fold('…'))}</Text>
       </Box>
       <Box flexGrow={1} flexShrink={1}>
         <Text color={toneColor(colors, row.tone)} wrap="wrap">

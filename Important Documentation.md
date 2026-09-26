@@ -2787,3 +2787,46 @@ exceptions), `npm run verify:codex`, `npm run verify:commands-opencode-provider`
 `npm run verify:commands-codex-use`, and the complete sequential `npm test`
 ending in `verify:release-artifact` all passed; `git diff --check` is clean. No
 live Provider request or Windows/macOS run was made.
+
+### 9.57 Bordered flex-panel TUI layout (2026-09-26)
+
+**Scope:** the Ink TUI now draws every Screen inside bordered flex Panels
+(ADR 0017): an application frame with the name and tagline in its top border
+and the current key help in its bottom one, a main Panel titled with the
+navigation path, and, at 100 columns and 16 rows or more, side Panels showing
+the selected Agent and the last result. The frame stays as tall as its content
+and never fills or owns the terminal, so ADR 0002's flow-scrolling output and
+scrollback are kept. `Layout.planLayout` decides every row and column the
+chrome costs and hands Views the main Panel's interior as their Viewport, so
+the Views dropped their own help lines. Help too wide for the border wraps
+inside the frame from 16 rows up and is otherwise omitted; below 7 rows or 30
+columns the View paints unframed. The selected row is a black-on-cyan bar;
+Panel borders take the Terminal's glyph set (`+-|` under `CCSET_ASCII=1`), and
+every cut uses `text-fit.ts` with the Terminal's folded ellipsis instead of
+Ink's `truncate-end`, which always emitted U+2026. A narrowing resize clears
+the visible screen (`ESC[H ESC[2J`) before repainting, since rows painted to
+the last column rewrap beyond what Ink's erase counts; it never writes
+`ESC[3J`. Agent discovery moved from `App.tsx` into `useAgentDiscovery.ts`,
+and the refactor removed seven code-gate baseline entries (`App`, `SelectList`
+x2, `StatusView`, `useReviewForm` x3).
+
+**Fixtures:** `scripts/verify-layout.ts` (in `npm test` after
+`verify:header-path`) drives the real App for frame geometry in both glyph
+sets, side Panels, the form help in both locales at 80/100 columns and 12/21
+rows, the frameless case, long-label folding under ASCII, and the resize clear;
+`scripts/layout-rules.ts` asserts the pure plan, path-title, and text-fit
+rules. `verify-review-form`, `verify-viewport`, `verify-error-recovery`,
+`verify-malformed-dirty`, and the shared `ui-session`/`ui-assertions` helpers
+were updated for the framed paint (border-aware focus markers, box glyphs in
+the ASCII check). Each new assertion was mutation-checked by reverting the
+behavior it guards and confirming the fixture went red: seven layout-plan
+mutations, the Panel border-width mutations, the focus-marker mutation, and the
+label-cut mutation. A real-PTY render through a scratch VT emulator confirmed
+resizing leaves no ghost rows; the scratch harness was not committed.
+
+**Verification:** on Linux x86_64 (WSL2), Node.js 26.8.1 and npm 12.0.2,
+`npm run typecheck`, `npm run build`, `npm run verify:code-gates` (257 files,
+10 baseline exceptions), and the complete sequential `npm test` all passed;
+the website's typecheck, test (75 tests), build, and smoke passed unchanged.
+`git diff --check` is clean. No live Provider request or Windows/macOS run was
+made.

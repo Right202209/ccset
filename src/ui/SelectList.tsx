@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
-import { Box, Text, useInput } from 'ink'
+import { Box, Text, useInput, type Key } from 'ink'
+import stringWidth from 'string-width'
 import type { MessageTone } from '../types.js'
 import { t } from '../i18n/index.js'
-import { focusGutter, toneColor, useTerminal } from './terminal.js'
+import { focusGutter, rowStyle, useTerminal } from './terminal.js'
 import { KEYMAPS } from './keymap.js'
-import { useViewport, WindowRegion, windowAround } from './Viewport.js'
+import { padEnd, truncateEnd } from './text-fit.js'
+import { useViewport, WindowRegion, windowAround, type WindowSlice } from './Viewport.js'
 
 export interface SelectOption {
   id: string
@@ -18,8 +20,40 @@ interface SelectListProps {
   onSelect: (option: SelectOption, index: number) => void
   /** Where the cursor starts; a destructive list points it at the safe row. */
   initialIndex?: number
-  /** Row budget when another windowed region shares the same Screen. */
+  /** Row budget when something else shares the Viewport; the whole Viewport otherwise. */
   rows?: number
+}
+
+/** Columns before a row's label: the focus gutter and the "1. " shortcut. */
+const ROW_LEAD = 5
+
+const [UP_BINDING, DOWN_BINDING] = KEYMAPS.list
+
+/** -1, 1, or 0 for a key that does not move the cursor. */
+function moveDelta(input: string, key: Key): number {
+  if ((UP_BINDING?.keys ?? []).includes(key.upArrow ? 'up' : input)) return -1
+  if ((DOWN_BINDING?.keys ?? []).includes(key.downArrow ? 'down' : input)) return 1
+  return 0
+}
+
+/**
+ * The row a key selects. Digits number the visible rows (ADR 0002), so a
+ * digit past the window selects nothing rather than a row the user cannot see.
+ */
+function selectTarget(input: string, key: Key, at: { index: number; window: WindowSlice<unknown> }): number | null {
+  if (key.return) return at.index
+  if (!/^[1-9]$/.test(input)) return null
+  const visible = Number(input) - 1
+  return visible < at.window.items.length ? at.window.start + visible : null
+}
+
+/**
+ * Wide enough for every label, not only the visible ones, so scrolling never
+ * shifts the detail column; capped so a long label cannot starve the details.
+ */
+function labelColumn(options: SelectOption[], fold: (text: string) => string, columns: number): number {
+  const widest = Math.max(0, ...options.map((option) => stringWidth(fold(option.label))))
+  return Math.min(widest, Math.floor(columns / 2))
 }
 
 /**
@@ -36,27 +70,20 @@ export function SelectList({
   const count = options.length
   const viewport = useViewport()
   const { fold } = useTerminal()
-  const rowBudget = rows ?? Math.max(2, viewport.rows - (viewport.columns < 60 ? 10 : 7))
+  const rowBudget = Math.max(1, rows ?? viewport.rows)
   const window = windowAround(options, index, rowBudget)
+  const column = labelColumn(options, fold, viewport.columns)
 
   useInput((input, key) => {
     if (count === 0) return
-    const [upBinding, downBinding] = KEYMAPS.list
-    if (upBinding === undefined || downBinding === undefined) return
-    const up = key.upArrow ? 'up' : input
-    const down = key.downArrow ? 'down' : input
-    if (upBinding.keys.includes(up)) setIndex((current) => (current - 1 + count) % count)
-    else if (downBinding.keys.includes(down)) setIndex((current) => (current + 1) % count)
-    else if (key.return) selectAt(index)
-    else if (/^[1-9]$/.test(input)) {
-      const visibleIndex = Number(input) - 1
-      if (visibleIndex < window.items.length) selectAt(window.start + visibleIndex)
-    }
+    const delta = moveDelta(input, key)
+    if (delta !== 0) setIndex((current) => (current + delta + count) % count)
+    else selectAt(selectTarget(input, key, { index, window }))
   })
 
-  function selectAt(target: number): void {
-    const option = options[target]
-    if (option === undefined) return
+  function selectAt(target: number | null): void {
+    const option = target === null ? undefined : options[target]
+    if (target === null || option === undefined) return
     setIndex(target)
     onSelect(option, target)
   }
@@ -65,17 +92,16 @@ export function SelectList({
 
   return (
     <WindowRegion window={window} rows={rowBudget}>
-      {window.items.map((option, visiblePosition) => {
-        const position = window.start + visiblePosition
-        return (
-          <SelectRow
-            key={option.id}
-            option={option}
-            position={visiblePosition}
-            focused={position === index}
-          />
-        )
-      })}
+      {window.items.map((option, visiblePosition) => (
+        <SelectRow
+          key={option.id}
+          option={option}
+          position={visiblePosition}
+          focused={window.start + visiblePosition === index}
+          labelWidth={column}
+          room={viewport.columns - ROW_LEAD}
+        />
+      ))}
     </WindowRegion>
   )
 }
@@ -84,24 +110,30 @@ interface SelectRowProps {
   option: SelectOption
   position: number
   focused: boolean
+  labelWidth: number
+  /** Columns after the gutter and the shortcut, shared by the label and the detail. */
+  room: number
 }
 
-function SelectRow({ option, position, focused }: SelectRowProps): React.ReactElement {
+/**
+ * The selection bar spans gutter, number, and the padded label, so it is one
+ * width down the list. The detail takes whatever the label leaves.
+ */
+function SelectRow({ option, position, focused, labelWidth, room }: SelectRowProps): React.ReactElement {
   const { glyphs, colors, fold } = useTerminal()
-  const color = focused ? colors.focus : toneColor(colors, option.tone)
+  const style = rowStyle(colors, focused, option.tone)
+  const ellipsis = fold('…')
+  const label = padEnd(truncateEnd(fold(option.label), room, ellipsis), labelWidth)
+  const detailRoom = room - stringWidth(label)
   return (
     <Box height={1} overflow="hidden">
-      <Text color={color}>{focusGutter(glyphs, focused)}</Text>
-      <Text dimColor>{position < 9 ? `${position + 1}. ` : '   '}</Text>
-      <Text color={color} bold={focused}>
-        {fold(option.label)}
+      <Text {...style}>{focusGutter(glyphs, focused)}</Text>
+      <Text {...(focused ? style : {})} dimColor={!focused}>
+        {position < 9 ? `${position + 1}. ` : '   '}
       </Text>
-      {option.detail !== undefined && (
-        <Box flexGrow={1} flexShrink={1}>
-          <Text dimColor wrap="truncate-end">
-            {fold(`  ${option.detail}`)}
-          </Text>
-        </Box>
+      <Text {...style}>{label}</Text>
+      {option.detail !== undefined && detailRoom > 0 && (
+        <Text dimColor>{truncateEnd(fold(`  ${option.detail}`), detailRoom, ellipsis)}</Text>
       )}
     </Box>
   )

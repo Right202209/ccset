@@ -168,17 +168,30 @@ replacement or returning from a failed save must retain the draft, including
 masked secrets. The unsaved-edits prompt keeps the form mounted but hidden;
 confirmation cursors start on the safe choice.
 
-Frame titles appear in the header's navigation path and elide from the front
-when space is short. The TUI keeps output in terminal scrollback and windows
-long regions instead of owning a fixed-height screen (ADR 0002).
+Frame titles form the navigation path in the main Panel's title and elide from
+the front when space is short. The TUI keeps output in terminal scrollback and
+windows long regions instead of owning a fixed-height screen (ADR 0002); its
+bordered frame is only as tall as its content (ADR 0017).
 
-- `terminal.ts` owns glyphs, colors, busy frames, and `fold()` for catalog text
-  on seven-bit terminals. New paint sites must use the terminal helpers.
+- `Layout.tsx` owns the frame. `planLayout()` decides once what the borders,
+  side Panels, and key help cost, then gives the View the main Panel's
+  interior as its Viewport; below 7 rows or 30 columns the View paints alone.
+  `Panel.tsx` draws a bordered region with labels set into its top and bottom
+  borders, and `SidePanels.tsx` fills the side column on terminals of at least
+  100 columns and 16 rows, except beside a message Screen.
+- `terminal.ts` owns glyphs (Panel box characters included), colors (Panel
+  border roles and the selection bar included), busy frames, and `fold()` for
+  catalog text on seven-bit terminals. New paint sites must use the terminal
+  helpers.
+- `text-fit.ts` pads and truncates by display width with an ellipsis the
+  caller folds. Ink's own truncation always inserts `…`, so text that can be
+  cut to fit a row is cut here instead.
 - `Viewport.tsx` owns terminal dimensions, resize handling, `windowAround()`,
-  and `WindowRegion`. Lists, Status, and forms use it to keep focused content
-  inside the row budget.
-- `keymap.ts` owns bindings and the help line. It rejects duplicate bindings
-  and missing message keys at load time.
+  and `WindowRegion`. A width below the last paint clears the visible screen,
+  never the scrollback, before the repaint. Lists, Status, and forms use it to
+  keep focused content inside the row budget.
+- `keymap.ts` owns bindings and the help text the frame draws in its bottom
+  border. It rejects duplicate bindings and missing message keys at load time.
 - `useReviewForm.ts` owns editing state, Advanced fields, validation, row
   windowing, and `ctrl+s`; `ReviewForm.tsx` renders that state.
 

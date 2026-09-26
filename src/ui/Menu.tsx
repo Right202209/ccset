@@ -2,13 +2,16 @@ import React, { useMemo } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import type { Action, Agent } from '../types.js'
 import { hasKey, localeOptions, t, type Locale } from '../i18n/index.js'
+import { Layout } from './Layout.js'
 import { SelectList, type SelectOption } from './SelectList.js'
 import type { Terminal } from './terminal.js'
 import { TerminalContext, useTerminal } from './terminal.js'
-import { useTerminalViewport, ViewportProvider } from './Viewport.js'
-import { helpFor } from './keymap.js'
+import { wrappedRows } from './text-fit.js'
+import { useTerminalViewport, useViewport } from './Viewport.js'
 
 const EXIT_ID = '__exit__'
+/** The blank row between the not-detected warning and the list. */
+const WARNING_MARGIN = 1
 
 interface MainMenuProps {
   agent: Agent
@@ -31,24 +34,26 @@ export function MainMenu({ agent, detected, onRun, onExit }: MainMenuProps): Rea
   const actions = useMemo(() => agent.getActions(), [agent])
   const options = [...actions.map(actionOption), { id: EXIT_ID, label: t('menu.exit') }]
   const { colors, fold } = useTerminal()
+  const viewport = useViewport()
+  const warning = fold(t('menu.notDetected'))
+  // The warning wraps on a narrow Panel, and every row it takes is one the list gives up.
+  const warningRows = detected === false ? wrappedRows(warning, viewport.columns) + WARNING_MARGIN : 0
   return (
     <Box flexDirection="column">
       {detected === false && (
-        <Box marginBottom={1}>
-          <Text color={colors.tone.warn}>{fold(t('menu.notDetected'))}</Text>
+        <Box marginBottom={WARNING_MARGIN}>
+          <Text color={colors.tone.warn}>{warning}</Text>
         </Box>
       )}
       <SelectList
         options={options}
+        rows={Math.max(1, viewport.rows - warningRows)}
         onSelect={(option, index) => {
           const action = actions[index]
           if (option.id === EXIT_ID || action === undefined) onExit()
           else onRun(action)
         }}
       />
-      <Box marginTop={1}>
-        <Text dimColor>{fold(helpFor('list'))}</Text>
-      </Box>
     </Box>
   )
 }
@@ -62,38 +67,31 @@ interface AgentSelectProps {
 /**
  * Rendered when two or more local agents are detected; with one, ccset enters
  * it directly rather than asking a question with one answer.
- * The App header already paints "Select an agent" for this frame, so no title
- * of its own: the SelectList default budget assumes MainMenu's chrome, and an
- * extra row here would push the list past the viewport once the agent count
- * outgrows it.
+ * The main Panel's title already says "Select an agent", so no title of its
+ * own: the list takes the Panel's whole Viewport, and an extra row here would
+ * push it past that budget once the agent count outgrows it.
  */
 export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): React.ReactElement {
-  const { fold } = useTerminal()
   const options = [
     ...agents.map((agent) => ({ id: agent.id, label: agent.name })),
     { id: EXIT_ID, label: t('menu.exit') },
   ]
   return (
-    <Box flexDirection="column">
-      <SelectList
-        options={options}
-        onSelect={(option, index) => {
-          const agent = agents[index]
-          if (option.id === EXIT_ID || agent === undefined) onExit()
-          else onSelect(agent)
-        }}
-      />
-      <Box marginTop={1}>
-        <Text dimColor>{fold(helpFor('list'))}</Text>
-      </Box>
-    </Box>
+    <SelectList
+      options={options}
+      onSelect={(option, index) => {
+        const agent = agents[index]
+        if (option.id === EXIT_ID || agent === undefined) onExit()
+        else onSelect(agent)
+      }}
+    />
   )
 }
 
 /**
  * Nothing detected in this home. An undetected Agent is reachable only through
  * an explicit --agent (ADR 0016), so the Screen names it rather than leaving
- * the user at a dead end; the App header carries the title.
+ * the user at a dead end; the main Panel's title carries the heading.
  */
 export function NoAgents({ onExit }: { onExit: () => void }): React.ReactElement {
   const { colors, fold } = useTerminal()
@@ -104,15 +102,18 @@ export function NoAgents({ onExit }: { onExit: () => void }): React.ReactElement
     <Box flexDirection="column">
       <Text color={colors.tone.warn}>{fold(t('menu.noDetectedAgents'))}</Text>
       <Text>{fold(t('menu.noDetectedAgentsHint'))}</Text>
-      <Box marginTop={1}>
-        <Text dimColor>{fold(helpFor('message'))}</Text>
-      </Box>
     </Box>
   )
 }
 
 /** Derived from the i18n registry, so a new catalog needs no edit here. */
 const LANGUAGE_OPTIONS: Array<SelectOption & { id: Locale }> = localeOptions()
+
+/** The prompt's chrome is spelled here, like its copy: no catalog is active yet. */
+const LANGUAGE_FRAME_NAME = 'ccset'
+const LANGUAGE_TITLE = 'Language / 语言'
+const LANGUAGE_HELP =
+  '↑↓ move · 1-9 jump · enter select · esc quit    ↑↓ 移动 · 1-9 跳转 · enter 选择 · esc 退出'
 
 interface LanguageSelectProps {
   terminal: Terminal
@@ -129,9 +130,15 @@ export function LanguageSelect({ terminal, onPick }: LanguageSelectProps): React
   const viewport = useTerminalViewport()
   return (
     <TerminalContext.Provider value={terminal}>
-      <ViewportProvider viewport={viewport}>
+      <Layout
+        viewport={viewport}
+        name={LANGUAGE_FRAME_NAME}
+        path={[LANGUAGE_TITLE]}
+        color={terminal.colors.panel.browse}
+        help={LANGUAGE_HELP}
+      >
         <LanguagePrompt onPick={onPick} />
-      </ViewportProvider>
+      </Layout>
     </TerminalContext.Provider>
   )
 }
@@ -142,30 +149,19 @@ interface LanguagePromptProps {
 
 function LanguagePrompt({ onPick }: LanguagePromptProps): React.ReactElement {
   const { exit } = useApp()
-  const { fold } = useTerminal()
   useInput((_input, key) => {
     if (key.escape) exit()
   })
   return (
-    <Box flexDirection="column">
-      <Text bold>{fold('Language / 语言')}</Text>
-      <SelectList
-        options={LANGUAGE_OPTIONS}
-        onSelect={(_option, index) => {
-          // By index, like the other lists in this file: SelectList widens
-          // option.id back to string.
-          const picked = LANGUAGE_OPTIONS[index]?.id
-          if (picked !== undefined) onPick(picked)
-          exit()
-        }}
-      />
-      <Box marginTop={1}>
-        <Text dimColor>
-          {fold(
-            '↑↓ move · 1-9 jump · enter select · esc quit    ↑↓ 移动 · 1-9 跳转 · enter 选择 · esc 退出',
-          )}
-        </Text>
-      </Box>
-    </Box>
+    <SelectList
+      options={LANGUAGE_OPTIONS}
+      onSelect={(_option, index) => {
+        // By index, like the other lists in this file: SelectList widens
+        // option.id back to string.
+        const picked = LANGUAGE_OPTIONS[index]?.id
+        if (picked !== undefined) onPick(picked)
+        exit()
+      }}
+    />
   )
 }

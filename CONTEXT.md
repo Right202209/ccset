@@ -130,8 +130,15 @@ _Avoid_: Frame, screenshot
 
 **Viewport**:
 The row and column budget a windowed region is cut to. ccset does not own the whole
-terminal, so a Viewport bounds a region, never the application.
+terminal, so a Viewport bounds a region, never the application. The App gives each
+View the interior of the main Panel as its Viewport.
 _Avoid_: Screen size, full screen
+
+**Panel**:
+A bordered, titled region of the TUI's frame. The main Panel holds the View of the
+current Screen and is titled with the Frame path; side Panels show Agent context on a
+wide terminal. A Panel is layout, not navigation: it is neither a Screen nor a Frame.
+_Avoid_: Window, pane, box
 
 **Terminal capability**:
 What the terminal in front of the core user can render: the glyph set and the color
