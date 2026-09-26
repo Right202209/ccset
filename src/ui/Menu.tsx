@@ -11,6 +11,7 @@ import { useTerminalViewport, useViewport } from './Viewport.js'
 import { handleEscape } from './mouse.js'
 
 const EXIT_ID = '__exit__'
+const CHANGE_AGENT_ID = '__change_agent__'
 /** The blank row between the not-detected warning and the list. */
 const WARNING_MARGIN = 1
 
@@ -20,6 +21,7 @@ interface MainMenuProps {
   detected: boolean | null
   previews?: Record<string, StatusLine[]>
   onRun: (action: Action) => void
+  onChangeAgent: () => void
   onExit: () => void
 }
 
@@ -33,9 +35,13 @@ function actionOption(action: Action, previews?: Record<string, StatusLine[]>): 
   }
 }
 
-export function MainMenu({ agent, detected, previews, onRun, onExit }: MainMenuProps): React.ReactElement {
+export function MainMenu({ agent, detected, previews, onRun, onChangeAgent, onExit }: MainMenuProps): React.ReactElement {
   const actions = useMemo(() => agent.getActions(), [agent])
-  const options = [...actions.map((action) => actionOption(action, previews)), { id: EXIT_ID, label: t('menu.exit') }]
+  const options = [
+    ...actions.map((action) => actionOption(action, previews)),
+    { id: CHANGE_AGENT_ID, label: t('menu.changeAgent') },
+    { id: EXIT_ID, label: t('menu.exit') },
+  ]
   const { colors, fold } = useTerminal()
   const viewport = useViewport()
   const warning = fold(t('menu.notDetected'))
@@ -53,7 +59,8 @@ export function MainMenu({ agent, detected, previews, onRun, onExit }: MainMenuP
         rows={Math.max(1, viewport.rows - warningRows)}
         onSelect={(option, index) => {
           const action = actions[index]
-          if (option.id === EXIT_ID || action === undefined) onExit()
+          if (option.id === CHANGE_AGENT_ID) onChangeAgent()
+          else if (option.id === EXIT_ID || action === undefined) onExit()
           else onRun(action)
         }}
       />

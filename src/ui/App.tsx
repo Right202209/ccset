@@ -45,7 +45,7 @@ interface Flow {
   stay: () => void
 }
 
-function useScreenFlow(screens: Screens, exit: () => void): Flow {
+function useScreenFlow(screens: Screens, backToSelection: () => void): Flow {
   const [prompt, setPrompt] = useState<PromptKind | null>(null)
   const [dirty, setDirty] = useState(false)
 
@@ -57,7 +57,7 @@ function useScreenFlow(screens: Screens, exit: () => void): Flow {
     }
     setDirty(false)
     if (screens.frames.length > 0) screens.back()
-    else exit()
+    else backToSelection()
   }
 
   function discard(): void {
@@ -197,6 +197,7 @@ function Body({ ctx, discovery, screens, flow, glance, exit }: BodyProps): React
         detected={discovery.detected}
         previews={glance.actions}
         onRun={(action: Action) => screens.open(() => action.run(ctx))}
+        onChangeAgent={discovery.backToSelection}
         onExit={exit}
       />
     )
@@ -229,7 +230,7 @@ export function App({
   const viewport = useTerminalViewport(explicitViewport)
   const discovery = useAgentDiscovery(agents, ctx, agentId)
   const screens = useScreens()
-  const flow = useScreenFlow(screens, exit)
+  const flow = useScreenFlow(screens, discovery.agent === null ? exit : discovery.backToSelection)
   const last = useLastResult(screens.current)
   const glance = useGlance(discovery.agent, ctx, last)
   const chrome: ChromeState = {

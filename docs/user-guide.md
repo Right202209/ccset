@@ -10,7 +10,9 @@ When the interactive app starts, it checks the registered Agents' local files
 in parallel and lists only the Agents detected in the current home. One detected
 Agent is selected automatically. If no Agent is detected, use an explicit
 `--agent <id>` to deliberately open a first-time configuration; Non-interactive
-commands always require that explicit selector.
+commands always require that explicit selector. Choose **Change agent** or press
+Esc in an Agent's main menu to return to the selection list. A normal launch
+lists detected Agents; a launch with `--agent` lists all registered Agents.
 
 ## Agent configuration
 

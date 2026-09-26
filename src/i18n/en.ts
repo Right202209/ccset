@@ -15,6 +15,7 @@ export const en: Record<string, string> = {
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': 'Exit',
+  'menu.changeAgent': 'Change agent',
   'key.moveUp': 'move up', 'key.moveDown': 'move down', 'key.jump': 'jump', 'key.select': 'select', 'key.back': 'back',
   'key.change': 'change', 'key.next': 'next', 'key.save': 'save', 'key.cancel': 'cancel', 'key.continue': 'continue', 'key.choose': 'choose', 'key.confirm': 'confirm',
   'menu.notDetected': 'No config for this agent yet — ccset will create what it needs.',

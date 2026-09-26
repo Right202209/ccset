@@ -16,6 +16,7 @@ export const zhHans: Record<string, string> = {
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': '退出',
+  'menu.changeAgent': '切换 Agent',
   'key.moveUp': '上移', 'key.moveDown': '下移', 'key.jump': '跳转', 'key.select': '选择', 'key.back': '返回',
   'key.change': '切换', 'key.next': '下一项', 'key.save': '保存', 'key.cancel': '取消', 'key.continue': '继续', 'key.choose': '选择', 'key.confirm': '确认',
   'menu.notDetected': '该 Agent 尚无配置 — ccset 会创建所需的文件。',

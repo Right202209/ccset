@@ -2889,3 +2889,23 @@ it when Escape exits the App.
 `git diff --check` is clean. The sandbox initially denied the i18n fixture's
 child process with `EPERM`; rerunning that fixture with approval passed. The
 complete `npm test` suite was not run. No Windows/macOS run was made.
+
+### 9.60 Return to Agent selection from the TUI (2026-09-26)
+
+**Scope:** an Agent's main menu now offers **Change agent**, and Esc returns to
+the Agent selector. The selector retains its discovery boundary on a normal
+launch; after an explicit `--agent` launch it offers all registered Agents.
+Exit remains available from both the main menu and selector.
+
+**Fixtures:** `scripts/verify-agent-discovery.ts`, run through
+`npm run verify:ui-render`, selects Claude Code, returns to the selector,
+selects opencode, then verifies Esc returns to the selector again. The long-menu
+viewport assertions account for the added menu entry.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run build` (through `verify:i18n-zh`),
+`npm run verify:code-gates` (265 files, 10 baseline exceptions),
+`npm run verify:ui-render`, `npm run verify:i18n-zh`, and `git diff --check`
+passed. The i18n fixture required approval to spawn its CLI child process after
+the sandbox denied it with `EPERM`. The complete `npm test` suite and a manual
+real-terminal run were not performed.

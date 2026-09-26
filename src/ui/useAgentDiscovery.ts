@@ -27,6 +27,7 @@ async function discoverAgents(agents: Agent[], ctx: Ctx): Promise<Agent[]> {
 export interface Discovery {
   agent: Agent | null
   choose: (agent: Agent) => void
+  backToSelection: () => void
   /** The Agents on offer; null while discovery runs. */
   available: Agent[] | null
   /** agent.detect() for the chosen Agent; null while it runs. */
@@ -67,5 +68,10 @@ export function useAgentDiscovery(agents: Agent[], ctx: Ctx, agentId?: string): 
     }
   }, [agent, ctx])
 
-  return { agent, choose: setAgent, available, detected }
+  function backToSelection(): void {
+    setAgent(null)
+    setDetected(null)
+  }
+
+  return { agent, choose: setAgent, backToSelection, available, detected }
 }

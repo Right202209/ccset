@@ -28,10 +28,10 @@ async function verifyLongList(home: string, viewport: Viewport): Promise<void> {
   try {
     // The four borders and one spare terminal row leave seven: six items and a count.
     let paint = await session.waitFor('Long action 1')
-    assertPainted(paint, 'Showing 1-6 of 13', 'The long menu has no count line')
+    assertPainted(paint, 'Showing 1-6 of 14', 'The long menu has no count line')
     await session.sendEach(DOWN, 7)
     paint = await session.waitFor('Long action 8')
-    assertPainted(paint, 'Showing 3-8 of 13', 'The window did not follow focus')
+    assertPainted(paint, 'Showing 3-8 of 14', 'The window did not follow focus')
     await session.send('9')
     assert.equal(selected, '', 'A shortcut selected a hidden row')
     await session.send('1')

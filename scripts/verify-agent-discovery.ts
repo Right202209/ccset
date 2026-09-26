@@ -9,7 +9,7 @@ import { t } from '../src/i18n/index.js'
 import { AGENTS } from '../src/registry.js'
 import type { Agent, Viewport } from '../src/types.js'
 import type { Terminal } from '../src/ui/terminal.js'
-import { UiSession } from './ui-session.js'
+import { DOWN, ENTER, ESC, UiSession } from './ui-session.js'
 
 /**
  * Local detection decides what the TUI selector offers (ADR 0016). Each case
@@ -99,6 +99,30 @@ async function verifyFailedDetectionIsHidden(
   })
 }
 
+async function verifyCanChangeAgent(
+  home: string,
+  terminal: Terminal,
+  viewport: Viewport,
+): Promise<void> {
+  const agents = [claudeCode, opencode]
+  const session = new UiSession(home, terminal, { agents, viewport })
+  await withSession(session, async () => {
+    await session.waitFor(`${session.focusedRow('1.')} ${claudeCode.name}`)
+    await session.send(ENTER)
+    await session.waitFor(t('menu.changeAgent'))
+    await session.sendEach(DOWN, claudeCode.getActions().length)
+    await session.send(ENTER)
+    const selector = await session.waitFor(t('menu.agentTitle'))
+    assert.ok(selector.includes(claudeCode.name), selector)
+    assert.ok(selector.includes(opencode.name), selector)
+    await session.send(DOWN)
+    await session.send(ENTER)
+    await session.waitFor(t('app.agent', { name: opencode.name }))
+    await session.send(ESC)
+    await session.waitFor(t('menu.agentTitle'))
+  })
+}
+
 /** `home` must already hold Claude Code and opencode files. */
 export async function verifyAgentDiscovery(
   home: string,
@@ -107,5 +131,6 @@ export async function verifyAgentDiscovery(
 ): Promise<void> {
   await verifyEmptyHome(terminal, viewport)
   await verifySingleDetectedOpensDirectly(terminal, viewport)
+  await verifyCanChangeAgent(home, terminal, viewport)
   await verifyFailedDetectionIsHidden(home, terminal, viewport)
 }
