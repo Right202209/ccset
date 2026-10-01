@@ -2936,3 +2936,27 @@ build), `npm run verify:code-gates` (265 files, 10 baseline exceptions), and
 `git diff --check` passed. `npm test` stalled silently in `verify:codex`; an
 isolated `npm run verify:codex` also stalled after building and was interrupted.
 No manual real-terminal, Windows, or macOS run was made.
+
+### 9.62 TUI pull-request preparation checks (2026-10-01)
+
+**Scope:** checked the `feat/tui-flex-layout` branch for its pull request and
+aligned both user guides with §9.61's detection on the first return from an
+explicit `--agent` launch. The existing untracked `bun.lock` was excluded.
+
+**Verification:** on Linux x86_64, Node.js 26.10.0 and npm 12.1.0, at runtime
+commit `cc89769`, `npm run typecheck`, `npm run build`,
+`npm run verify:code-gates` (265 files, 10 baseline exceptions),
+`npm run verify:ui-render`, `npm run verify:layout`,
+`npm run verify:side-info`, `npm run verify:pi-screens`,
+`npm run verify:malformed-dirty`, and `npm run verify:i18n-zh` passed.
+The locale fixture initially failed a CLI boundary assertion in the sandbox;
+its approved rerun outside the sandbox passed. `git diff --check` and
+`git diff --check origin/master...HEAD` passed.
+
+Before fetching the follow-up commit, `timeout 180s npm test` at `d2b2854`
+passed `verify:pty-isolation`, `verify:global-settings`, and `verify:opencode`,
+then timed out with exit 124 in `verify:codex` after its bundle built. This
+matches the stall recorded in §§9.58 and 9.61; the full suite remains pending
+on the latest runtime commit. Terminal screenshots and manual real-terminal
+navigation/resize checks remain pending, as do Windows/macOS verification and
+the website checks. No live Provider request was made.
