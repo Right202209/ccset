@@ -1,6 +1,6 @@
 # ccset
 
-[English](CONTEXT.md) | 简体中文
+[English](../../CONTEXT.md) | 简体中文
 
 ccset 是一个公开的配置工具，面向把编程 Agent 接入第三方 API 服务的开发者。它的措辞
 区分配置生成、兼容性证据和维护承诺。

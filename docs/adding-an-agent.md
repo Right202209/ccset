@@ -1,6 +1,6 @@
 # Adding an agent
 
-[简体中文](adding-an-agent.zh-CN.md) | English
+[简体中文](zh-CN/adding-an-agent.zh-CN.md) | English
 
 Use the existing Claude Code, opencode, Codex, pi, and Grok Build modules as
 examples of the

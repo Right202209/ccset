@@ -1,10 +1,10 @@
 # 添加 Agent
 
-[English](adding-an-agent.md) | 简体中文
+[English](../adding-an-agent.md) | 简体中文
 
 把现有的 Claude Code、opencode、Codex、pi 和 Grok Build 模块当作同一个扩展边界在不同文件布局下的示例。一次接入包括其运行时模块、注册表条目、验证 fixture 和文档。现有的 JSON、JSONC 和 TOML Codec 均可复用。
 
-开始之前，先阅读 [`CONTEXT.md`](../CONTEXT.md) 了解术语（Screen、Frame、Agent、Provider）。阅读 [`CONTRIBUTING.md`](../CONTRIBUTING.md) 了解新接入必须跨过的门槛；本指南只讲具体机制。分步的编码助手工作流程、交付物和可复用的任务模板，见[中文工作流程](agents/add-agent-workflow.md)。
+开始之前，先阅读 [`CONTEXT.md`](../../CONTEXT.md) 了解术语（Screen、Frame、Agent、Provider）。阅读 [`CONTRIBUTING.md`](../../CONTRIBUTING.md) 了解新接入必须跨过的门槛；本指南只讲具体机制。分步的编码助手工作流程、交付物和可复用的任务模板，见[中文工作流程](../agents/add-agent-workflow.md)。
 
 ## 你实际在构建什么
 
@@ -18,7 +18,7 @@ PRD §2.2 准则 5 将 Agent 模块和 `src/registry.ts` 定义为扩展边界�
 
 - **你需要一条文案。**把它放进你自己的 `messages.ts`（见下文），而不是放进 `src/i18n/en.ts`。
 - **你需要一个路径辅助函数。**把它放进你模块的 `paths.ts`。`src/core/paths.ts` 只容纳 `resolveHome`、`backupsDirFor` 和 `listNamedFiles`，其中 `listNamedFiles` 以回调形式接受你的命名规则。
-- **你需要一项共享能力。**把核心/接口改动写明确，让它能单独评审，并为既有 Agent 和新 Agent 都配上检查。它可以作为完整实现提案的一部分；按 [CONTRIBUTING.md](../CONTRIBUTING.md)，前置 issue 是可选的。
+- **你需要一项共享能力。**把核心/接口改动写明确，让它能单独评审，并为既有 Agent 和新 Agent 都配上检查。它可以作为完整实现提案的一部分；按 [CONTRIBUTING.md](../../CONTRIBUTING.md)，前置 issue 是可选的。
 
 ## 模块布局
 
@@ -95,7 +95,7 @@ export const yourMessages: Record<string, Record<string, string>> = {
 
 Agent 可以通过 `AgentCommands` 接口暴露 `commands`。在 Agent 模块内部声明其命令字段与处理器，使共享的解析器和分发器无需任何 Agent 特定分支。没有 `commands` 的 Agent 只服务 TUI；请明确记录其支持的界面范围。
 
-命令是受管补丁：给出的字段被修改，省略的字段保留磁盘状态，`--unset` 删除一个受管键。从磁盘取初值而不带入 TUI 模板默认值，校验完整的提案，并复用 operation 与 commit 核心。不要通过调用 Screen 回调来实现命令。关于密钥来源、预检、输出与退出契约，遵循[命令规范](milestone-3-non-interactive.md)和 ADR 0006–0014。
+命令是受管补丁：给出的字段被修改，省略的字段保留磁盘状态，`--unset` 删除一个受管键。从磁盘取初值而不带入 TUI 模板默认值，校验完整的提案，并复用 operation 与 commit 核心。不要通过调用 Screen 回调来实现命令。关于密钥来源、预检、输出与退出契约，遵循[命令规范](../milestone-3-non-interactive.md)和 ADR 0006–0014。
 
 ## 注册它
 
@@ -111,7 +111,7 @@ export const AGENTS: Agent[] = [claudeCode, opencode, codex, yourAgent]
 
 ## 证明它
 
-新 Agent 需要在 `scripts/` 中有自己的 fixture，针对一个用 `mkdtemp` 创建的主目录运行。把它接入 `package.json` 中的某条 `verify:*` 命令**和**顺序执行的 `npm test` 链，并登记到[验证映射](verification.md#fixture-map)。至少覆盖：
+新 Agent 需要在 `scripts/` 中有自己的 fixture，针对一个用 `mkdtemp` 创建的主目录运行。把它接入 `package.json` 中的某条 `verify:*` 命令**和**顺序执行的 `npm test` 链，并登记到[验证映射](../verification.md#fixture-map)。至少覆盖：
 
 - 非受管键在一次保存后幸存，包括你的配置嵌套到最深层时受管键的同级键；
 - 留空的字段完全省略其键——没有 `null`，也没有 `""`；

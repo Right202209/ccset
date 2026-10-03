@@ -53,6 +53,8 @@ stay ≤ 300 lines and functions ≤ 50 non-blank lines.
 ## Adding or changing a document
 
 The viewer serves what [the docs registry](src/content/registry.ts) lists.
+Simplified Chinese translations live under `docs/zh-CN/` as
+`<name>.zh-CN.md`; `README.zh-CN.md` stays at the repository root for GitHub.
 To add a document: create the Markdown in the repo (its natural location),
 add a `DOC_ENTRIES` row (slug, repo path, group, label key, per-locale
 sources), and add the label to both i18n catalogs. Links inside docs need no

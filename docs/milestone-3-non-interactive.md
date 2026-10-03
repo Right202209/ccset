@@ -1,6 +1,6 @@
 # Milestone 3 Non-Interactive Mode
 
-[简体中文](milestone-3-non-interactive.zh-CN.md) | English
+[简体中文](zh-CN/milestone-3-non-interactive.zh-CN.md) | English
 
 Status: accepted design; implementation landed, conformance closeout pending
 ([issue #56](https://github.com/Right202209/ccset/issues/56)).

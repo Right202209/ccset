@@ -32,7 +32,7 @@ export const DOC_ENTRIES: readonly DocEntry[] = [
     repoPath: 'docs/user-guide.md',
     group: 'getting-started',
     labelKey: 'doc.user-guide',
-    sources: { en: 'docs/user-guide.md', 'zh-Hans': 'docs/user-guide.zh-CN.md' },
+    sources: { en: 'docs/user-guide.md', 'zh-Hans': 'docs/zh-CN/user-guide.zh-CN.md' },
   },
   {
     slug: 'commands',
@@ -41,7 +41,7 @@ export const DOC_ENTRIES: readonly DocEntry[] = [
     labelKey: 'doc.commands',
     sources: {
       en: 'docs/milestone-3-non-interactive.md',
-      'zh-Hans': 'docs/milestone-3-non-interactive.zh-CN.md',
+      'zh-Hans': 'docs/zh-CN/milestone-3-non-interactive.zh-CN.md',
     },
   },
   {
@@ -49,28 +49,28 @@ export const DOC_ENTRIES: readonly DocEntry[] = [
     repoPath: 'CONTEXT.md',
     group: 'reference',
     labelKey: 'doc.glossary',
-    sources: { en: 'CONTEXT.md', 'zh-Hans': 'CONTEXT.zh-CN.md' },
+    sources: { en: 'CONTEXT.md', 'zh-Hans': 'docs/zh-CN/CONTEXT.zh-CN.md' },
   },
   {
     slug: 'architecture',
     repoPath: 'docs/architecture.md',
     group: 'project',
     labelKey: 'doc.architecture',
-    sources: { en: 'docs/architecture.md', 'zh-Hans': 'docs/architecture.zh-CN.md' },
+    sources: { en: 'docs/architecture.md', 'zh-Hans': 'docs/zh-CN/architecture.zh-CN.md' },
   },
   {
     slug: 'verification',
     repoPath: 'docs/verification.md',
     group: 'project',
     labelKey: 'doc.verification',
-    sources: { en: 'docs/verification.md', 'zh-Hans': 'docs/verification.zh-CN.md' },
+    sources: { en: 'docs/verification.md', 'zh-Hans': 'docs/zh-CN/verification.zh-CN.md' },
   },
   {
     slug: 'adding-an-agent',
     repoPath: 'docs/adding-an-agent.md',
     group: 'project',
     labelKey: 'doc.adding-an-agent',
-    sources: { en: 'docs/adding-an-agent.md', 'zh-Hans': 'docs/adding-an-agent.zh-CN.md' },
+    sources: { en: 'docs/adding-an-agent.md', 'zh-Hans': 'docs/zh-CN/adding-an-agent.zh-CN.md' },
   },
   {
     slug: 'add-agent-workflow',
@@ -85,21 +85,21 @@ export const DOC_ENTRIES: readonly DocEntry[] = [
     repoPath: 'CONTRIBUTING.md',
     group: 'project',
     labelKey: 'doc.contributing',
-    sources: { en: 'CONTRIBUTING.md', 'zh-Hans': 'CONTRIBUTING.zh-CN.md' },
+    sources: { en: 'CONTRIBUTING.md', 'zh-Hans': 'docs/zh-CN/CONTRIBUTING.zh-CN.md' },
   },
   {
     slug: 'support',
     repoPath: 'SUPPORT.md',
     group: 'project',
     labelKey: 'doc.support',
-    sources: { en: 'SUPPORT.md', 'zh-Hans': 'SUPPORT.zh-CN.md' },
+    sources: { en: 'SUPPORT.md', 'zh-Hans': 'docs/zh-CN/SUPPORT.zh-CN.md' },
   },
   {
     slug: 'security',
     repoPath: 'SECURITY.md',
     group: 'project',
     labelKey: 'doc.security',
-    sources: { en: 'SECURITY.md', 'zh-Hans': 'SECURITY.zh-CN.md' },
+    sources: { en: 'SECURITY.md', 'zh-Hans': 'docs/zh-CN/SECURITY.zh-CN.md' },
   },
 ]
 

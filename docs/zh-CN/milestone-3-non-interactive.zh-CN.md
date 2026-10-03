@@ -1,14 +1,14 @@
 # 里程碑 3 非交互模式
 
-[English](milestone-3-non-interactive.md) | 简体中文
+[English](../milestone-3-non-interactive.md) | 简体中文
 
 状态：设计已接受；实现已落地，一致性收尾待完成（[issue #56](https://github.com/Right202209/ccset/issues/56)）。
 
-本文档保留已接受的设计。当前实现在命令契约的部分内容上与之不同：它使用 `--json` 和退出码 `64`–`66`，并且只有活跃凭据与任何已保存的 Auth profile 都不匹配时，Codex 才要求做出替换选择。这些差异仍属于一致性收尾的一部分；已实现的 CLI 行为见[用户指南](user-guide.md#cli)。
+本文档保留已接受的设计。当前实现在命令契约的部分内容上与之不同：它使用 `--json` 和退出码 `64`–`66`，并且只有活跃凭据与任何已保存的 Auth profile 都不匹配时，Codex 才要求做出替换选择。这些差异仍属于一致性收尾的一部分；已实现的 CLI 行为见[用户指南](../user-guide.md#cli)。
 
 这是里程碑 3 的可执行产品契约。它有意与 TUI 模型分离：`Action` 和 `Screen` 仍是交互式概念，而本文档定义脚本与 CI 使用的稳定命令 API。
 
-本契约背后的持久权衡记录在 ADR [0006](adr/0006-keep-non-interactive-commands-independent-of-tui-screens.md)、[0007](adr/0007-limit-m3-non-interactive-capabilities.md)、[0008](adr/0008-use-patch-semantics-for-non-interactive-writes.md)、[0009](adr/0009-restrict-non-interactive-secret-sources.md)、[0010](adr/0010-preflight-non-interactive-writes.md)、[0011](adr/0011-require-explicit-codex-credential-conflict-choice.md)、[0012](adr/0012-fail-non-interactive-writes-on-codex-home-mismatch.md)、[0013](adr/0013-treat-codex-keyring-as-a-use-precondition.md) 和 [0014](adr/0014-stabilize-non-interactive-output-and-exit-codes.md) 中。
+本契约背后的持久权衡记录在 ADR [0006](../adr/0006-keep-non-interactive-commands-independent-of-tui-screens.md)、[0007](../adr/0007-limit-m3-non-interactive-capabilities.md)、[0008](../adr/0008-use-patch-semantics-for-non-interactive-writes.md)、[0009](../adr/0009-restrict-non-interactive-secret-sources.md)、[0010](../adr/0010-preflight-non-interactive-writes.md)、[0011](../adr/0011-require-explicit-codex-credential-conflict-choice.md)、[0012](../adr/0012-fail-non-interactive-writes-on-codex-home-mismatch.md)、[0013](../adr/0013-treat-codex-keyring-as-a-use-precondition.md) 和 [0014](../adr/0014-stabilize-non-interactive-output-and-exit-codes.md) 中。
 
 ## 目的与边界
 

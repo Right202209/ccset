@@ -1,6 +1,6 @@
 # ccset user guide
 
-[简体中文](user-guide.zh-CN.md) | English
+[简体中文](zh-CN/user-guide.zh-CN.md) | English
 
 [Back to README](../README.md)
 

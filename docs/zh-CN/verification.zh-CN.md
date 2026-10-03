@@ -1,8 +1,8 @@
 # 验证指南
 
-[English](verification.md) | 简体中文
+[English](../verification.md) | 简体中文
 
-用本指南为一次改动选择检查。[AGENTS.md](../AGENTS.md) 定义共享的工作流程；[Important Documentation.md](<../Important Documentation.md>) 保存人工验证场景、发布要求、未知事项与已记录的证据。
+用本指南为一次改动选择检查。[AGENTS.md](../../AGENTS.md) 定义共享的工作流程；[Important Documentation.md](<../../Important Documentation.md>) 保存人工验证场景、发布要求、未知事项与已记录的证据。
 
 ## 按改动范围选择检查
 
@@ -13,7 +13,7 @@
 | 由多个 Agent/界面共享的写入、Codec、凭据或行为 | 上述运行时检查外加 `npm test`；覆盖受影响的人工数据安全场景。 |
 | 依赖、构建配置、包内容或测试/CI 接线 | `npm run typecheck`、`npm run build` 和 `npm test`；检查产物与受影响的 CI 任务。 |
 | TUI 布局、导航或输入 | 运行时检查与相关的 UI fixture；在真实终端中手动走查被改动的流程，受影响时包括窄宽度/调整大小下的行为。 |
-| 网站（`pages/`） | 在 `pages/` 下使用 Node 22.22+/24.15+/26+：`npm run typecheck`、`npm test`（强制覆盖率的 Vitest）、`npm run build`、`npm run smoke`；在桌面与移动宽度下手动检查开发服务器。见 [pages/README.md](../pages/README.md)。 |
+| 网站（`pages/`） | 在 `pages/` 下使用 Node 22.22+/24.15+/26+：`npm run typecheck`、`npm test`（强制覆盖率的 Vitest）、`npm run build`、`npm run smoke`；在桌面与移动宽度下手动检查开发服务器。见 [pages/README.md](../../pages/README.md)。 |
 | 发布 | 验证记录 §6 中的全部要求，包括自动化 fixture 与适用的平台证据。 |
 
 开发时先跑与改动相关的 fixture。合并运行时或工具改动之前，完整套件必须在本地或适用的受支持平台的 CI 中通过。一条命令被纳入 CI 并不构成某次具体运行通过的记录。
@@ -28,7 +28,7 @@ npm run typecheck
 npm run build
 ```
 
-没有单独的 lint 命令或单元测试框架。测试是 `scripts/` 下的可执行 TypeScript fixture，使用断言和随仓库交付的模块。用各自的 `npm run verify:<name>` 命令运行单个 fixture。`npm test` 顺序运行每一个具名的 `verify:*` fixture，包括语言对齐和错误恢复。[package.json](../package.json) 是命令清单；不要在入口说明中另行维护 fixture 数量。
+没有单独的 lint 命令或单元测试框架。测试是 `scripts/` 下的可执行 TypeScript fixture，使用断言和随仓库交付的模块。用各自的 `npm run verify:<name>` 命令运行单个 fixture。`npm test` 顺序运行每一个具名的 `verify:*` fixture，包括语言对齐和错误恢复。[package.json](../../package.json) 是命令清单；不要在入口说明中另行维护 fixture 数量。
 
 **在检出中顺序运行 fixture。** 每个 fixture 都以 `--clean` 打包到 `.verify/` 并在结束后删除该目录。并发的 fixture 可能删除彼此的打包产物。若干 fixture 还会重建 `dist/`，因此不要与使用已构建 CLI 的 fixture 同时运行构建。
 
@@ -84,7 +84,7 @@ npm 脚本使用 POSIX shell 语法。PTY fixture 需要 `python3` 及其 POSIX 
 
 优先扩展受影响行为对应的 fixture。断言可观察的结果：文件内容与未被触碰的同级键、备份、权限、退出码、无密钥输出，或渲染绘制。当公开的 operation/CLI 边界正是被改动的契约时，就在该边界上进行演练。复用现有的 harness，而不是重造被测行为。
 
-对于缺陷，要证明没有修复时回归断言会失败。新的 Agent 或数据安全 fixture 还需要一个让它失败的有意变异；见[添加 Agent](adding-an-agent.md#prove-it)。交接之前先恢复该变异，再运行一次 fixture。纯文档改动不需要新的运行时断言。
+对于缺陷，要证明没有修复时回归断言会失败。新的 Agent 或数据安全 fixture 还需要一个让它失败的有意变异；见[添加 Agent](../adding-an-agent.md#prove-it)。交接之前先恢复该变异，再运行一次 fixture。纯文档改动不需要新的运行时断言。
 
 把新的独立 fixture 同时接入 `package.json` 中的某个 `verify:*` 脚本和顺序执行的 `test` 脚本，然后在上面的表格中登记它的范围。辅助模块不进入命令清单。不要为了让新的违规项通过而扩大代码质量基线。
 
@@ -105,8 +105,8 @@ CCSET_HOME="$ccset_scratch" CCSET_LOCALE=en node dist/cli.js --agent claude-code
 
 ## CI 与发布
 
-[ci.yml](../.github/workflows/ci.yml) 是 CI 定义。它目前在 Ubuntu、macOS 和 Windows 上以 Node 18/20/22 运行 typecheck、构建、一次已构建 CLI 的冒烟检查和 `npm pack --dry-run`。冒烟检查要求 `--version` 输出非空且不含 ANSI 转义，并要求一次非 TTY 的交互式拒绝以退出码 2 退出且无 ANSI。Ubuntu 和 macOS 还运行 `npm test`；Windows 跳过 POSIX fixture 套件。
+[ci.yml](../../.github/workflows/ci.yml) 是 CI 定义。它目前在 Ubuntu、macOS 和 Windows 上以 Node 18/20/22 运行 typecheck、构建、一次已构建 CLI 的冒烟检查和 `npm pack --dry-run`。冒烟检查要求 `--version` 输出非空且不含 ANSI 转义，并要求一次非 TTY 的交互式拒绝以退出码 2 退出且无 ANSI。Ubuntu 和 macOS 还运行 `npm test`；Windows 跳过 POSIX fixture 套件。
 
-网站有自己的工作流。[pages-ci.yml](../.github/workflows/pages-ci.yml) 在触及 `pages/**`、`docs/**`、根目录 `*.md` 或工作流之一的 pull request 上运行网站检查（安装、typecheck、Vitest、构建、冒烟）。[deploy-pages.yml](../.github/workflows/deploy-pages.yml) 在每次推送到 `master` 时（无路径过滤，因此文档编辑不会让网站过期）以及 `workflow_dispatch` 时运行同样的检查，然后通过官方 Pages actions 部署 `pages/dist`；构建的 base path 取自 `actions/configure-pages`。这些工作流将 Actions 固定到 commit SHA；只有构建任务读取仓库内容，只有部署任务获得 Pages 与 OIDC 权限。[publish.yml](../.github/workflows/publish.yml) 从干净 checkout 发布版本标签匹配的 GitHub Release，通过 npm trusted publishing 自动生成 provenance，不使用长期 npm token。发布前必须为本仓库、该工作流和 `npm-publish` environment 配置 npm Trusted Publisher。根目录的 `ci.yml` 不构建网站。
+网站有自己的工作流。[pages-ci.yml](../../.github/workflows/pages-ci.yml) 在触及 `pages/**`、`docs/**`、根目录 `*.md` 或工作流之一的 pull request 上运行网站检查（安装、typecheck、Vitest、构建、冒烟）。[deploy-pages.yml](../../.github/workflows/deploy-pages.yml) 在每次推送到 `master` 时（无路径过滤，因此文档编辑不会让网站过期）以及 `workflow_dispatch` 时运行同样的检查，然后通过官方 Pages actions 部署 `pages/dist`；构建的 base path 取自 `actions/configure-pages`。这些工作流将 Actions 固定到 commit SHA；只有构建任务读取仓库内容，只有部署任务获得 Pages 与 OIDC 权限。[publish.yml](../../.github/workflows/publish.yml) 从干净 checkout 发布版本标签匹配的 GitHub Release，通过 npm trusted publishing 自动生成 provenance，不使用长期 npm token。发布前必须为本仓库、该工作流和 `npm-publish` environment 配置 npm Trusted Publisher。根目录的 `ci.yml` 不构建网站。
 
-发布检查与平台例外定义在验证记录的 §6 和 [SUPPORT.md](../SUPPORT.md) 中。平台特定的路径、权限或终端改动需要该平台上的手动证据。把这些要求与本地文档编辑所需的检查分开对待。
+发布检查与平台例外定义在验证记录的 §6 和 [SUPPORT.md](../../SUPPORT.md) 中。平台特定的路径、权限或终端改动需要该平台上的手动证据。把这些要求与本地文档编辑所需的检查分开对待。

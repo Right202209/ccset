@@ -154,6 +154,20 @@
   min-width: 0;
 }
 
+/* Wide screens give the prose its own surface so it reads as a document
+   rather than floating on the page background. */
+@media (min-width: 1101px) {
+  .docs-article {
+    background:
+      var(--gradient-sheen),
+      var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-8) var(--space-10);
+  }
+}
+
 .docs-header {
   display: flex;
   align-items: center;

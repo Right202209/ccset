@@ -87,6 +87,7 @@
 
 .navbar-link.active {
   color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
 }
 
 /* ----------------------------------------------------------------- footer */

@@ -17,8 +17,8 @@ describe('resolveRepoLink', () => {
   })
 
   it('maps a registered localized source to the same site route', () => {
-    expect(resolveRepoLink('user-guide.zh-CN.md', 'docs')).toBe('/docs/user-guide')
-    expect(resolveRepoLink('../CONTEXT.zh-CN.md', 'docs')).toBe('/docs/glossary')
+    expect(resolveRepoLink('zh-CN/user-guide.zh-CN.md', 'docs')).toBe('/docs/user-guide')
+    expect(resolveRepoLink('docs/zh-CN/CONTEXT.zh-CN.md', '')).toBe('/docs/glossary')
   })
 
   it('maps absolute blob links to registered docs to the same route', () => {
