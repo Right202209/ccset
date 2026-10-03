@@ -2960,3 +2960,40 @@ matches the stall recorded in §§9.58 and 9.61; the full suite remains pending
 on the latest runtime commit. Terminal screenshots and manual real-terminal
 navigation/resize checks remain pending, as do Windows/macOS verification and
 the website checks. No live Provider request was made.
+
+### 9.63 Failure-oriented CLI/TUI audit (2026-10-01)
+
+**Scope:** reviewed runtime commit `8680074277c16d1106d62bfdcb286df79350f331`
+against its failure and recovery guarantees. The
+[audit report](docs/reviews/2026-10-01-resilience-audit.md) records two Blockers
+and seven High findings with sources, reproduction steps, handling changes,
+and fixtures to extend. No runtime fixes were made; the existing untracked
+`bun.lock` was preserved.
+
+**Verification:** on Linux x86_64, Node.js 26.10.0 and npm 12.1.0,
+`npm run typecheck`, `npm run build`, and `npm run verify:code-gates`
+(265 files, 10 baseline exceptions) passed. `timeout 180s npm test` in the
+original sandbox timed out with exit 124 in the Codex fixture's synchronous
+Python oracle subprocess; a minimal Python stdin subprocess probe also timed
+out there. After the sandbox was removed, `timeout 240s npm test` passed with
+exit 0, including `verify:codex` and `verify:release-artifact`. The earlier stall
+is not evidence of a production TOML-parser failure.
+
+**Failure probes:** temporary esbuild bundles of unchanged source exercised
+scratch homes only. `node /tmp/ccset-standards-probe.mjs` reproduced a Codex
+adoption overwriting a profile created after the form opened (B-1), a competing
+Claude state creation overwritten at rename (B-2), and failed backup deletion
+counted as successful (H-1). `node /tmp/ccset-review-root/draft-probe.mjs`
+reproduced a failed-save draft discarded on Esc without a prompt (H-2).
+`node /tmp/ccset-review-root/partial-probe.mjs` showed the TUI omitting changed
+paths from a typed partial-commit error (H-3). `node /tmp/ccset-spec-audit.mjs`
+reproduced missing command-adoption routing (H-4), Codex saves bypassing the
+home-mismatch refusal (H-5), TUI switching under keyring mode (H-6), and Pi
+removing the protocol while preserving models (H-7). These probes document
+existing failures; permanent regression assertions remain part of the fixes.
+
+`git diff --check` and the audit report's source-link checks passed. Earlier
+verification-register content was checked for byte-identical preservation.
+
+No live Provider request, real Codex/pi startup, Windows/macOS run, manual
+real-terminal smoke, or website checks were performed.

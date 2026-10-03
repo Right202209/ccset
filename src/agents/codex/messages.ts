@@ -144,10 +144,10 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.confirm.remove': 'Delete the credential',
 
     /* --------------------------------------------------------------- errors */
-    'codex.error.keyringUnsupported':
-      'Codex keeps credentials in the OS keyring, so it does not read auth.json; switching a profile would change nothing.',
-    'codex.error.homeOverrideUnsupported':
-      'CODEX_HOME points Codex at {path}; switching here would not be the switch Codex sees.',
+    'codex.error.adoptNameTaken': 'Auth profile {name} already exists at {path}. Go back and choose another name.',
+    'codex.error.missingRoute': 'The saved routing names missing Provider {id}. Restore that Provider before switching.',
+    'codex.error.keyringUnsupported': 'Codex keeps credentials in the OS keyring, so it does not read auth.json; switching a profile would change nothing.',
+    'codex.error.homeOverrideUnsupported': 'CODEX_HOME points Codex at {path}; it would not read the files written here.',
     'codex.error.unreadableProfile': '{path} is not valid JSON — fix or remove it before switching to this profile.',
     'codex.error.credentialSourceConflict': 'Provider {id} sets {keys}. Codex uses those instead of auth.json, so the saved credential would be ignored — remove them from the provider table first.',
     'codex.validate.conflictNeedsChoice': 'auth.json holds a credential that is not one of the saved profiles; pass --adopt-current-as or --replace-current-auth to keep or discard it.',
@@ -281,10 +281,10 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.confirm.remove': '删除凭据',
 
     /* --------------------------------------------------------------- errors */
-    'codex.error.keyringUnsupported':
-      'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；在这里切换凭据配置不会产生任何效果。',
-    'codex.error.homeOverrideUnsupported':
-      'CODEX_HOME 指向 {path}；在这里切换并不是 Codex 实际看到的切换。',
+    'codex.error.adoptNameTaken': '凭据档案 {name} 已存在于 {path}。请返回并选择其他名称。',
+    'codex.error.missingRoute': '保存的路由引用了不存在的 Provider {id}。请先恢复该 Provider 再切换。',
+    'codex.error.keyringUnsupported': 'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；在这里切换凭据配置不会产生任何效果。',
+    'codex.error.homeOverrideUnsupported': 'CODEX_HOME 指向 {path}；Codex 不会读取在这里写入的文件。',
     'codex.error.unreadableProfile': '{path} 不是有效的 JSON — 请先修复或删除它，再切换到该凭据配置。',
     'codex.error.credentialSourceConflict': '提供商 {id} 设置了 {keys}。Codex 会优先使用它们而不是 auth.json，已保存的凭据将被忽略 — 请先从该提供商表中移除这些键。',
     'codex.validate.conflictNeedsChoice': 'auth.json 中的凭据不属于任何已保存的凭据配置；请传 --adopt-current-as 保留，或 --replace-current-auth 丢弃。',

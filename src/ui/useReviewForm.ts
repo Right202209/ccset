@@ -191,7 +191,7 @@ function activateRow(row: ReviewRow | undefined, actions: RowActions): void {
 
 export function useReviewForm(options: ControllerOptions) {
   const { screen, active, onSubmit, onCancel, onDirtyChange } = options
-  const [values, setValues] = useState<FormValues>({ ...screen.values })
+  const [values, setValues] = useState<FormValues>({ ...(screen.draft ?? screen.values) })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [index, setIndex] = useState(0)

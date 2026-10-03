@@ -6,7 +6,7 @@ import {
   MAX_BACKUPS,
   MAX_BACKUP_NAME_ATTEMPTS,
 } from './constants.js'
-import { isNotFound, wrapFsError } from './errors.js'
+import { BackupCleanupError, type CcsetError, isNotFound, wrapFsError } from './errors.js'
 import { t } from '../i18n/index.js'
 import { ensureDir, fileExists } from './json-file.js'
 import { copyPrivateFile, temporaryPath } from './atomic-file.js'
@@ -152,10 +152,17 @@ export async function backupStatusSection(dir: string): Promise<StatusSection> {
 export async function clearBackups(dir: string): Promise<number> {
   const entries = await listBackupEntries(dir, '')
   let removed = 0
+  const failures: CcsetError[] = []
   for (const entry of entries) {
     if (!isCcsetBackup(entry.name)) continue
-    await fs.unlink(path.join(dir, entry.name)).catch(() => undefined)
-    removed += 1
+    const target = path.join(dir, entry.name)
+    try {
+      await fs.unlink(target)
+      removed += 1
+    } catch (err) {
+      if (!isNotFound(err)) failures.push(wrapFsError(err, target, 'rw'))
+    }
   }
+  if (failures.length > 0) throw new BackupCleanupError(removed, failures)
   return removed
 }

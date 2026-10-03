@@ -86,7 +86,11 @@ key you set by hand — you are offered a name to keep it under before it is
 replaced, so you can switch back to it later. A backup is taken either way.
 Switching back is a real action: the saved login appears in the **Providers**
 list with the routing it restores to, and choosing it restores both the
-credential and the `model_provider` that was live when it was adopted.
+credential and the `model_provider` that was live when it was adopted. Command
+adoption records the same routing, so either surface can restore it. If that
+Provider was removed, restore refuses until its table is available again.
+An adoption name created by another session is preserved; go back and choose
+another name.
 
 A provider block is written with `wire_api = "responses"`, the only value Codex
 still accepts, so the endpoint has to speak the OpenAI Responses API.
@@ -98,7 +102,8 @@ source. Remove them from the table first.
 
 **If Codex is set to `cli_auth_credentials_store = "keyring"` it never reads
 `auth.json`**, and ccset cannot write a keyring entry. Status says so rather than
-offering a switch that would change nothing.
+offering a switch that would change nothing. Activation and restoration also
+recheck this setting when you confirm.
 
 **`CODEX_HOME` is reported, not followed.** If you have it set, Codex reads its
 config from there while ccset writes under the home this run was given. Status
@@ -293,10 +298,15 @@ if your terminal cannot draw the box characters.
   token the previous one still sits in those copies until you run
   **Clear ccset backups** from that agent's Status screen. Removing a Codex
   provider's saved credential deletes the sidecar but not its backups, for
-  the same reason.
+  the same reason. Failed cleanup lists the remaining paths and reasons, counts
+  only successful deletions, and lets you go back and retry.
 - **A backup interrupted mid-copy is not hidden.** The partial copy holds the
   credential it was copying, so Status lists it with a warning until
   **Clear ccset backups** removes it.
+
+A failed save retains your draft and its unsaved-edits confirmation. If an
+operation stops after writing some files, its error names those paths and
+available backups, plus any rollback failure. Inspect that state before retrying.
 
 ## Windows
 

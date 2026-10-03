@@ -151,10 +151,6 @@ export function emitProvider(values: FormValues, base: JsonObject): ManagedWrite
   ]
 }
 
-function samePath(left: string[], right: string[]): boolean {
-  return left.join('\u0000') === right.join('\u0000')
-}
-
 /**
  * pi needs a wire protocol wherever the block serves its own models
  * (models.md: "non-built-in provider configs need baseUrl and an api value").
@@ -164,12 +160,13 @@ function samePath(left: string[], right: string[]): boolean {
  * models does not.
  */
 export function assertModelsHaveApi(id: string, base: JsonObject, writes: ManagedWrite[]): void {
-  const modelsWrite = writes.find(
-    (write) => Array.isArray(write.value) && samePath(write.path, providerModelsPath(id)),
-  )
-  if (modelsWrite === undefined || (modelsWrite.value as JsonValue[]).length === 0) return
   const proposal = applyManagedWrites(base, writes)
-  if (getPath(proposal, providerApiPath(id)) !== undefined) return
+  const models = getPath(proposal, providerModelsPath(id))
+  if (!Array.isArray(models) || models.length === 0) return
+  const api = getPath(proposal, providerApiPath(id))
+  if (typeof api === 'string' && api.trim().length > 0) return
+  if (models.every((model) => isPlainObject(model) &&
+    typeof model['api'] === 'string' && model['api'].trim().length > 0)) return
   throw new ValidationError('pi.validate.apiRequired', { name: id })
 }
 

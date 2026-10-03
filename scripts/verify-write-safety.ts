@@ -1,3 +1,4 @@
+import { verifyStateCreationRace, verifyAdoptionRace } from './verify-create-races.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -184,12 +185,7 @@ async function checkPlantedTemporarySymlinks(home: string): Promise<void> {
   }
 }
 
-/**
- * H-2: the temp file is created exclusively at 0600, so a POSIX filesystem
- * that refuses chmod (WSL's /mnt/c, some FUSE and SMB mounts) must not abort
- * the write. Stub the open handle's chmod to EPERM and require both the write
- * and the copy to still land.
- */
+/** Exclusive 0600 creation remains safe on filesystems that refuse chmod. */
 async function checkChmodRefused(home: string): Promise<void> {
   if (process.platform === 'win32') return
   const probe = await fs.open(path.join(home, 'chmod-probe'), 'w', 0o600)
@@ -268,6 +264,8 @@ function skipE3(): string | null {
 }
 
 async function main(): Promise<void> {
+  await withHome('state-race', verifyStateCreationRace)
+  await withHome('adopt-race', verifyAdoptionRace)
   await withHome('d4', checkD4)
   await withHome('d4m', checkD4Malformed)
   await withHome('d5', checkD5)

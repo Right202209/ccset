@@ -92,6 +92,10 @@ ccset --agent opencode global set --model example/model --dry-run
 `--unset <field>` removes one explicitly. Use `--dry-run` to preview changes
 without writing or creating backups, and `--json` for structured output.
 
+Codex commands refuse writes when `CODEX_HOME` points elsewhere. Switching and
+restoring profiles refuse keyring mode in both CLI and TUI. Adoption keeps the
+original routing with the credential so either surface can switch back.
+
 Supply API keys through **`CCSET_TOKEN`** or **`--token-stdin`**, never command
 arguments. Inject `CCSET_TOKEN` through your shell or CI secret store. Codex
 switches that would replace an unsaved login require `--adopt-current-as <id>`

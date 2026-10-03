@@ -124,6 +124,16 @@ export class PartialCommitError extends CcsetError {
   }
 }
 
+/** Cleanup made progress but some credential-bearing backups remain. */
+export class BackupCleanupError extends CcsetError {
+  constructor(readonly removed: number, readonly failures: CcsetError[]) {
+    super('error.backupCleanup', failures[0]?.exitCode ?? EXIT_RUNTIME, {
+      removed: String(removed), failed: String(failures.length),
+    })
+    this.name = 'BackupCleanupError'
+  }
+}
+
 interface ErrnoLike {
   code?: string
 }

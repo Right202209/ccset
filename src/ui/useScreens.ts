@@ -1,6 +1,7 @@
+import { errorLines } from '../core/error-lines.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActionResult } from '../types.js'
-import { toCcsetError, PartialCommitError, type CcsetError } from '../core/errors.js'
+import { toCcsetError, type CcsetError } from '../core/errors.js'
 import { t } from '../i18n/index.js'
 
 /**
@@ -46,14 +47,7 @@ function toFrame(screen: ActionResult, task: Task): Frame {
  * to discard the only copy of a token the user just entered.
  */
 function errorScreen(error: CcsetError): ActionResult {
-  const lines = [t(error.messageKey, error.params)]
-  if (error instanceof PartialCommitError && error.rollback !== undefined) {
-    lines.push(
-      t('error.rollbackFailed', {
-        message: t(error.rollback.messageKey, error.rollback.params),
-      }),
-    )
-  }
+  const lines = errorLines(error)
   lines.push('', t('error.screenHint'))
   return {
     kind: 'message',
@@ -67,6 +61,17 @@ function errorScreen(error: CcsetError): ActionResult {
  *  one Esc away beneath it. */
 function isError(screen: ActionResult): boolean {
   return screen.kind === 'message' && screen.tone === 'error'
+}
+
+/** A confirmed save may leave its form below the success message. */
+function acceptSavedDraft(frames: Frame[], result: ActionResult): Frame[] {
+  if (result.kind !== 'message' || result.tone !== 'success') return frames
+  const at = frames.map((frame) => frame.screen.kind).lastIndexOf('form')
+  return frames.map((frame, index) => {
+    const screen = frame.screen
+    if (index !== at || screen.kind !== 'form' || screen.draft === undefined) return frame
+    return { ...frame, screen: { ...screen, values: screen.draft, baseline: screen.draft, draft: undefined } }
+  })
 }
 
 export function useScreens(): Screens {
@@ -112,7 +117,7 @@ export function useScreens(): Screens {
         setFrames((prev) =>
           screen.kind === 'confirm' || isError(screen)
             ? [...prev, { screen }]
-            : [...prev.slice(0, -1), { screen }],
+            : [...acceptSavedDraft(prev, screen).slice(0, -1), { screen }],
         )
       })
     },

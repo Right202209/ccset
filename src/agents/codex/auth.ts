@@ -2,11 +2,11 @@ import { promises as fs } from 'node:fs'
 import type { Ctx, JsonObject } from '../../types.js'
 import { backupFile } from '../../core/backup.js'
 import { configFile, readConfigFile } from '../../core/config-file.js'
-import { copyFileAtomic } from '../../core/copy.js'
-import { ConfigParseError, isNotFound, wrapFsError } from '../../core/errors.js'
+import { copyFileExclusive } from '../../core/create-file.js'
+import { ConfigParseError, ValidationError, isNotFound, wrapFsError } from '../../core/errors.js'
 import { isPlainObject, readMode, writeTextAtomic } from '../../core/json-file.js'
 import { getPath, type ManagedWrite } from '../../core/merge.js'
-import { commitOne } from '../../operations/commit.js'
+import { commitOne, type PlanInput } from '../../operations/commit.js'
 import { listNamedFiles } from '../../core/paths.js'
 import { jsonToText } from '../../core/values.js'
 import { AUTH_API_KEY, AUTH_MODE_API_KEY, AUTH_MODE_KEY, AUTH_STORE_KEY, AUTH_STORE_KEYRING } from './constants.js'
@@ -164,7 +164,9 @@ export async function saveAuthProfile(ctx: Ctx, name: string, apiKey: string): P
  */
 export async function adoptLiveAuth(ctx: Ctx, name: string): Promise<string> {
   const target = authProfilePath(ctx.home, name)
-  await copyFileAtomic(codexAuthPath(ctx.home), target)
+  if (!await copyFileExclusive(codexAuthPath(ctx.home), target)) {
+    throw new ValidationError('codex.error.adoptNameTaken', { name, path: target })
+  }
   return target
 }
 
@@ -251,14 +253,23 @@ export async function loadAdoptedRouting(ctx: Ctx): Promise<AdoptedRouting> {
   return known
 }
 
-export async function saveAdoptedRouting(
+export async function planAdoptedRouting(
   ctx: Ctx,
   name: string,
   routeTo: string | null,
-): Promise<void> {
+): Promise<PlanInput> {
   const file = configFile(adoptedRoutingPath(ctx.home), 'json')
-  const loaded = await readConfigFile(file)
-  const routing = isPlainObject(loaded.data['routing']) ? loaded.data['routing'] : {}
-  routing[name] = routeTo
-  await writeTextAtomic(file.path, `${JSON.stringify({ version: ADOPTED_ROUTING_VERSION, routing }, null, 2)}\n`)
+  return {
+    file,
+    base: await readConfigFile(file),
+    writes: [
+      { path: ['version'], value: ADOPTED_ROUTING_VERSION },
+      { path: ['routing', name], value: routeTo },
+    ],
+    backupsDir: backupsDir(ctx.home),
+  }
+}
+
+export async function saveAdoptedRouting(ctx: Ctx, name: string, routeTo: string | null): Promise<void> {
+  await commitOne(await planAdoptedRouting(ctx, name, routeTo))
 }
