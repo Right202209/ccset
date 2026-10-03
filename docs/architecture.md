@@ -53,7 +53,7 @@ Shared file-safety helpers live under `src/core/`:
 | Module | Responsibility |
 | --- | --- |
 | `merge.ts` | Apply managed leaf writes while preserving unmanaged siblings |
-| `json-file.ts`, `copy.ts` | Atomic temp-file/rename writes and whole-file copies, POSIX `0600` |
+| `json-file.ts`, `copy.ts`, `create-file.ts` | Atomic private temp-file publication: rename for replacements, hard link for create-only writes, POSIX `0600` |
 | `backup.ts` | Backups and per-file rotation in the directory supplied by the Agent |
 | `config-file.ts` | Read, check, render, and write through the selected Codec |
 | `save.ts` | Translate save errors into TUI recovery/confirmation Screens and success messages |
@@ -163,9 +163,10 @@ read. Returning from a success message must never rerun the write that produced
 it.
 
 A confirmation returned by `replace()` stacks over the form, and `App` parks
-submitted values on the form's Frame before submitting. Declining malformed-file
+submitted values as a separate draft on the form's Frame before submitting. Declining malformed-file
 replacement or returning from a failed save must retain the draft, including
-masked secrets. The unsaved-edits prompt keeps the form mounted but hidden;
+masked secrets. The original values remain the dirty-check baseline until a
+successful save; successful confirmation updates any retained form. The unsaved-edits prompt keeps the form mounted but hidden;
 confirmation cursors start on the safe choice.
 
 Frame titles form the navigation path in the main Panel's title and elide from

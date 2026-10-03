@@ -1,3 +1,4 @@
+import { verifyCleanupFailure, verifyPartialCommitScreen, verifyDeniedCleanup, verifyRollbackScreen } from './verify-partial-recovery.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -116,10 +117,7 @@ async function checkFailedSaveKeepsTheForm(home: string): Promise<void> {
 
       await session.send(ESC)
       const form = await session.waitFor(t('field.providerName'))
-      assert.ok(form.includes(NAME), `The typed provider name was lost:\n${form}`)
-      assert.ok(form.includes(BASE_URL), 'The typed base URL was lost')
-      assert.equal(form.includes(TOKEN), false, 'The token reached a paint unmasked')
-      assert.ok(form.includes(UNICODE_TERMINAL.glyphs.mask), 'The kept token is not masked')
+      await assertRetainedDraft(session, form)
     } finally {
       await fs.chmod(claudeDir(home), 0o700)
     }
@@ -134,6 +132,17 @@ async function checkFailedSaveKeepsTheForm(home: string): Promise<void> {
   } finally {
     session.stop()
   }
+}
+
+async function assertRetainedDraft(session: UiSession, form: string): Promise<void> {
+  assert.ok(form.includes(NAME), 'The typed provider name was lost')
+  assert.ok(form.includes(BASE_URL), 'The typed base URL was lost')
+  assert.equal(form.includes(TOKEN), false, 'The token reached a paint unmasked')
+  assert.ok(form.includes(UNICODE_TERMINAL.glyphs.mask), 'The kept token is not masked')
+  await session.send(ESC)
+  await session.waitFor(t('prompt.discardTitle'))
+  await session.send(ESC)
+  await session.waitFor(t('field.providerName'))
 }
 
 async function backupFiles(dir: string): Promise<string[]> {
@@ -197,6 +206,10 @@ function skipPermissionDrive(): string | null {
 }
 
 async function main(): Promise<void> {
+  await withHome('cleanup-failure', verifyCleanupFailure)
+  await withHome('partial-screen', verifyPartialCommitScreen)
+  await withHome('denied-cleanup', verifyDeniedCleanup)
+  await withHome('rollback-screen', verifyRollbackScreen)
   const reason = skipPermissionDrive()
   if (reason === null) await withHome('recovery', checkFailedSaveKeepsTheForm)
   else process.stdout.write(`Failed-save drive skipped: ${reason}.\n`)

@@ -67,13 +67,15 @@ Codex 的配置格式是 TOML，不是 JSON。ccset **就地修改** `config.tom
 
 如果 `auth.json` 中已有并非 ccset 保存的内容（例如 ChatGPT 登录态，或你手动填写的 Key），ccset 会在替换前请你为它取个名字保存下来，以便日后切换回去。无论是否保存，都会先做备份。切换回去是真实的操作：这个已保存的登录会出现在 **Providers** 列表中，并注明它恢复到哪条路由；选择它即可同时恢复凭据和收养时的 `model_provider`。
 
+CLI 和 TUI 的收养操作都会保存原来的路由，之后可从任一界面同时恢复凭据与路由。如果其他会话抢先创建了同名档案，原文件保持不变，请返回选择其他名称；恢复时若原 Provider 表已被删除，则会拒绝操作。
+
 写入的 provider 表使用 `wire_api = "responses"`——这是当前 Codex 唯一接受的取值，因此端点必须支持 OpenAI Responses API。
 
 **设置了 `env_key` 或 `experimental_bearer_token` 的表会被拒绝保存。** Codex 会先从这些来源读取凭据，轮不到 `auth.json`；把 Key 存进这样的表只会报告成功，而 Codex 仍使用旧来源。请先从表中移除这些键。
 
-**如果 Codex 配置了 `cli_auth_credentials_store = "keyring"`，它就完全不读取 `auth.json`**，而 ccset 无法写入系统密钥链。此时 Status 会如实说明，而不是提供一个实际不生效的切换操作。
+**如果 Codex 配置了 `cli_auth_credentials_store = "keyring"`，它就完全不读取 `auth.json`**，而 ccset 无法写入系统密钥链。此时 Status 会如实说明，CLI 和 TUI 都会拒绝切换或恢复凭据；确认时也会重新检查该设置。
 
-**`CODEX_HOME` 只会被提示，不会被采用。** 如果设置了该变量，Codex 会从那里读取配置，而 ccset 仍然写入本次运行所使用的主目录。Status 会指出这一差异，避免写错目录却看起来写入成功。ccset 不会跟随该变量：那会让隔离运行的写入跑到指定目录之外。
+**`CODEX_HOME` 只会被提示，不会被采用。** 如果设置了该变量，Codex 会从那里读取配置，而 ccset 仍然写入本次运行所使用的主目录。Status 会指出这一差异，避免写错目录却看起来写入成功。ccset 不会跟随该变量：那会让隔离运行的写入跑到指定目录之外。非交互命令在目录不一致时会在写入前拒绝操作。
 
 Codex 没有 Test connection：ccset 内置的探测请求是 Anthropic 形态的，而 Responses API 端点需要另一种请求，目前没有可靠的探测方式。
 

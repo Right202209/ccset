@@ -1,3 +1,4 @@
+import { verifyAdoptionRoundTrips } from './verify-codex-adoption-roundtrip.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -7,8 +8,6 @@ import { EXIT_RUNTIME, EXIT_USAGE } from '../src/core/errors.js'
 import type { TargetRecord } from '../src/core/target.js'
 import { runCli as spawnCli, type RunResult } from './cli-harness.js'
 import { verifyFailedAuthMoveRestoresRouting } from './verify-commands-codex-use-failure.js'
-
-/** M3.8: Codex provider switching and Auth conflicts across the CLI boundary. */
 
 const ROUTER_KEY = 'CX-ROUTER-KEY-0123456789'
 const LIVE_KEY = 'CX-LIVE-KEY-0123456789'
@@ -171,6 +170,10 @@ async function checkAdoption(): Promise<void> {
   const authTarget = envelope.targets?.find((target) => target.path.endsWith('auth.json'))
   assert.ok(authTarget?.backupPath, 'the replaced live credential was not backed up')
   assert.equal(await fs.readFile(authTarget?.backupPath as string, 'utf8'), UNKNOWN_LIVE, 'the backup is not the adopted bytes')
+  const restored = await runCli(['--agent', 'codex', 'provider', 'use', 'saved', '--json'], before.home)
+  assert.equal(restored.code, 0)
+  assert.equal(await textOf(before.home), before.routing, 'adoption lost its original routing')
+  assert.equal(await liveOf(before.home), UNKNOWN_LIVE)
   await fs.rm(before.home, { recursive: true, force: true })
 }
 
@@ -281,6 +284,7 @@ async function checkPartialReport(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  await verifyAdoptionRoundTrips()
   await checkPlainSwitch()
   await checkConflictRefusals()
   await checkAdoption()

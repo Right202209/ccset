@@ -1,3 +1,4 @@
+import { verifyPiApiRemoval } from './verify-resilience-commands.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -86,6 +87,7 @@ function valuesOf(input: Record<string, string | undefined>): FormValues {
 }
 
 async function checkModelsMerge(home: string): Promise<void> {
+  await verifyPiApiRemoval(home, 'tui')
   await writeModels(home, MODELS_WITH_EXTRAS)
   const ctx: Ctx = { home }
   await saveProvider(

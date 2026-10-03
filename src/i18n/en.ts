@@ -206,6 +206,8 @@ export const en: Record<string, string> = {
   'error.configNesting': 'The configuration exceeds the supported nesting depth.',
   'error.unwritableValue': 'A {type} value cannot be written to this file format.',
   'error.io': 'Could not access {path} ({code}).',
+  'error.backupCleanup': 'Removed {removed} backup(s); {failed} backup(s) could not be removed.',
+  'error.backupCleanupRetry': 'Fix access to the remaining paths, then go back and retry Clear ccset backups.',
   'error.rollbackFailed': 'The rollback also failed: {message}',
   'error.unexpected': 'Unexpected failure ({detail}).',
   'error.unsupportedCodec': 'Unsupported serialization format ({codec}).',

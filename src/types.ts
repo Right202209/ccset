@@ -93,6 +93,8 @@ export interface StatusSection {
 }
 
 export interface FormScreen {
+  /** Retained input after a failed save; values remain the original dirty baseline. */
+  draft?: FormValues
   kind: 'form'
   title: string
   fields: FieldSpec[]

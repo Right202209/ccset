@@ -1,3 +1,6 @@
+import { checkActivation, profileRoute } from './preconditions.js'
+import { readConfigFile } from '../../core/config-file.js'
+import { codexConfigFile } from './global.js'
 import type { ActionResult, Ctx, FieldSpec, FormValues, WriteReport } from '../../types.js'
 import { makeKeyNameValidator } from '../../core/validate.js'
 import { PartialCommitError, toCcsetError } from '../../core/errors.js'
@@ -17,12 +20,7 @@ import { currentModelProvider, restoreModelProvider, saveModelProvider } from '.
 import { adoptedRoutingPath, launchCommand } from './paths.js'
 import { loadProviders } from './providers.js'
 
-/**
- * Switching provider is two moves, and both have to happen: the credential in
- * `auth.json` is replaced with the provider's saved profile, and
- * `model_provider` in config.toml is pointed at it. Doing only the first leaves
- * Codex routing to the old endpoint with the new key.
- */
+/** Switching pairs the Provider routing with its saved credential. */
 
 const NAME_CHARSET = /[^A-Za-z0-9_-]+/g
 const FALLBACK_ADOPT_NAME = 'previous'
@@ -87,6 +85,7 @@ async function runActivate(ctx: Ctx, id: string, adoptAs: string | null): Promis
   // Stage the source before anything moves: a sidecar that will not parse, or
   // that vanished while the confirmation was open, fails here with the routing
   // still pointing where it was.
+  await checkActivation(ctx)
   await stageAuthProfile(ctx, id)
   const previous = await currentModelProvider(ctx)
   const routing = await saveModelProvider(ctx, id)
@@ -187,6 +186,12 @@ function successOf(report: WriteReport, titleKey = 'codex.write.switched'): Acti
 }
 
 export async function openActivate(ctx: Ctx, id: string): Promise<ActionResult> {
+  try {
+    await checkActivation(ctx)
+  } catch (err) {
+    const error = toCcsetError(err)
+    return messageScreen('error.screenTitle', [t(error.messageKey, error.params)])
+  }
   const [auth, providers] = await Promise.all([loadAuthState(ctx), loadProviders(ctx)])
   if (!providers.parsed) {
     return messageScreen('codex.action.use', [
@@ -230,6 +235,8 @@ async function runRestore(
   name: string,
   routeTo: string | undefined,
 ): Promise<WriteReport> {
+  await checkActivation(ctx)
+  routeTo = await profileRoute(ctx, name, (await readConfigFile(codexConfigFile(ctx.home))).data)
   await stageAuthProfile(ctx, name)
   const previous = await currentModelProvider(ctx)
   const routing = await saveModelProvider(ctx, routeTo)
@@ -256,6 +263,12 @@ async function runRestore(
 
 /** The restore screen for a saved login that has no provider table of its own. */
 export async function openRestore(ctx: Ctx, name: string): Promise<ActionResult> {
+  try {
+    await checkActivation(ctx)
+  } catch (err) {
+    const error = toCcsetError(err)
+    return messageScreen('error.screenTitle', [t(error.messageKey, error.params)])
+  }
   const [auth, routing] = await Promise.all([loadAuthState(ctx), loadAdoptedRouting(ctx)])
   const profile = auth.profiles.find((candidate) => candidate.name === name)
   if (profile === undefined) {

@@ -1,3 +1,4 @@
+import { refuseHomeMismatch } from './preconditions.js'
 import { type ManagedWrite } from '../../core/merge.js'
 import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
 import type {
@@ -95,6 +96,7 @@ function globalPatchWrites(request: OperationRequest): ManagedWrite[] {
 }
 
 async function runGlobalSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
+  refuseHomeMismatch(ctx)
   const file = codexConfigFile(ctx.home)
   const base = await readPatchBase(file, request.replaceInvalid)
   const outcome = await applyPlan(

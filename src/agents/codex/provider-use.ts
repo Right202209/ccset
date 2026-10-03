@@ -1,15 +1,16 @@
+import { refuseHomeMismatch, refuseKeyring, profileRoute } from './preconditions.js'
 import { configFile, readConfigFile, type LoadedConfig } from '../../core/config-file.js'
-import { CcsetError, EXIT_RUNTIME, EXIT_USAGE, PartialCommitError, toCcsetError, ValidationError } from '../../core/errors.js'
+import { CcsetError, EXIT_USAGE, PartialCommitError, toCcsetError, ValidationError } from '../../core/errors.js'
 import { fileExists, readMode } from '../../core/json-file.js'
 import { getPath } from '../../core/merge.js'
 import { jsonToText } from '../../core/values.js'
-import { applyPlan, MODE_AFTER_WRITE, planTargets } from '../../operations/commit.js'
+import { applyPlan, MODE_AFTER_WRITE, planTargets, type WriteTarget } from '../../operations/commit.js'
 import type { OperationRequest, OperationResult, TargetRecord } from '../../operations/types.js'
 import type { Ctx, ConfigFile } from '../../types.js'
 import { makeKeyNameValidator } from '../../core/validate.js'
-import { activateAuthProfile, keyringInUseIn, loadAuthState, type AuthState } from './auth.js'
+import { activateAuthProfile, adoptLiveAuth, planAdoptedRouting, loadAuthState, type AuthState } from './auth.js'
 import { MODEL_PROVIDER_PATH } from './manifest.js'
-import { authProfilePath, backupsDir, codexAuthPath, codexHomeOverride, launchCommand } from './paths.js'
+import { authProfilePath, backupsDir, codexAuthPath, launchCommand } from './paths.js'
 import { codexConfigFile, restoreModelProvider } from './global.js'
 
 /**
@@ -40,11 +41,12 @@ function adoptChoiceOf(request: OperationRequest): { adoptAs: string | null; rep
 interface UsePreflight {
   /** The provider being switched to; decided at the preflight's front door. */
   id: string
+  routeTo: string | undefined
+  adoption: WriteTarget[]
   auth: AuthState
   file: ConfigFile
   configBase: LoadedConfig
   adoptAs: string | null
-  replaceCurrent: boolean
   conflicted: boolean
 }
 
@@ -53,19 +55,8 @@ function refuseInvalidAdoptName(auth: AuthState, adoptAs: string): void {
   if (problem !== null) throw new ValidationError(problem, { name: adoptAs })
 }
 
-/**
- * Two environments make a switch a no-op or a lie: a keyring credential store
- * means Codex never reads auth.json, and a CODEX_HOME elsewhere means the
- * files ccset writes are not the ones it reads. Refused, not warned.
- */
-function refuseUnsupportedEnvironment(configBase: LoadedConfig, ctx: Ctx): void {
-  if (keyringInUseIn(configBase.data)) {
-    throw new CcsetError('codex.error.keyringUnsupported', EXIT_RUNTIME)
-  }
-  const override = codexHomeOverride(ctx.home)
-  if (override !== null) {
-    throw new CcsetError('codex.error.homeOverrideUnsupported', EXIT_RUNTIME, { path: override })
-  }
+function previousRoute(base: LoadedConfig): string | null {
+  return jsonToText(getPath(base.data, MODEL_PROVIDER_PATH)) || null
 }
 
 /** Everything that decides the shape of the switch, before any rename or copy. */
@@ -86,7 +77,9 @@ async function preflightProviderUse(
   await readConfigFile(configFile(profile.path, 'json'))
   const file = codexConfigFile(ctx.home)
   const configBase = await readConfigFile(file)
-  refuseUnsupportedEnvironment(configBase, ctx)
+  refuseHomeMismatch(ctx)
+  refuseKeyring(configBase.data)
+  const routeTo = await profileRoute(ctx, id, configBase.data)
   const conflicted = auth.exists && auth.activeName === null
   if (conflicted && adoptAs === null && !replaceCurrent) {
     throw new ValidationError('codex.validate.conflictNeedsChoice', { path: auth.path })
@@ -99,29 +92,15 @@ async function preflightProviderUse(
     throw new ValidationError('codex.validate.adoptNeedsConflict')
   }
   if (adoptAs !== null) refuseInvalidAdoptName(auth, adoptAs)
-  return { id, auth, file, configBase, adoptAs, replaceCurrent, conflicted }
+  const previous = previousRoute(configBase)
+  const adoption = adoptAs === null ? [] : planTargets([await planAdoptedRouting(ctx, adoptAs, previous)])
+  return { id, routeTo, adoption, auth, file, configBase, adoptAs, conflicted }
 }
 
 /** The record every committed-but-never-backed-up path in a switch shares:
  *  the adoption sidecar and the replaced auth.json. */
 function changedRecord(path: string, mode: string, backupPath: string | null = null): TargetRecord {
   return { path, mode, backupPath, changed: true }
-}
-
-/** Adoption commits the new profile before the live copy; if the copy fails,
- * the partial report must still name the profile the adoption already wrote. */
-async function withAdoptedProfile(
-  ctx: Ctx,
-  pre: UsePreflight,
-  committed: TargetRecord[],
-): Promise<TargetRecord[]> {
-  if (pre.conflicted && pre.adoptAs !== null) {
-    const adoptedPath = authProfilePath(ctx.home, pre.adoptAs)
-    if (await fileExists(adoptedPath)) {
-      return [...committed, changedRecord(adoptedPath, await readMode(adoptedPath))]
-    }
-  }
-  return committed
 }
 
 /**
@@ -145,25 +124,24 @@ async function credentialReplaced(ctx: Ctx, id: string): Promise<boolean> {
  *  before it threw, and the rollback failure when the restore did not take. */
 async function throwAuthMoveFailure(
   ctx: Ctx,
-  pre: UsePreflight,
-  committed: TargetRecord[],
-  previousProvider: string,
+  state: { pre: UsePreflight; committed: TargetRecord[] },
   err: unknown,
 ): Promise<never> {
+  const { pre, committed } = state
   const failure = toCcsetError(err)
   const replaced = await credentialReplaced(ctx, pre.id)
   let routingRestored = false
   let rollback: CcsetError | undefined
   if (!replaced) {
     try {
-      await restoreModelProvider(ctx, previousProvider)
+      await restoreModelProvider(ctx, previousRoute(pre.configBase) ?? '')
       routingRestored = true
     } catch (rollbackErr) {
       rollback = toCcsetError(rollbackErr)
     }
   }
-  const changed = routingRestored && !replaced ? [] : committed.filter((record) => record.changed)
-  let partial = await withAdoptedProfile(ctx, pre, changed)
+  let partial = committed.filter((record) => record.changed &&
+    !(routingRestored && record.path === pre.file.path))
   if (replaced) {
     const authPath = codexAuthPath(ctx.home)
     partial = [...partial, changedRecord(authPath, await readMode(authPath))]
@@ -179,20 +157,21 @@ async function authMoveRecords(
   ctx: Ctx,
   pre: UsePreflight,
   committed: TargetRecord[],
-  previousProvider: string,
 ): Promise<TargetRecord[]> {
-  let report
-  try {
-    report = await activateAuthProfile(ctx, pre.id, pre.conflicted && pre.adoptAs !== null ? pre.adoptAs : null)
-  } catch (err) {
-    return throwAuthMoveFailure(ctx, pre, committed, previousProvider, err)
-  }
   const records: TargetRecord[] = []
-  if (report.adoptedPath !== null) {
-    records.push(changedRecord(report.adoptedPath, await readMode(report.adoptedPath)))
+  try {
+    if (pre.adoptAs !== null) {
+      const adopted = await adoptLiveAuth(ctx, pre.adoptAs)
+      records.push(changedRecord(adopted, await readMode(adopted)))
+      const saved = await applyPlan(pre.adoption, { dryRun: false, skipUnchanged: true })
+      records.push(...saved.records)
+    }
+    const report = await activateAuthProfile(ctx, pre.id)
+    records.push(changedRecord(report.authPath, await readMode(report.authPath), report.backupPath))
+    return records
+  } catch (err) {
+    return throwAuthMoveFailure(ctx, { pre, committed: [...committed, ...records] }, err)
   }
-  records.push(changedRecord(report.authPath, await readMode(report.authPath), report.backupPath))
-  return records
 }
 
 /** The records a dry run plans for the credential move: the auth.json
@@ -206,6 +185,7 @@ async function plannedAuthRecords(ctx: Ctx, pre: UsePreflight): Promise<TargetRe
       changedRecord(adoptedPath, (await fileExists(adoptedPath)) ? await readMode(adoptedPath) : MODE_AFTER_WRITE),
     )
   }
+  planned.push(...(await applyPlan(pre.adoption, { dryRun: true, skipUnchanged: true })).records)
   planned.push(
     changedRecord(
       codexAuthPath(ctx.home),
@@ -224,7 +204,7 @@ export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promi
       {
         file: pre.file,
         base: pre.configBase,
-        writes: [{ path: MODEL_PROVIDER_PATH, value: id }],
+        writes: [{ path: MODEL_PROVIDER_PATH, value: pre.routeTo }],
         backupsDir: backupsDir(ctx.home),
       },
     ]),
@@ -236,8 +216,7 @@ export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promi
       // A dry run still plans the credential move it would make.
       targets.push(...(await plannedAuthRecords(ctx, pre)))
     } else {
-      const previousProvider = jsonToText(getPath(pre.configBase.data, MODEL_PROVIDER_PATH))
-      targets.push(...(await authMoveRecords(ctx, pre, outcome.records, previousProvider)))
+      targets.push(...(await authMoveRecords(ctx, pre, outcome.records)))
     }
   }
   return {

@@ -58,7 +58,7 @@ is shared between a TUI save and a Non-interactive command.
 | --- | --- |
 | `npm run verify:global-settings` | Claude Code managed writes, unmanaged-key preservation, proxy deletion, no-op re-save, backup bytes and modes |
 | `npm run verify:provider-safety` | Claude Code provider preservation, activation command quoting, rotation, masking, secret-free failures |
-| `npm run verify:write-safety` | Create-only state, atomic writes under SIGKILL, backup integrity, permission failures |
+| `npm run verify:write-safety` | Create-only state and adoption publication races, atomic writes under SIGKILL, backup integrity, permission failures |
 | `npm run verify:opencode` | Global/provider semantics, per-key models merging, JSONC corpus and target selection, masking and backups |
 | `npm run verify:codex` | TOML corpus, provider invariants, Auth profiles, switching/adoption, recovery failures, screen string resolution |
 | `npm run verify:ui-render` | Full Ink component flow, local Agent filtering, focus, masking, Unicode/ASCII paints, short viewports and scrolling |
@@ -66,7 +66,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:layout` | Application frame and Panels: aligned borders under Unicode and ASCII, key help in the border or wrapped and reserved in both locales at 80 and 100 columns, side Panels at 100+ columns and never beside a message, the frameless short terminal, visible-screen clear on narrowing |
 | `npm run verify:side-info` | Secret-free Glance and focused Previews, Status findings, refresh after save, read-only scratch-home hashes, SGR mouse clicks including split input and outside-row no-op, both locales, strip breakpoints, and side-panel height budgeting |
 | `npm run verify:review-form` | Changed rows, hints, Advanced toggle, `ctrl+s`, long-value cursor visibility |
-| `npm run verify:error-recovery` | Failed-save draft retention and partial-backup listing/cleanup |
+| `npm run verify:error-recovery` | Failed-save draft and dirty-guard retention, partial-commit paths/backups/rollback, denied and mixed cleanup with retry |
 | `npm run verify:malformed-dirty` | Malformed-target confirmation and unsaved-edit prompts through a real PTY |
 | `npm run verify:pty-isolation` | PTY children ignore inherited Agent-home overrides and stay in scratch homes |
 | `npm run verify:first-run-locale` | First-use language choice, persistence, overrides, cancellation, help/version/non-TTY boundaries |
@@ -88,7 +88,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:commands-grok-build-use` | grok-build global patching and provider use writing `models.default`, unknown-id warning, built-in id through free text, unreadable-config refusal |
 | `npm run verify:commands-codex` | Codex status/global commands, TOML preservation, typed integers, environment findings and replacement backups |
 | `npm run verify:commands-codex-provider` | Provider invariants, Auth profile preservation, credential-source refusals, untouched live auth |
-| `npm run verify:commands-codex-use` | Switch ordering, adoption/replacement choices, idempotence, environment preconditions, partial failures |
+| `npm run verify:commands-codex-use` | Switch ordering, adoption/restoration across CLI and TUI, routing metadata, replacement choices, idempotence, environment preconditions, partial failures |
 | `npm run verify:code-gates` | TypeScript file/function size and complexity over `src/`, `scripts/`, and `pages/`, plus stale or new baseline violations |
 | `npm run verify:release-artifact` | Clean-tree and release-tag guard, pinned-action and least-privilege/provenance workflow contracts, build, pack, temporary install, allowed package contents, executable/shebang and CLI smoke |
 

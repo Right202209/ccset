@@ -1,3 +1,4 @@
+import { refuseHomeMismatch } from './preconditions.js'
 import { configFile, readConfigFile, type LoadedConfig } from '../../core/config-file.js'
 import { validateBaseUrl } from '../../core/validate.js'
 import { ValidationError } from '../../core/errors.js'
@@ -175,6 +176,7 @@ async function preflightProviderSet(
 }
 
 export async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<OperationResult> {
+  refuseHomeMismatch(ctx)
   const pre = await preflightProviderSet(ctx, request)
   const targets = [
     {

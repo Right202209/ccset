@@ -219,7 +219,11 @@ selected Auth profile as a safety conflict. The caller must choose exactly one o
 ```
 
 The first keeps the live bytes under a new, non-existing Auth profile; the second
-replaces them without adoption. Both paths back up the live file. A readable
+replaces them without adoption. Both paths back up the live file. Adoption
+records the original routing in ccset metadata, reports that target in real and
+dry-run results, and publishes the new credential profile only if absent.
+Using an adopted profile restores its recorded routing; a missing custom
+Provider table is refused before mutation. A readable
 already-active profile needs neither option; both options together are an error.
 
 Codex writes fail before mutation when `CODEX_HOME` resolves to a different

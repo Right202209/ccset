@@ -1,3 +1,4 @@
+import { verifyPiApiRemoval } from './verify-resilience-commands.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -48,6 +49,7 @@ async function backupCount(home: string): Promise<number> {
 }
 
 async function checkNewProvider(home: string): Promise<void> {
+  await verifyPiApiRemoval(home, 'cli')
   const missing = await runCli(
     ['--agent', 'pi', 'provider', 'set', 'router', '--base-url', 'https://r.example/v1', '--json'],
     home,

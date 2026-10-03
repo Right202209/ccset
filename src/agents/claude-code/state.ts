@@ -1,5 +1,6 @@
+import { createTextAtomic } from '../../core/create-file.js'
 import type { Ctx } from '../../types.js'
-import { fileExists, jsonFile, readJsonFile, readMode, writeJsonFileAtomic } from '../../core/json-file.js'
+import { fileExists, readJsonFile, readMode } from '../../core/json-file.js'
 import { claudeStatePath } from './paths.js'
 
 /**
@@ -55,19 +56,12 @@ export interface StateCreateResult {
   mode: string
 }
 
-/**
- * Creates the file only when it does not exist. The existence check and the
- * write are not atomic, but the loser of that race is ccset writing a
- * two-key file over a store that a concurrent Claude Code had just created;
- * the window is a single event-loop turn on a path where no such process is
- * running yet, and the alternative -- an exclusive-create dance -- cannot
- * remove the race either.
- */
+/** Create-only publication leaves a concurrent Claude writer untouched. */
 export async function createStateIfMissing(ctx: Ctx): Promise<StateCreateResult> {
   const target = claudeStatePath(ctx.home)
   if (await fileExists(target)) {
     return { path: target, created: false, mode: await readMode(target) }
   }
-  await writeJsonFileAtomic(jsonFile(target), { [ONBOARDING_KEY]: true })
-  return { path: target, created: true, mode: await readMode(target) }
+  const created = await createTextAtomic(target, `${JSON.stringify({ [ONBOARDING_KEY]: true }, null, 2)}\n`)
+  return { path: target, created, mode: await readMode(target) }
 }

@@ -1,5 +1,6 @@
 import { t } from '../i18n/index.js'
-import type { CcsetError, PartialCommitError } from '../core/errors.js'
+import { errorLines } from '../core/error-lines.js'
+import type { CcsetError } from '../core/errors.js'
 import type { KeyedStatusSection, OperationResult } from '../operations/types.js'
 
 /**
@@ -66,19 +67,5 @@ export function humanStatus(
 /** Failure lines: the error itself, then any paths an earlier commit touched,
  *  then the rollback failure when undoing them did not take. */
 export function humanError(err: CcsetError): string[] {
-  const lines = [t(err.messageKey, err.params)]
-  const partial = err as PartialCommitError
-  if (partial.committed !== undefined && partial.committed.length > 0) {
-    lines.push(
-      t('cli.partialCommit', { paths: partial.committed.map((record) => record.path).join(', ') }),
-    )
-  }
-  if (partial.rollback !== undefined) {
-    lines.push(
-      t('error.rollbackFailed', {
-        message: t(partial.rollback.messageKey, partial.rollback.params),
-      }),
-    )
-  }
-  return lines
+  return errorLines(err)
 }

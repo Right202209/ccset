@@ -94,6 +94,11 @@ async function verifyMalformedRecovery(home: string): Promise<void> {
     const saved = JSON.parse(await fs.readFile(target, 'utf8')) as Record<string, unknown>
     assert.equal(saved['unmanaged'], undefined)
     assert.equal((saved['env'] as Record<string, unknown>)['HTTPS_PROXY'], 'http://127.0.0.1:7890')
+    session.send(ESC)
+    cursor = await session.waitFor(FORM_HELP, cursor + 1)
+    session.send(ESC)
+    await session.waitFor('Providers', cursor + 1)
+    assert.equal(session.snapshot().slice(cursor).includes('Unsaved edits'), false)
   } finally {
     await session.stop()
   }

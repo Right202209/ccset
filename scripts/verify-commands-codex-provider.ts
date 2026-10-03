@@ -1,3 +1,4 @@
+import { verifyCodexHomeRefusal } from './verify-resilience-commands.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -223,13 +224,8 @@ async function checkWarningsUnsetAndUnreadable(): Promise<void> {
       CODEX_HOME: path.join(os.tmpdir(), 'ccset-m37-elsewhere'),
     },
   )
-  assert.equal(
-    (JSON.parse(moved.stdout) as Envelope).warnings?.some(
-      (warning) => warning.code === 'codex.warning.homeOverride',
-    ),
-    true,
-    'the CODEX_HOME finding was not reported before saving',
-  )
+  assert.notEqual(moved.code, 0, 'a home mismatch was not refused')
+  assert.equal((JSON.parse(moved.stdout) as Envelope).error?.code, 'codex.error.homeOverrideUnsupported')
   await fs.rm(home, { recursive: true, force: true })
   await checkUnsetAndUnreadable()
 }
@@ -286,6 +282,7 @@ async function checkCredentialSourceRefusal(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  await verifyCodexHomeRefusal('provider')
   await checkProviderPatch()
   await checkSecretRotation()
   await checkNewProviderAndRefusals()

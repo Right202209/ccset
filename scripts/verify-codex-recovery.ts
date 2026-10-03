@@ -1,3 +1,4 @@
+import { verifyAdoptionNameConflict, verifyKeyringActivationRefusal } from './verify-codex-activation-safety.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import { activateAuthProfile, loadAuthState } from '../src/agents/codex/auth.js'
@@ -191,6 +192,7 @@ async function verifyAdoptedProfileCanBeRestored(home: string): Promise<void> {
   await fs.rm(authProfilePath(home, 'router'), { force: true })
   await saveProvider(configOf(home), providerValuesOf('router', API_KEY))
   await fs.writeFile(codexAuthPath(home), chatgpt, { mode: 0o600 })
+  await saveProvider(configOf(home), providerValuesOf('legacy', 'LEGACY'))
   await saveModelProvider(configOf(home), 'legacy')
 
   const switchScreen = await openActivate(configOf(home), 'router')
@@ -237,6 +239,8 @@ async function verifyRunSaveConfirmCompletes(home: string): Promise<void> {
 }
 
 export async function verifyCodexRecovery(home: string): Promise<void> {
+  await verifyAdoptionNameConflict(home)
+  await verifyKeyringActivationRefusal(home)
   await verifyFreshRecoveryIsScoped(home)
   await verifyRunSaveConfirmCompletes(home)
   await verifyCredentialSourceConflictIsRefused(home)

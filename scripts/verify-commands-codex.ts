@@ -1,3 +1,4 @@
+import { verifyCodexHomeRefusal } from './verify-resilience-commands.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
@@ -258,6 +259,7 @@ async function checkRecovery(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  await verifyCodexHomeRefusal('global')
   await checkGlobalSetPreserves()
   await checkIntegerType()
   await checkChoicesNoOpDryRun()
