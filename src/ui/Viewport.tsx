@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { Box, Text, useStdout } from 'ink'
 import type { Viewport } from '../types.js'
 import { t } from '../i18n/index.js'
@@ -7,6 +7,12 @@ import { useTerminal } from './terminal.js'
 const DEFAULT_ROWS = 24
 const DEFAULT_COLUMNS = 80
 const WINDOW_COUNT_ROWS = 1
+/**
+ * Erase the visible screen and home the cursor. Never the scrollback (`3J`):
+ * what the core user copies out of it is what ADR 0002 keeps the output
+ * flowing for.
+ */
+const CLEAR_VISIBLE = '\x1b[H\x1b[2J'
 
 const ViewportContext = createContext<Viewport>({ rows: DEFAULT_ROWS, columns: DEFAULT_COLUMNS })
 
@@ -17,16 +23,31 @@ export function resolveViewport(output: NodeJS.WriteStream): Viewport {
   }
 }
 
+/**
+ * The frame's borders run to the last column, so when the terminal narrows it
+ * rewraps every painted row, and Ink's erase -- which counts the rows it wrote,
+ * not the rows they became -- leaves the top of the old paint behind. A width
+ * below the one last painted clears the visible screen first, so the repaint
+ * lands on a blank one.
+ */
 export function useTerminalViewport(explicit?: Viewport): Viewport {
   const { stdout } = useStdout()
   const [viewport, setViewport] = useState(() => explicit ?? resolveViewport(stdout))
+  // Read by the resize listener, so a narrowing that lands before the listener
+  // subscribes is still measured against what was actually painted.
+  const painted = useRef(viewport.columns)
+  painted.current = viewport.columns
 
   useEffect(() => {
     if (explicit !== undefined) {
       setViewport(explicit)
       return
     }
-    const update = (): void => setViewport(resolveViewport(stdout))
+    const update = (): void => {
+      const next = resolveViewport(stdout)
+      if (next.columns < painted.current) stdout.write(CLEAR_VISIBLE)
+      setViewport(next)
+    }
     update()
     stdout.on('resize', update)
     return () => {
@@ -82,6 +103,12 @@ export function WindowCount({ window }: { window: WindowSlice<unknown> }): React
   )
 }
 
+/**
+ * Every windowed row is one row tall and clips its own overflow, so a window
+ * never outgrows its budget. The height is pinned only beside a count line,
+ * where it equals the rows shown; pinning it otherwise left blank rows under a
+ * short list on a narrow Panel.
+ */
 export function WindowRegion({
   window,
   rows,
@@ -95,12 +122,11 @@ export function WindowRegion({
   const countRows = window.total > window.items.length && rows > WINDOW_COUNT_ROWS
     ? WINDOW_COUNT_ROWS
     : 0
-  const bounded = countRows > 0 || viewport.columns < 60
   return (
-    <Box flexDirection="column" width={Math.max(1, viewport.columns - 2)}>
+    <Box flexDirection="column" width={Math.max(1, viewport.columns)}>
       <Box
         flexDirection="column"
-        height={bounded ? Math.max(1, rows - countRows) : undefined}
+        height={countRows > 0 ? Math.max(1, rows - countRows) : undefined}
         overflow="hidden"
       >
         {children}

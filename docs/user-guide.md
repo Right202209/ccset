@@ -10,7 +10,10 @@ When the interactive app starts, it checks the registered Agents' local files
 in parallel and lists only the Agents detected in the current home. One detected
 Agent is selected automatically. If no Agent is detected, use an explicit
 `--agent <id>` to deliberately open a first-time configuration; Non-interactive
-commands always require that explicit selector.
+commands always require that explicit selector. Choose **Change agent** or press
+Esc in an Agent's main menu to return to Agent selection. After a launch with
+`--agent`, the first return runs local detection; only detected Agents are
+offered, just as on a normal launch.
 
 ## Agent configuration
 
@@ -201,10 +204,26 @@ There is no Test connection for Grok Build either: its three API backends each
 need their own request shape, and the Anthropic-shaped probe ccset ships would
 not be honest about any of them.
 
-Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, Esc goes
-back. Long lists state the visible range and total row count. A form asks before
-discarding unsaved edits and never asks otherwise. Nested screens show their full
-navigation path in the header; narrow terminals keep the final two steps visible.
+Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, and
+in TTYs with SGR mouse support, clicking a visible menu or list row opens it.
+Esc goes back. Long lists state
+the visible range and total row count. A form asks before
+discarding unsaved edits and never asks otherwise. The interface is drawn in a
+bordered frame: the keys the current screen accepts sit in its bottom border, and
+the main panel's title shows the full navigation path of nested screens; narrow
+terminals keep the final two steps visible. On a terminal at least 100 columns
+wide and 16 rows tall, side panels show the agent, a config summary, any
+Warnings, the focused row's Preview, and the last result when they fit. At
+80–99 columns and 20 rows or more, a two-line details strip appears below the
+main Panel instead. Below 80 columns, the extra information is hidden. The
+summary and Warnings come from the same local, read-only Status data; provider
+previews show a key only as set or unset. Base-URL previews show the origin and
+an ellipsis for any path; paths, queries, and fragments are omitted, and an
+invalid URL is hidden. At 130 columns the side column widens for longer paths.
+The frame stays at least
+one row shorter than the terminal, so earlier terminal output stays in the
+scrollback. Set `CCSET_ASCII=1`
+if your terminal cannot draw the box characters.
 
 ## What it will not do to your files
 

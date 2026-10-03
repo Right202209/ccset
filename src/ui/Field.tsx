@@ -4,7 +4,8 @@ import stringWidth from 'string-width'
 import type { FieldSpec, FieldValue, MessageTone } from '../types.js'
 import { maskSecret } from '../core/mask.js'
 import { t } from '../i18n/index.js'
-import { focusColor, focusGutter, markerGutter, useTerminal } from './terminal.js'
+import { focusColor, focusGutter, markerGutter, rowStyle, useTerminal } from './terminal.js'
+import { padEnd, truncateEnd } from './text-fit.js'
 import { useViewport } from './Viewport.js'
 import { TextField } from './TextField.js'
 
@@ -14,8 +15,11 @@ export const FORM_HINT_INDENT = 4
 const CHOICE_GAP = 2
 /** Columns the lead/trail ellipsis marker can occupy. */
 const CHOICE_MARKER = 2
-/** Fixed chrome around a value: focus gutter, changed marker, side padding. */
-const ROW_CHROME = 6
+/**
+ * Fixed chrome around a value: the focus gutter and the changed marker. The
+ * Viewport is the main Panel's interior, so its borders are already paid for.
+ */
+const ROW_CHROME = 4
 
 export interface FieldRowProps {
   field: FieldSpec
@@ -46,14 +50,14 @@ export function fieldHints(field: FieldSpec, error?: string): FieldHint[] {
 export function FieldRow(props: FieldRowProps): React.ReactElement {
   const { field, labelWidth, focused, changed, error, showHints = true } = props
   const { glyphs, colors, fold } = useTerminal()
-  const labelColor = focused ? colors.focus : undefined
+  const style = rowStyle(colors, focused)
   return (
     <Box flexDirection="column">
       <Box flexShrink={1}>
-        <Text color={labelColor}>{focusGutter(glyphs, focused)}</Text>
+        <Text {...style}>{focusGutter(glyphs, focused)}</Text>
         <Box width={labelWidth} flexShrink={0}>
-          <Text color={labelColor} bold={focused} wrap="truncate-end">
-            {fold(t(field.labelKey))}
+          <Text {...style}>
+            {padEnd(truncateEnd(fold(t(field.labelKey)), labelWidth, fold('…')), labelWidth)}
           </Text>
         </Box>
         <Text color={colors.tone.warn}>{markerGutter(glyphs.changed, changed)}</Text>
@@ -107,8 +111,9 @@ function TextValue({ field, value, focused, onChange, labelWidth }: FieldRowProp
   }
   const shown = field.type === 'secret' ? maskSecret(text) : text
   if (shown.length === 0) return <Text dimColor>{fold(t('status.unset'))}</Text>
+  const width = Math.max(1, columns - labelWidth - ROW_CHROME)
   return <Box flexGrow={1} flexShrink={1}>
-    <Text dimColor={field.readOnly === true} wrap="truncate-end">{fold(shown)}</Text>
+    <Text dimColor={field.readOnly === true}>{truncateEnd(fold(shown), width, fold('…'))}</Text>
   </Box>
 }
 

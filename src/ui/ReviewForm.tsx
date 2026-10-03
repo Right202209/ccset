@@ -4,9 +4,9 @@ import stringWidth from 'string-width'
 import type { FieldSpec, FieldValue, FormScreen, FormValues, MessageTone } from '../types.js'
 import { t } from '../i18n/index.js'
 import { FieldRow, FORM_HINT_INDENT, type FieldHint } from './Field.js'
-import { focusColor, focusGutter, useTerminal } from './terminal.js'
-import { helpFor } from './keymap.js'
-import { WindowRegion } from './Viewport.js'
+import { focusGutter, rowStyle, useTerminal } from './terminal.js'
+import { padEnd, truncateEnd } from './text-fit.js'
+import { useViewport, WindowRegion } from './Viewport.js'
 import { textOf, useReviewForm, type ReviewRow as Row } from './useReviewForm.js'
 
 interface ReviewFormProps {
@@ -17,6 +17,7 @@ interface ReviewFormProps {
   onDirtyChange: (dirty: boolean) => void
 }
 
+/** The key help, `ctrl+s` included, is the frame's to draw: it sits in the Layout's bottom border. */
 export function ReviewForm({
   screen,
   active = true,
@@ -57,11 +58,6 @@ export function ReviewForm({
         })}
       </WindowRegion>
       <FormHints hints={form.visibleHints} colors={colors.tone} fold={fold} />
-      {!form.compact && (
-        <Box marginTop={1}>
-          <Text dimColor>{fold(helpFor('form'))}</Text>
-        </Box>
-      )}
     </Box>
   )
 }
@@ -75,6 +71,8 @@ function FormHints({
   colors: Record<MessageTone, string>
   fold: (text: string) => string
 }): React.ReactElement {
+  const { columns } = useViewport()
+  const width = Math.max(1, columns - FORM_HINT_INDENT)
   return <>{hints.map((hint) => (
     <Box
       key={`${hint.tone ?? 'hint'}:${hint.text}`}
@@ -82,8 +80,8 @@ function FormHints({
       overflow="hidden"
       paddingLeft={FORM_HINT_INDENT}
     >
-      <Text color={hint.tone === undefined ? undefined : colors[hint.tone]} dimColor={hint.tone === undefined} wrap="truncate-end">
-        {fold(hint.text)}
+      <Text color={hint.tone === undefined ? undefined : colors[hint.tone]} dimColor={hint.tone === undefined}>
+        {truncateEnd(fold(hint.text), width, fold('…'))}
       </Text>
     </Box>
   ))}</>
@@ -95,12 +93,13 @@ function rowKey(row: Row, position: number): string {
 
 function FormNotes({ notes }: { notes?: string[] }): React.ReactElement | null {
   const { fold } = useTerminal()
+  const { columns } = useViewport()
   if (notes === undefined || notes.length === 0) return null
   return (
     <Box flexDirection="column" marginBottom={1}>
       {notes.map((note, position) => (
         <Box key={`${position}:${note}`} height={1} overflow="hidden">
-          <Text dimColor wrap="truncate-end">{fold(note)}</Text>
+          <Text dimColor>{truncateEnd(fold(note), columns, fold('…'))}</Text>
         </Box>
       ))}
     </Box>
@@ -136,27 +135,35 @@ function FormRow({ row, labelWidth, focused, state, onChange }: FormRowProps): R
       />
     )
   }
-  return <ControlRow kind={row.kind} focused={focused} showAdvanced={state.showAdvanced} />
+  return (
+    <ControlRow
+      kind={row.kind}
+      focused={focused}
+      showAdvanced={state.showAdvanced}
+      labelWidth={labelWidth}
+    />
+  )
 }
 
 interface ControlRowProps {
   kind: 'advanced' | 'save' | 'cancel'
   focused: boolean
   showAdvanced: boolean
+  /** The field label column, so the selection bar keeps one width down the form. */
+  labelWidth: number
 }
 
-function ControlRow({ kind, focused, showAdvanced }: ControlRowProps): React.ReactElement {
+function ControlRow({ kind, focused, showAdvanced, labelWidth }: ControlRowProps): React.ReactElement {
   const label =
     kind === 'advanced'
       ? t(showAdvanced ? 'form.hideAdvanced' : 'form.showAdvanced')
       : t(kind === 'save' ? 'form.save' : 'form.cancel')
   const { glyphs, colors, fold } = useTerminal()
-  const color = focusColor(colors, focused, kind === 'save' ? 'success' : undefined)
   return (
     <Box>
-      <Text color={color} bold={focused}>
+      <Text {...rowStyle(colors, focused, kind === 'save' ? 'success' : undefined)}>
         {focusGutter(glyphs, focused)}
-        {fold(label)}
+        {padEnd(fold(label), labelWidth)}
       </Text>
     </Box>
   )

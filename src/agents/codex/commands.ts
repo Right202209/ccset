@@ -23,7 +23,7 @@ import { codexConfigFile } from './global.js'
 import { GLOBAL_FIELDS, INTEGER_FIELD_IDS, validateContextWindow, validateProviderId } from './manifest.js'
 import { backupsDir, launchCommand } from './paths.js'
 import { codexStatusFindings, readCodexStatus, type CodexStatusDto } from './status-dto.js'
-import { presentCodexStatus } from './status-present.js'
+import { presentCodexGlance, presentCodexStatus } from './status-present.js'
 
 /**
  * Codex's Non-interactive declarations. The one config document is edited by
@@ -166,6 +166,7 @@ export const codexCommands: CommandDeclaration[] = [
     presentation: {
       successTitleKey: () => 'action.status',
       presentStatus: (data) => presentCodexStatus(data as unknown as CodexStatusDto),
+      presentGlance: (data) => presentCodexGlance(data as unknown as CodexStatusDto),
     },
     run: runStatus,
   },

@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useInput } from 'ink'
-import wrapAnsi from 'wrap-ansi'
+import { useInput, type Key } from 'ink'
 import type { FieldSpec, FieldValue, FormScreen, FormValues } from '../types.js'
 import { fieldHints, type FieldHint } from './Field.js'
-import { helpFor, pressed } from './keymap.js'
-import { useTerminal } from './terminal.js'
+import { pressed } from './keymap.js'
 import { useViewport, windowAround } from './Viewport.js'
 
 export type ReviewRow =
@@ -13,11 +11,14 @@ export type ReviewRow =
   | { kind: 'save' }
   | { kind: 'cancel' }
 
-const COMPACT_ROWS = 16
-const COMPACT_COLUMNS = 60
-const SCREEN_CHROME_ROWS = 5
+/**
+ * Below either size the form drops its notes: they are context, and the rows
+ * are better spent on fields. The Viewport is the main Panel's interior, so
+ * the frame, the path, and the key help are already paid for.
+ */
+const COMPACT_ROWS = 10
+const COMPACT_COLUMNS = 54
 const NOTES_MARGIN_ROWS = 1
-const HELP_MARGIN_ROWS = 1
 const FORM_WINDOW_ROWS = 2
 
 export function textOf(value: FieldValue | undefined): string {
@@ -68,6 +69,14 @@ function isTextual(field: FieldSpec): boolean {
   return field.type === 'text' || field.type === 'secret' || field.type === 'csv'
 }
 
+/** The value a choice or boolean field cycles to; undefined when there is none. */
+function nextChoice(field: FieldSpec, current: FieldValue | undefined, delta: number): FieldValue | undefined {
+  if (field.type === 'boolean') return current !== true
+  const choices = field.choices ?? []
+  const at = choices.findIndex((choice) => choice.value === textOf(current))
+  return choices[(at + delta + choices.length) % choices.length]?.value
+}
+
 interface ControllerOptions {
   screen: FormScreen
   active: boolean
@@ -83,28 +92,14 @@ interface LayoutOptions {
   index: number
 }
 
-/**
- * The help line is one catalog sentence that may wrap onto several rows --
- * the zh-Hans line already does at 100 columns -- so the footer reserves what
- * it actually renders. Reserving a fixed two rows is how the form's window
- * once overflowed a 21-row terminal by one.
- */
-function helpFooterRows(fold: (text: string) => string, columns: number): number {
-  const text = fold(helpFor('form'))
-  const lines = wrapAnsi(text, Math.max(1, columns - 2), { trim: false, hard: true })
-  return lines.split('\n').length + HELP_MARGIN_ROWS
-}
-
 function useFormLayout({ screen, rows, errors, index }: LayoutOptions) {
   const viewport = useViewport()
-  const { fold } = useTerminal()
   const row = rows[Math.min(index, rows.length - 1)]
   const compact = viewport.rows < COMPACT_ROWS || viewport.columns < COMPACT_COLUMNS
   const notesRows = compact || screen.notes?.length === undefined
     ? 0
     : screen.notes.length + NOTES_MARGIN_ROWS
-  const footerRows = compact ? 0 : helpFooterRows(fold, viewport.columns)
-  const contentRows = Math.max(1, viewport.rows - SCREEN_CHROME_ROWS - notesRows - footerRows)
+  const contentRows = Math.max(1, viewport.rows - notesRows)
   const hints = prioritizeHints(formHints(row, errors))
   const visibleHints = hints.slice(0, contentRows - Math.min(FORM_WINDOW_ROWS, contentRows))
   const rowBudget = contentRows - visibleHints.length
@@ -122,6 +117,40 @@ function useDirtyState(
   }, [values, screen, onDirtyChange])
 }
 
+type FormCommand =
+  | { kind: 'save' }
+  | { kind: 'move'; delta: number }
+  | { kind: 'activate' }
+  | { kind: 'cycle'; field: FieldSpec; delta: number }
+
+/** Keys every row answers the same way, checked before a textual row can claim a letter. */
+function navigationCommand(input: string, key: Key): FormCommand | null {
+  if (pressed(input, key).includes('ctrl+s')) return { kind: 'save' }
+  if (key.upArrow) return { kind: 'move', delta: -1 }
+  if (key.downArrow || key.tab) return { kind: 'move', delta: 1 }
+  if (key.return) return { kind: 'activate' }
+  return null
+}
+
+function letterMove(input: string): FormCommand | null {
+  if (input === 'k') return { kind: 'move', delta: -1 }
+  if (input === 'j') return { kind: 'move', delta: 1 }
+  return null
+}
+
+/**
+ * The keymap's form entry promises k/j; textual rows claim every other key
+ * first, so the letters keep typing into them and only move on rows where
+ * they cannot be text.
+ */
+function rowCommand(input: string, key: Key, row: ReviewRow | undefined): FormCommand | null {
+  if (row?.kind !== 'field') return letterMove(input)
+  if (isTextual(row.field)) return null
+  if (key.leftArrow) return { kind: 'cycle', field: row.field, delta: -1 }
+  if (key.rightArrow || input === ' ') return { kind: 'cycle', field: row.field, delta: 1 }
+  return letterMove(input)
+}
+
 interface InputActions {
   save: () => void
   move: (delta: number) => void
@@ -129,21 +158,35 @@ interface InputActions {
   cycle: (field: FieldSpec, delta: number) => void
 }
 
+function runCommand(command: FormCommand, actions: InputActions): void {
+  if (command.kind === 'save') actions.save()
+  else if (command.kind === 'move') actions.move(command.delta)
+  else if (command.kind === 'activate') actions.activate()
+  else actions.cycle(command.field, command.delta)
+}
+
 function useFormInput(active: boolean, row: ReviewRow | undefined, actions: InputActions): void {
   useInput((input, key) => {
-    if (pressed(input, key).includes('ctrl+s')) actions.save()
-    else if (key.upArrow) actions.move(-1)
-    else if (key.downArrow || key.tab) actions.move(1)
-    else if (key.return) actions.activate()
-    // The keymap's form entry promises k/j; textual rows return first, so the
-    // letters keep typing into them and only reach the movement below on rows
-    // where they cannot be text.
-    else if (row?.kind === 'field' && isTextual(row.field)) return
-    else if (key.leftArrow && row?.kind === 'field') actions.cycle(row.field, -1)
-    else if ((key.rightArrow || input === ' ') && row?.kind === 'field') actions.cycle(row.field, 1)
-    else if (input === 'k') actions.move(-1)
-    else if (input === 'j') actions.move(1)
+    const command = navigationCommand(input, key) ?? rowCommand(input, key, row)
+    if (command !== null) runCommand(command, actions)
   }, { isActive: active })
+}
+
+interface RowActions {
+  toggleAdvanced: () => void
+  save: () => void
+  cancel: () => void
+  move: (delta: number) => void
+  cycle: (field: FieldSpec, delta: number) => void
+}
+
+/** Enter on a row: the controls do what they say, a text field moves on, a choice cycles. */
+function activateRow(row: ReviewRow | undefined, actions: RowActions): void {
+  if (row?.kind === 'advanced') actions.toggleAdvanced()
+  else if (row?.kind === 'save') actions.save()
+  else if (row?.kind === 'cancel') actions.cancel()
+  else if (row?.kind === 'field' && isTextual(row.field)) actions.move(1)
+  else if (row?.kind === 'field') actions.cycle(row.field, 1)
 }
 
 export function useReviewForm(options: ControllerOptions) {
@@ -167,11 +210,8 @@ export function useReviewForm(options: ControllerOptions) {
   }
 
   function cycle(field: FieldSpec, delta: number): void {
-    if (field.type === 'boolean') return update(field, values[field.id] !== true)
-    const choices = field.choices ?? []
-    const current = choices.findIndex((choice) => choice.value === textOf(values[field.id]))
-    const next = choices[(current + delta + choices.length) % choices.length]
-    if (next !== undefined) update(field, next.value)
+    const next = nextChoice(field, values[field.id], delta)
+    if (next !== undefined) update(field, next)
   }
 
   function save(): void {
@@ -190,14 +230,7 @@ export function useReviewForm(options: ControllerOptions) {
     setIndex(screen.fields.filter((field) => field.advanced !== true || next).length)
   }
 
-  function activate(): void {
-    if (row?.kind === 'advanced') toggleAdvanced()
-    else if (row?.kind === 'save') save()
-    else if (row?.kind === 'cancel') onCancel()
-    else if (row?.kind === 'field' && isTextual(row.field)) move(1)
-    else if (row?.kind === 'field') cycle(row.field, 1)
-  }
-
+  const activate = (): void => activateRow(row, { toggleAdvanced, save, cancel: onCancel, move, cycle })
   useFormInput(active, row, { save, move, activate, cycle })
 
   return { values, errors, showAdvanced, index, ...layout, update }

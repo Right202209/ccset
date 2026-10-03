@@ -16,6 +16,7 @@ export const zhHans: Record<string, string> = {
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': '退出',
+  'menu.changeAgent': '切换 Agent',
   'key.moveUp': '上移', 'key.moveDown': '下移', 'key.jump': '跳转', 'key.select': '选择', 'key.back': '返回',
   'key.change': '切换', 'key.next': '下一项', 'key.save': '保存', 'key.cancel': '取消', 'key.continue': '继续', 'key.choose': '选择', 'key.confirm': '确认',
   'menu.notDetected': '该 Agent 尚无配置 — ccset 会创建所需的文件。',
@@ -23,6 +24,34 @@ export const zhHans: Record<string, string> = {
   'menu.noDetectedAgentsHint': '如需首次配置，请运行 ccset --agent <id>。',
   'menu.noAgentsTitle': '没有本地 Agent',
   'menu.agentTitle': '选择 Agent',
+
+  /* ----------------------------------------------------------- side panels */
+  'side.agentTitle': '当前 Agent',
+  'side.noAgent': '尚未选择',
+  'side.checking': '检测中…',
+  'side.configFound': '已有配置',
+  'side.configMissing': '尚无配置',
+  'side.agentsFound': '本机检测到：{count}',
+  'side.home': '主目录',
+  'side.resultTitle': '最近结果',
+  'side.noResult': '暂无',
+  'side.configTitle': '配置摘要',
+  'side.previewTitle': '预览',
+  'side.warningsTitle': '{count} 条警告',
+  'side.noWarnings': '没有警告',
+  'side.more': '另有 {count} 项',
+  'side.detailsTitle': '详情 · {count} 条警告',
+  'side.urlOmitted': 'URL 已隐藏',
+  'side.compactKey': '密钥',
+  'side.compactModel': '模型',
+  'side.compactUrl': '网址',
+  'glance.providers': '提供商',
+  'glance.providerNames': '名称',
+  'glance.backups': '备份',
+  'glance.issues': '问题',
+  'glance.warnings': '警告',
+  'glance.errors': '错误',
+  'glance.unmanaged': '未管理的键',
 
   /* --------------------------------------------------------------- actions */
   'action.global': '全局设置',

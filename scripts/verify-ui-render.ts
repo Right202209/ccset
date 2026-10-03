@@ -35,7 +35,6 @@ const MIN_PAINTS = 12
 
 /** Menu and list rows are addressed by their printed number (PRD 5.4). */
 const MENU_PROVIDERS = '2'
-const MENU_STATUS = '3'
 const LIST_PROVIDER_ROW = '2'
 /** Provider name -> Base URL -> Auth token. */
 const STEPS_TO_TOKEN_ROW = 2
@@ -163,8 +162,10 @@ async function driveStatus(session: UiSession): Promise<void> {
   await session.send(ESC)
   await session.waitFor(t('claudeCode.action.providerAddDetail'))
   await session.send(ESC)
-  await session.waitFor(t('action.testDetail'))
-  await session.send(MENU_STATUS)
+  const menu = await session.waitFor(t('action.testDetail'))
+  session.assertSingleFocus(menu, 'main menu')
+  await session.sendEach(DOWN, 2)
+  await session.send(ENTER)
   const paint = await session.waitFor(t('claudeCode.status.stateTitle'))
   session.assertSingleFocus(paint, 'Status')
 }

@@ -16,7 +16,7 @@ import {
 } from './provider-commands.js'
 import { runProviderUse } from './use.js'
 import { backupsDir, configFile } from './paths.js'
-import { fromStatusData, presentGrokStatus } from './status-dto.js'
+import { fromStatusData, presentGrokGlance, presentGrokStatus } from './status-dto.js'
 
 /**
  * Grok Build's Non-interactive declarations. Every operation owns one document
@@ -98,6 +98,7 @@ export const grokBuildCommands: CommandDeclaration[] = [
     presentation: {
       successTitleKey: () => 'action.status',
       presentStatus: (data) => presentGrokStatus(fromStatusData(data)),
+      presentGlance: (data) => presentGrokGlance(fromStatusData(data)),
     },
     run: runStatus,
   },

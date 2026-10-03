@@ -16,6 +16,7 @@ import { backupsDir, settingsFile } from './paths.js'
 import {
   fromStatusData,
   piStatusFindings,
+  presentPiGlance,
   presentPiStatus,
   readPiStatus,
   toStatusData,
@@ -124,6 +125,7 @@ export const piCommands: CommandDeclaration[] = [
     presentation: {
       successTitleKey: () => 'action.status',
       presentStatus: (data) => presentPiStatus(fromStatusData(data)),
+      presentGlance: (data) => presentPiGlance(fromStatusData(data)),
     },
     run: runStatus,
   },

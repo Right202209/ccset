@@ -5,6 +5,7 @@ import type {
   FieldSpec,
   FormValues,
   ListItem,
+  StatusLine,
 } from '../../types.js'
 import { clearBackups } from '../../core/backup.js'
 import { readJsonFile } from '../../core/json-file.js'
@@ -86,6 +87,7 @@ function providerItem(ctx: Ctx, record: ProviderRecord): ListItem {
     id: record.name,
     label: record.name,
     detail: providerDetail(record),
+    preview: providerPreview(record),
     tone: record.parsed ? undefined : 'error',
     run: async () =>
       record.parsed
@@ -101,6 +103,15 @@ function providerItem(ctx: Ctx, record: ProviderRecord): ListItem {
             tone: 'error',
           },
   }
+}
+
+function providerPreview(record: ProviderRecord): StatusLine[] {
+  return [
+    { label: t('status.path'), value: record.path },
+    { label: t('field.baseUrl'), value: record.baseUrl || t('status.unset') },
+    { label: t('field.providerModel'), value: record.model || t('status.unset') },
+    { label: t('field.token'), value: t(record.token.length > 0 ? 'status.yes' : 'status.no') },
+  ]
 }
 
 async function openProviders(ctx: Ctx): Promise<ActionResult> {

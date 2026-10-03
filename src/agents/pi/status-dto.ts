@@ -3,8 +3,9 @@ import { readConfigFile } from '../../core/config-file.js'
 import { JsonParseError } from '../../core/errors.js'
 import { fileExists, isPlainObject, readMode } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath } from '../../core/merge.js'
-import type { Finding, KeyedStatusSection } from '../../operations/types.js'
+import type { Finding, KeyedStatusSection, StatusGlance } from '../../operations/types.js'
 import { backupsSection, type BackupsSummary } from '../../operations/status-sections.js'
+import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { ConfigFile, JsonObject, JsonValue } from '../../types.js'
 import {
   GLOBAL_FIELDS,
@@ -235,6 +236,25 @@ export function presentPiStatus(dto: PiStatusDto): KeyedStatusSection[] {
   }
   sections.push(backupsSection(dto.backups))
   return sections
+}
+
+export function presentPiGlance(dto: PiStatusDto): StatusGlance {
+  const findings = piStatusFindings(dto)
+  return {
+    summary: [
+      { labelKey: 'pi.field.defaultProvider', value: String(dto.settings.managed?.['defaultProvider'] ?? ''), valueKey: dto.settings.managed?.['defaultProvider'] === undefined ? 'status.unset' : undefined },
+      { labelKey: 'pi.field.defaultModel', value: String(dto.settings.managed?.['defaultModel'] ?? ''), valueKey: dto.settings.managed?.['defaultModel'] === undefined ? 'status.unset' : undefined },
+      { labelKey: 'glance.backups', value: String(dto.backups.count) },
+    ],
+    actions: statusGlanceActions({
+      path: dto.settings.path,
+      mode: dto.settings.mode,
+      unmanagedKeys: dto.settings.unmanagedKeys ?? 0,
+      providers: dto.providers.map((provider) => provider.id),
+      warningCount: findings.warnings.length,
+      errorCount: findings.errors.length,
+    }),
+  }
 }
 
 function settingsSection(settings: PiFileStatus): KeyedStatusSection {

@@ -25,6 +25,12 @@ save. To set up an agent that has no files here yet, run
 Chinese and remembers your choice. Arrow keys move, Enter selects, Esc goes
 back, and Ctrl+S saves a form.
 
+On terminals at least 100 columns wide and 16 rows tall, side panels show a
+local config summary, warnings, the focused row's Preview, and the last result.
+At 80–99 columns and 20 rows or more, a two-line details strip appears instead;
+below 80 columns, this extra context is hidden. Credentials appear only as set
+or unset.
+
 To install the `ccset` command:
 
 ```bash

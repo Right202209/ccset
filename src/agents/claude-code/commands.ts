@@ -22,7 +22,7 @@ import { activationCommand, backupsDir, claudeStatePath, globalSettingsPath } fr
 import { runProviderSet, PROVIDER_COMMAND_FIELDS } from './provider-commands.js'
 import { createStateIfMissing } from './state.js'
 import { claudeStatusFindings, readClaudeStatus, type ClaudeStatusDto } from './status-dto.js'
-import { presentClaudeStatus } from './status-present.js'
+import { presentClaudeGlance, presentClaudeStatus } from './status-present.js'
 
 /**
  * The agent's Non-interactive declarations. Field ids here are stable script
@@ -252,6 +252,7 @@ export const claudeCodeCommands: CommandDeclaration[] = [
     presentation: {
       successTitleKey: () => 'action.status',
       presentStatus: (data) => presentClaudeStatus(data as unknown as ClaudeStatusDto),
+      presentGlance: (data) => presentClaudeGlance(data as unknown as ClaudeStatusDto),
     },
     run: runStatus,
   },

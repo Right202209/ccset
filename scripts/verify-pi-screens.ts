@@ -7,7 +7,7 @@ import { piMessages } from '../src/agents/pi/messages.js'
 import { piActions } from '../src/agents/pi/actions.js'
 import '../src/registry.js'
 import { en } from '../src/i18n/en.js'
-import { hasKey } from '../src/i18n/index.js'
+import { hasKey, t } from '../src/i18n/index.js'
 import { withHome } from './cli-harness.js'
 
 /**
@@ -106,6 +106,13 @@ async function checkScreens(home: string): Promise<void> {
     assertKeyExists(action.detailKey ?? `${action.labelKey}Detail`, `${action.id}.detailKey`)
     await descend(await action.run(ctx), action.id, 3)
   }
+  const providersAction = piActions().find((action) => action.id === 'providers')
+  assert.ok(providersAction)
+  const providers = await providersAction.run(ctx)
+  assert.equal(providers.kind, 'list')
+  if (providers.kind !== 'list') return
+  const preview = providers.items.find((item) => item.id === 'router')?.preview ?? []
+  assert.ok(preview.some((line) => line.label === t('pi.field.models')), 'Provider preview did not label the full model list')
 }
 
 async function main(): Promise<void> {

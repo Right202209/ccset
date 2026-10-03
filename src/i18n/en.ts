@@ -15,6 +15,7 @@ export const en: Record<string, string> = {
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': 'Exit',
+  'menu.changeAgent': 'Change agent',
   'key.moveUp': 'move up', 'key.moveDown': 'move down', 'key.jump': 'jump', 'key.select': 'select', 'key.back': 'back',
   'key.change': 'change', 'key.next': 'next', 'key.save': 'save', 'key.cancel': 'cancel', 'key.continue': 'continue', 'key.choose': 'choose', 'key.confirm': 'confirm',
   'menu.notDetected': 'No config for this agent yet — ccset will create what it needs.',
@@ -22,6 +23,34 @@ export const en: Record<string, string> = {
   'menu.noDetectedAgentsHint': 'To configure one for the first time, run ccset --agent <id>.',
   'menu.noAgentsTitle': 'No local agents',
   'menu.agentTitle': 'Select an agent',
+
+  /* ----------------------------------------------------------- side panels */
+  'side.agentTitle': 'Agent',
+  'side.noAgent': 'None selected',
+  'side.checking': 'Checking…',
+  'side.configFound': 'Config found',
+  'side.configMissing': 'No config yet',
+  'side.agentsFound': 'Detected here: {count}',
+  'side.home': 'Home',
+  'side.resultTitle': 'Last result',
+  'side.noResult': 'Nothing yet',
+  'side.configTitle': 'Config summary',
+  'side.previewTitle': 'Preview',
+  'side.warningsTitle': '{count} warnings',
+  'side.noWarnings': 'No warnings',
+  'side.more': '+{count} more',
+  'side.detailsTitle': 'Details · {count} warnings',
+  'side.urlOmitted': 'URL omitted',
+  'side.compactKey': 'Key',
+  'side.compactModel': 'Model',
+  'side.compactUrl': 'URL',
+  'glance.providers': 'Providers',
+  'glance.providerNames': 'Names',
+  'glance.backups': 'Backups',
+  'glance.issues': 'Issues',
+  'glance.warnings': 'Warnings',
+  'glance.errors': 'Errors',
+  'glance.unmanaged': 'Unmanaged keys',
 
   /* --------------------------------------------------------------- actions */
   'action.global': 'Global settings',

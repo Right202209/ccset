@@ -115,8 +115,24 @@ _避免_: Frame, screenshot
 
 **Viewport（视口）**:
 窗口化区域被裁剪到的行列预算。ccset 不占有整个终端，因此 Viewport 界定的是一个区域，
-绝不是整个应用。
+绝不是整个应用。App 把主面板的内部区域作为 Viewport 交给每个 View。
 _避免_: Screen size, full screen
+
+**Panel（面板）**:
+TUI 框架中带边框和标题的区域。主面板容纳当前 Screen 的 View，标题为 Frame 路径；
+宽终端上的侧面板显示 Agent 的上下文，中等宽度时则显示紧凑详情条。Panel 属于布局
+而非导航：它既不是 Screen，也不是 Frame。
+_避免_: Window, pane, box
+
+**Glance（速览）**:
+从 Agent 的只读 status operation 得出的简短、无密钥配置摘要与诊断信息，供 TUI 侧面板
+显示。选择 Agent 时以及新的 message Screen 出现后会刷新。
+_避免_: Status Screen, config reread
+
+**Preview（预览）**:
+在核心用户打开列表项之前，显示该聚焦行的无密钥详情。它是临时焦点状态，不是 Screen，
+也不会重新读取该行的数据来源。
+_避免_: Selection result, detail Screen
 
 **Terminal capability（终端能力）**:
 核心用户面前的终端能够渲染的内容：字形集合与颜色集合。它是环境的属性，不是用户偏好。

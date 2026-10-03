@@ -2787,3 +2787,176 @@ exceptions), `npm run verify:codex`, `npm run verify:commands-opencode-provider`
 `npm run verify:commands-codex-use`, and the complete sequential `npm test`
 ending in `verify:release-artifact` all passed; `git diff --check` is clean. No
 live Provider request or Windows/macOS run was made.
+
+### 9.57 Bordered flex-panel TUI layout (2026-09-26)
+
+**Scope:** the Ink TUI now draws every Screen inside bordered flex Panels
+(ADR 0017): an application frame with the name and tagline in its top border
+and the current key help in its bottom one, a main Panel titled with the
+navigation path, and, at 100 columns and 16 rows or more, side Panels showing
+the selected Agent and the last result. The frame stays as tall as its content
+and never fills or owns the terminal, so ADR 0002's flow-scrolling output and
+scrollback are kept. `Layout.planLayout` decides every row and column the
+chrome costs and hands Views the main Panel's interior as their Viewport, so
+the Views dropped their own help lines. Help too wide for the border wraps
+inside the frame from 16 rows up and is otherwise omitted; below 7 rows or 30
+columns the View paints unframed. The selected row is a black-on-cyan bar;
+Panel borders take the Terminal's glyph set (`+-|` under `CCSET_ASCII=1`), and
+every cut uses `text-fit.ts` with the Terminal's folded ellipsis instead of
+Ink's `truncate-end`, which always emitted U+2026. A narrowing resize clears
+the visible screen (`ESC[H ESC[2J`) before repainting, since rows painted to
+the last column rewrap beyond what Ink's erase counts; it never writes
+`ESC[3J`. Agent discovery moved from `App.tsx` into `useAgentDiscovery.ts`,
+and the refactor removed seven code-gate baseline entries (`App`, `SelectList`
+x2, `StatusView`, `useReviewForm` x3).
+
+**Fixtures:** `scripts/verify-layout.ts` (in `npm test` after
+`verify:header-path`) drives the real App for frame geometry in both glyph
+sets, side Panels, the form help in both locales at 80/100 columns and 12/21
+rows, the frameless case, long-label folding under ASCII, and the resize clear;
+`scripts/layout-rules.ts` asserts the pure plan, path-title, and text-fit
+rules. `verify-review-form`, `verify-viewport`, `verify-error-recovery`,
+`verify-malformed-dirty`, and the shared `ui-session`/`ui-assertions` helpers
+were updated for the framed paint (border-aware focus markers, box glyphs in
+the ASCII check). Each new assertion was mutation-checked by reverting the
+behavior it guards and confirming the fixture went red: seven layout-plan
+mutations, the Panel border-width mutations, the focus-marker mutation, and the
+label-cut mutation. A real-PTY render through a scratch VT emulator confirmed
+resizing leaves no ghost rows; the scratch harness was not committed.
+
+**Verification:** on Linux x86_64 (WSL2), Node.js 26.8.1 and npm 12.0.2,
+`npm run typecheck`, `npm run build`, `npm run verify:code-gates` (257 files,
+10 baseline exceptions), and the complete sequential `npm test` all passed;
+the website's typecheck, test (75 tests), build, and smoke passed unchanged.
+`git diff --check` is clean. No live Provider request or Windows/macOS run was
+made.
+
+### 9.58 Status Glance, focused-row Preview, and responsive side information (2026-09-26)
+
+**Scope:** the bordered TUI now reuses each selected Agent's read-only status
+operation for a secret-free config Glance and its Status findings, and shows a
+focused list row's Preview before it is opened. Wide terminals place Agent,
+Config, Preview, Warnings, and Last result Panels in a separately budgeted side
+column; 80–99 columns use a two-line strip, and narrower layouts hide the extra
+information. At 130 columns the side column widens. The side budget preserves
+ADR 0002's content-height frame and reserves a terminal row. Credential
+presence is rendered only as “set” or “unset”; URL user information,
+credential-like query parameters, and fragments are removed from display
+values. ADR 0018 records the shared status-operation boundary and refresh rules.
+
+**Fixtures:** `scripts/verify-side-info.ts` runs the real Claude Code Agent
+against a scratch home and checks the Config summary, focused menu and Provider
+Previews, warning and parse-error findings, secret exclusion from paints,
+refresh after save, and unchanged file hashes while browsing. It also covers
+the 90/79-column strip breakpoints in English and Simplified Chinese, the
+100×16 and 110×18 height budget, and URL credential and fragment sanitization.
+`scripts/layout-rules.ts` covers side-panel drop and trim priority plus the
+79/80, 99/100, and 129/130-column and 19/20-row layout boundaries. Mutation
+checks confirmed the fixtures fail for a dropped height budget, raw credential
+Preview, skipped refresh, and reversed panel priority. `CCSET_VISUAL=1 npm run
+verify:side-info` prints scratch renders at 130, 100, 90, and 79 columns.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run build`, `npm run verify:code-gates` (263 files,
+10 baseline exceptions), `npm run verify:i18n-zh`, `npm run verify:layout`,
+`npm run verify:ui-render`, `npm run verify:side-info`, and its visual mode
+passed; `git diff --check` is clean. `npm test` did not complete: the suite
+stalled silently in `verify:codex`; running that fixture alone reproduced the
+stall in its synchronous TOML round-trip phase, so both runs were interrupted.
+No live Provider request or Windows/macOS run was made.
+
+### 9.59 SGR mouse selection in the TUI (2026-09-26)
+
+**Scope:** TTY users can click visible menu and list rows to open them. The
+shared `SelectList` maps SGR mouse coordinates to rendered row nodes, including
+windowed lists; it enables click reporting only while a selectable list is
+mounted and disables it on cleanup. A split SGR sequence does not accidentally
+trigger the Escape action; ordinary Escape remains available after a brief
+ambiguity delay. Keyboard navigation and non-TTY rendering remain unchanged.
+
+**Fixtures:** `scripts/verify-side-info.ts` checks an outside-row click is a
+no-op, clicks a menu row with the initial Escape byte split from the remainder,
+then clicks a non-focused provider row and confirms it opens without writing
+the scratch home or painting its token. `scripts/verify-malformed-dirty.ts`
+checks a real PTY enables SGR reporting while the menu is mounted and disables
+it when Escape exits the App.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run build` (also run by the PTY and i18n fixtures),
+`npm run verify:code-gates` (265 files, 10 baseline exceptions),
+`npm run verify:i18n-zh`, `npm run verify:ui-render`, `npm run verify:layout`,
+`npm run verify:side-info`, and `npm run verify:malformed-dirty` passed;
+`git diff --check` is clean. The sandbox initially denied the i18n fixture's
+child process with `EPERM`; rerunning that fixture with approval passed. The
+complete `npm test` suite was not run. No Windows/macOS run was made.
+
+### 9.60 Return to Agent selection from the TUI (2026-09-26)
+
+**Scope:** an Agent's main menu now offers **Change agent**, and Esc returns to
+the Agent selector. The selector retains its discovery boundary on a normal
+launch; after an explicit `--agent` launch it offers all registered Agents.
+Exit remains available from both the main menu and selector.
+
+**Fixtures:** `scripts/verify-agent-discovery.ts`, run through
+`npm run verify:ui-render`, selects Claude Code, returns to the selector,
+selects opencode, then verifies Esc returns to the selector again. The long-menu
+viewport assertions account for the added menu entry.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run build` (through `verify:i18n-zh`),
+`npm run verify:code-gates` (265 files, 10 baseline exceptions),
+`npm run verify:ui-render`, `npm run verify:i18n-zh`, and `git diff --check`
+passed. The i18n fixture required approval to spawn its CLI child process after
+the sandbox denied it with `EPERM`. The complete `npm test` suite and a manual
+real-terminal run were not performed.
+
+### 9.61 Follow-up review fixes for discovery, mouse input, and status previews (2026-09-26)
+
+**Scope:** an explicit `--agent` still bypasses discovery for startup, but the
+first return to Agent selection now runs filesystem detection before showing
+choices. A partial SGR mouse code cannot feed digit shortcuts. Mouse decoder
+registrations survive overlapping-list cleanup, mouse reporting is reference
+counted across mounted lists, and an exit handler disables reporting if normal
+unmount cleanup does not run. Status presentations share the `StatusGlance`
+type, and Pi Provider previews label the full model list as “Model ids.”
+
+**Fixtures:** `scripts/verify-agent-discovery.ts`, through
+`npm run verify:ui-render`, confirms an explicit-agent return omits a synthetic
+undetected Agent, ignores a digit during a partial mouse code, retains Escape
+delay after an older decoder unregisters, and covers mouse-mode reference
+counting and process-exit restoration. `scripts/verify-side-info.ts` exercises
+mouse clicks, `scripts/verify-pi-screens.ts` asserts the Pi preview label, and
+`scripts/verify-malformed-dirty.ts` covers PTY mouse-mode activation and normal
+cleanup.
+
+**Verification:** on Linux x86_64, Node.js 26.9.0 and npm 12.0.2,
+`npm run typecheck`, `npm run verify:ui-render`, `npm run verify:side-info`,
+`npm run verify:pi-screens`, `npm run verify:malformed-dirty` (including its
+build), `npm run verify:code-gates` (265 files, 10 baseline exceptions), and
+`git diff --check` passed. `npm test` stalled silently in `verify:codex`; an
+isolated `npm run verify:codex` also stalled after building and was interrupted.
+No manual real-terminal, Windows, or macOS run was made.
+
+### 9.62 TUI pull-request preparation checks (2026-10-01)
+
+**Scope:** checked the `feat/tui-flex-layout` branch for its pull request and
+aligned both user guides with §9.61's detection on the first return from an
+explicit `--agent` launch. The existing untracked `bun.lock` was excluded.
+
+**Verification:** on Linux x86_64, Node.js 26.10.0 and npm 12.1.0, at runtime
+commit `cc89769`, `npm run typecheck`, `npm run build`,
+`npm run verify:code-gates` (265 files, 10 baseline exceptions),
+`npm run verify:ui-render`, `npm run verify:layout`,
+`npm run verify:side-info`, `npm run verify:pi-screens`,
+`npm run verify:malformed-dirty`, and `npm run verify:i18n-zh` passed.
+The locale fixture initially failed a CLI boundary assertion in the sandbox;
+its approved rerun outside the sandbox passed. `git diff --check` and
+`git diff --check origin/master...HEAD` passed.
+
+Before fetching the follow-up commit, `timeout 180s npm test` at `d2b2854`
+passed `verify:pty-isolation`, `verify:global-settings`, and `verify:opencode`,
+then timed out with exit 124 in `verify:codex` after its bundle built. This
+matches the stall recorded in §§9.58 and 9.61; the full suite remains pending
+on the latest runtime commit. Terminal screenshots and manual real-terminal
+navigation/resize checks remain pending, as do Windows/macOS verification and
+the website checks. No live Provider request was made.

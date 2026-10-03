@@ -46,11 +46,14 @@ export function assertPaintsAreAscii(paints: string[]): void {
 /**
  * The environment override, checked without touching process.env: the ASCII set
  * has to be reachable from CCSET_ASCII=1, has to be free of any glyph a
- * seven-bit terminal cannot draw, and has to actually differ from the default.
+ * seven-bit terminal cannot draw -- the Panel border characters included -- and
+ * has to actually differ from the default.
  */
 export function assertGlyphSetsAreSelectable(): void {
-  for (const [name, glyph] of Object.entries(ASCII_GLYPHS)) {
-    assert.ok(ASCII_GLYPH.test(glyph), `The ASCII glyph set's ${name} is not ASCII: ${glyph}`)
+  const { box, ...glyphs } = ASCII_GLYPHS
+  const named = [...Object.entries(glyphs), ...Object.entries(box).map(([name, glyph]) => [`box.${name}`, glyph])]
+  for (const [name, glyph] of named) {
+    assert.ok(ASCII_GLYPH.test(glyph ?? ''), `The ASCII glyph set's ${name} is not ASCII: ${glyph}`)
   }
   for (const frame of ASCII_TERMINAL.busyFrames) {
     assert.ok(ASCII_GLYPH.test(frame), `The ASCII busy indicator is not ASCII: ${frame}`)

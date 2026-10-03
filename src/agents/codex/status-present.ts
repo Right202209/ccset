@@ -1,7 +1,8 @@
-import type { KeyedStatusSection } from '../../operations/types.js'
+import type { KeyedLine, KeyedStatusSection, StatusGlance } from '../../operations/types.js'
 import { backupsSection } from '../../operations/status-sections.js'
+import { statusGlanceActions } from '../../operations/status-glance.js'
 import type { JsonValue } from '../../types.js'
-import type { CodexAuthStatus, CodexProviderStatus, CodexProfileStatus, CodexStatusDto } from './status-dto.js'
+import { codexStatusFindings, type CodexAuthStatus, type CodexProviderStatus, type CodexProfileStatus, type CodexStatusDto } from './status-dto.js'
 
 /**
  * The agent's own keyed rendering of its status DTO for the human report.
@@ -148,4 +149,23 @@ export function presentCodexStatus(dto: CodexStatusDto): KeyedStatusSection[] {
   }
   sections.push(backupsSection(dto.backups))
   return sections
+}
+
+export function presentCodexGlance(dto: CodexStatusDto): StatusGlance {
+  const findings = codexStatusFindings(dto)
+  return {
+    summary: [
+      { labelKey: 'codex.field.modelProvider', value: String(dto.config.managed?.['modelProvider'] ?? ''), valueKey: dto.config.managed?.['modelProvider'] === undefined ? 'status.unset' : undefined },
+      { labelKey: 'field.globalModel', value: String(dto.config.managed?.['model'] ?? ''), valueKey: dto.config.managed?.['model'] === undefined ? 'status.unset' : undefined },
+      { labelKey: 'codex.status.authTitle', valueKey: dto.auth.exists ? 'status.yes' : 'status.no' },
+    ],
+    actions: statusGlanceActions({
+      path: dto.config.path,
+      mode: dto.config.mode,
+      unmanagedKeys: dto.config.unmanagedKeys ?? 0,
+      providers: dto.providers.map((provider) => provider.id),
+      warningCount: findings.warnings.length,
+      errorCount: findings.errors.length,
+    }),
+  }
 }
