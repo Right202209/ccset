@@ -1,6 +1,6 @@
 # 安全政策
 
-[English](SECURITY.md) | 简体中文
+[English](../../SECURITY.md) | 简体中文
 
 安全报告以公开 GitHub issue 的形式接收。本项目不提供私密披露渠道、保密承诺、
 协调披露窗口或响应时限保证。

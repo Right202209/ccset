@@ -2997,3 +2997,60 @@ verification-register content was checked for byte-identical preservation.
 
 No live Provider request, real Codex/pi startup, Windows/macOS run, manual
 real-terminal smoke, or website checks were performed.
+
+
+### 9.64 Chinese docs moved under docs/zh-CN and the site rewired (2026-10-04)
+
+**Scope:** repository Markdown layout plus the site's content layer — every
+`*.zh-CN.md` except `README.zh-CN.md` moved out of the project root into
+`docs/zh-CN/`, and the `pages/` viewer rewired to the new paths. No CLI or
+runtime behavior change.
+
+**Changes:** `git mv` moved the four root translations (`CONTEXT.zh-CN.md`,
+`CONTRIBUTING.zh-CN.md`, `SECURITY.zh-CN.md`, `SUPPORT.zh-CN.md`) and the
+five under `docs/` into `docs/zh-CN/`, keeping their `.zh-CN.md` names;
+`README.zh-CN.md` stays at the root for GitHub. Relative links inside the
+moved files were rebased one level deeper (root targets gain a `../`,
+`docs/` targets become `../`), and each English counterpart's
+`[简体中文](…)` switcher now points at `docs/zh-CN/<name>.zh-CN.md` (root
+files) or `zh-CN/<name>.zh-CN.md` (files under `docs/`).
+`pages/src/content/sources.ts` imports and `SOURCES` keys and
+`registry.ts`'s `zh-Hans` sources now name `docs/zh-CN/…`;
+`links.test.ts`'s localized-source cases match the new switcher paths.
+Site-side link resolution needed no change: `registeredSlug` matches any
+registered source, so both the moved files and the switchers still resolve to
+`/docs/<slug>`.
+
+**Verification:** a repo-wide relative-link check over 89 Markdown files found
+no new broken link (the eight it reports are pre-existing: `.codex/` skill
+examples, register placeholders, and root `code-review.md`). Site checks,
+Linux x64, Node.js v26.10.0: `tsc --noEmit` clean; Vitest 14 files / 75 tests
+passing with v8 coverage statements 89.70 %, branches 78.67 %, functions
+91.47 %, lines 92.72 % (thresholds 80/70/80/80); `vite build` OK (main chunk
+222.71 kB / 73.49 kB gzip; lazy Docs chunk 323.12 kB / 122.41 kB gzip);
+`scripts/smoke.mjs` passed (3 assets, all routes and the gzip budget OK); the
+built Docs chunk contains the relocated prose (用户指南 ×4, 验证指南 ×7,
+添加 Agent ×3, 用语 ×1, 参与 ccset 贡献 ×1). `git diff --check` clean.
+
+No live Provider request, real Codex/pi startup, Windows/macOS run, manual
+real-terminal smoke, or manual dev-server screenshot was performed.
+
+### 9.65 Landing and docs surface polish (2026-10-04)
+
+**Scope:** `pages/src/styles/` only — a contained visual pass over the site.
+No content, registry, or CLI change.
+
+**Changes:** `index.css` gives `body` a fixed, very faint green radial
+backdrop so the docs and 404 routes share the hero's depth; `chrome.css`
+renders the active navbar link as a soft accent pill; `docs.css` lifts the
+article onto its own card surface (border, sheen, shadow, padding) at
+≥1101px; `markdown.css` adds `text-wrap: pretty` to prose paragraphs;
+`landing.css` adds hairline gradient dividers between consecutive
+`.fade-section`s and a faint hover on stat cells.
+
+**Verification:** Site checks, Linux x64, Node.js v26.10.0: `tsc --noEmit`
+clean; Vitest 14 files / 75 tests passing; `vite build` OK (CSS 33.05 kB /
+6.92 kB gzip; main chunk 222.71 kB / 73.48 kB gzip; lazy Docs chunk
+323.12 kB / 122.41 kB gzip); `scripts/smoke.mjs` passed (3 assets, all routes
+and the gzip budget OK). `git diff --check` clean. No manual dev-server
+screenshot was taken.

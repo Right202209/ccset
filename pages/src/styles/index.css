@@ -13,7 +13,12 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--color-fg);
-  background: var(--color-bg);
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(48rem 36rem at 88% -6%, rgb(34 197 94 / 0.05), transparent 62%),
+    radial-gradient(44rem 34rem at -8% 4%, rgb(34 197 94 / 0.04), transparent 58%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

@@ -1,6 +1,6 @@
 # Security Policy
 
-[简体中文](SECURITY.zh-CN.md) | English
+[简体中文](docs/zh-CN/SECURITY.zh-CN.md) | English
 
 Security reports are accepted as public GitHub issues. The project does not offer a
 private disclosure channel, confidentiality, a coordinated disclosure window, or

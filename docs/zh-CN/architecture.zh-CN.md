@@ -1,8 +1,8 @@
 # 架构
 
-[English](architecture.md) | 简体中文
+[English](../architecture.md) | 简体中文
 
-变更工作流见 [AGENTS.md](../AGENTS.md)，领域词汇见 [CONTEXT.md](../CONTEXT.md)。本指南解释运行时边界，以及贡献者必须维持的各项保证背后的原因。规范与已接受的决策位于 [PRD.md](../PRD.md)、[命令规范](milestone-3-non-interactive.md) 和 [ADR](adr/) 中。
+变更工作流见 [AGENTS.md](../../AGENTS.md)，领域词汇见 [CONTEXT.md](../../CONTEXT.md)。本指南解释运行时边界，以及贡献者必须维持的各项保证背后的原因。规范与已接受的决策位于 [PRD.md](../../PRD.md)、[命令规范](../milestone-3-non-interactive.md) 和 [ADR](../adr/) 中。
 
 ## 入口与契约
 
@@ -48,7 +48,7 @@ TUI 表单映射与命令补丁映射保持分离。TUI 中留空的字段可以
 Agent 时自动进入；显式 `--agent` 会跳过这次发现流程，让用户可以有意创建
 首次配置。非交互命令仍要求显式提供 `--agent`，不会根据检测结果推断目标。
 
-PRD 的扩展边界允许 Agent 模块内部包含多个文件。fixture、npm 脚本接入和文档是额外的预期改动。新的共享能力需要一次显式的核心/接口改动，并带有自己的验证范围；见[添加 Agent](adding-an-agent.md)。
+PRD 的扩展边界允许 Agent 模块内部包含多个文件。fixture、npm 脚本接入和文档是额外的预期改动。新的共享能力需要一次显式的核心/接口改动，并带有自己的验证范围；见[添加 Agent](../adding-an-agent.md)。
 
 容易遗漏的 Agent 特定约束：
 
@@ -83,4 +83,4 @@ Shell 文案目录位于 `src/i18n/en.ts` 与 `src/i18n/zh-Hans.ts`；Agent 特�
 
 CLI 在挂载主 App 之前解析界面语言（ADR 0005）。显式的 `CCSET_LOCALE` 覆盖已保存的选择且不持久化；否则 TUI 使用已保存的语言，或在首次使用时询问。最初的询问是双语的，并且绕过文案目录，因为此时还没有选定语言。帮助、版本以及非 TTY 时对交互模式的拒绝既不询问，也不持久化选择。
 
-为上述任一边界选择 fixture 时，请使用[验证指南](verification.md)。把发布状态和带日期的证据保存在登记册中，而不要在编码助手指引中复制里程碑快照。
+为上述任一边界选择 fixture 时，请使用[验证指南](../verification.md)。把发布状态和带日期的证据保存在登记册中，而不要在编码助手指引中复制里程碑快照。

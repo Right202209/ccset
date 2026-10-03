@@ -4,6 +4,24 @@
   counter-increment: section;
 }
 
+/* A hairline between consecutive landing sections gives the long page a
+   rhythm without adding markup. */
+.fade-section + .fade-section {
+  position: relative;
+}
+
+.fade-section + .fade-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, var(--content-width));
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+  pointer-events: none;
+}
+
 /* Section header: a mono index (CSS counter, outside the heading's
    accessible name) above the h2. */
 .section-head {
@@ -108,6 +126,11 @@
   text-align: center;
   padding: var(--space-6) var(--space-4);
   border-left: 1px solid var(--color-border);
+  transition: background 0.2s ease;
+}
+
+.stat:hover {
+  background: rgb(255 255 255 / 0.02);
 }
 
 .stat:first-child {

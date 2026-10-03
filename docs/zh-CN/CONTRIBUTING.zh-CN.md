@@ -1,6 +1,6 @@
 # 参与 ccset 贡献
 
-[English](CONTRIBUTING.md) | 简体中文
+[English](../../CONTRIBUTING.md) | 简体中文
 
 ccset 接受外部贡献者的缺陷修复、文档、测试和产品改动。pull request 可以同时是提案和
 实现；前置 issue 是可选的。
@@ -10,10 +10,10 @@ ccset 接受外部贡献者的缺陷修复、文档、测试和产品改动。pu
 
 ## 处理一个改动
 
-遵循 [AGENTS.md](AGENTS.md) 中的统一工作流程：查看受影响的代码与决策，明确目标行为，
-通过现有接口实现，验证改动并报告证据。[架构指南](docs/architecture.md) 解释运行时边界；
-[验证指南](docs/verification.md) 把改动范围对应到可执行检查。网站改动遵循
-[pages/README.md](pages/README.md)，其检查在 `pages/` 下用独立工具链运行。
+遵循 [AGENTS.md](../../AGENTS.md) 中的统一工作流程：查看受影响的代码与决策，明确目标行为，
+通过现有接口实现，验证改动并报告证据。[架构指南](../architecture.md) 解释运行时边界；
+[验证指南](../verification.md) 把改动范围对应到可执行检查。网站改动遵循
+[pages/README.md](../../pages/README.md)，其检查在 `pages/` 下用独立工具链运行。
 
 ## Pull request
 
@@ -26,7 +26,7 @@ ccset 接受外部贡献者的缺陷修复、文档、测试和产品改动。pu
 - 为重要的 TUI 改动附终端截图；
 - 描述可执行的人工验证场景。
 
-评审遵循[代码评审规则](docs/agents/code-review.md)：发现项按数据丢失与凭据暴露的尺度
+评审遵循[代码评审规则](../agents/code-review.md)：发现项按数据丢失与凭据暴露的尺度
 分级，Blocker 或 High 级发现未修复前停止合并。
 
 实现提案与 issue 一样进入分诊。方向尚在验证时欢迎草稿 pull request，但只有完整的改动
@@ -58,7 +58,7 @@ npm run typecheck
 npm run build
 ```
 
-运行[验证指南](docs/verification.md)列出的相关 `verify:*` 验证脚本和代码质量门槛。共享
+运行[验证指南](../verification.md)列出的相关 `verify:*` 验证脚本和代码质量门槛。共享
 行为、依赖、构建或测试/CI 改动还需要 `npm test`。验证脚本共用输出目录，必须顺序执行。
 运行时或工具链改动在合并前必须在本地或 CI 通过完整测试套件。
 
@@ -66,7 +66,7 @@ npm run build
 typecheck/build。行为变化和缺陷回归应扩展现有断言验证脚本；不需要单独的测试框架。
 
 受改动影响的人工数据安全与交互场景，记录在
-[Important Documentation.md](<Important Documentation.md>)。平台特定的路径、权限和终端
+[Important Documentation.md](<../../Important Documentation.md>)。平台特定的路径、权限和终端
 行为需要该平台上的证据。报告实际执行的命令、环境、结果和待完成的检查；新的运行时证据
 追加到登记册 §9，不改写既有条目。发布要求见 §6，与单个改动所需的验证分开。
 

@@ -1,8 +1,8 @@
 # ccset 用户指南
 
-[English](user-guide.md) | 简体中文
+[English](../user-guide.md) | 简体中文
 
-[返回 README](../README.md)
+[返回 README](../../README.md)
 
 ## Agent 选择
 

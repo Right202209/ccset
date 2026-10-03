@@ -1,6 +1,6 @@
 # Architecture
 
-[简体中文](architecture.zh-CN.md) | English
+[简体中文](zh-CN/architecture.zh-CN.md) | English
 
 Read [AGENTS.md](../AGENTS.md) for the change workflow and
 [CONTEXT.md](../CONTEXT.md) for the domain vocabulary. This guide explains the

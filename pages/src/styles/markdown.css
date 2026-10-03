@@ -43,6 +43,10 @@
   margin: 0 0 var(--space-4);
 }
 
+.markdown p {
+  text-wrap: pretty;
+}
+
 .markdown li {
   margin-bottom: var(--space-1);
 }
