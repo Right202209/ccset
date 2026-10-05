@@ -3150,3 +3150,31 @@ sequential `npm test` passed, including all UI fixtures, code gates, and packed
 artifact installation. The local log is `/tmp/ccset-v0100-final-tests.log`.
 `git diff --check` passed. Application source is unchanged; remote CI
 confirmation and npm publication remain pending at this entry.
+
+### 9.70 v0.10.0 CI passed; npm authorization pending (2026-10-05)
+
+At release commit `a821903b2b17cf581ab722c0151ccde637c1f9bb`, all nine jobs
+in [CI run 37301233662](https://github.com/Right202209/ccset/actions/runs/37301233662)
+passed: Linux/macOS/Windows with Node.js 18/20/22. Linux and macOS ran the
+full suite; Windows ran typecheck, build, runtime smoke, and package contents
+checks. Deploy Pages also passed. This resolves the CI navigation failure in
+§§9.68–9.69. macOS and Windows manual terminal checks remain unperformed.
+
+The existing v0.10.0 GitHub release was temporarily returned to draft, its tag
+moved from `14214dc` to `a821903` using an explicit expected-old-tag lease,
+and republished with verification notes. npm had no 0.10.0 version before
+the tag move. [Publishing run 37301917771](https://github.com/Right202209/ccset/actions/runs/37301917771)
+passed typecheck, the full suite, release-state validation, and build, then
+generated signed provenance. npm rejected the package upload with E404
+(`PUT https://registry.npmjs.org/@droite%2fccset`), reporting that the package
+could not be found or the caller lacked permission. npm still lists 0.9.0
+as latest; this is not a successful npm publication.
+
+GitHub's `npm-publish` environment exists and the workflow uses GitHub-hosted
+Ubuntu, Node 24, npm 11.5.1, and `id-token: write`. npm account-side trusted
+publisher configuration requires maintainer inspection: `Right202209`,
+`ccset`, `publish.yml`, `npm-publish`, and permission for direct `npm publish`.
+The current npm trusted-publishing documentation notes that new connections
+may allow staged publishing only. No fallback token was introduced. A
+temporary one-stage wizard at `/tmp/ccset-npm-publisher-wizard.sh` was checked
+with `bash -n`; it opens npm settings and collects no secrets.
