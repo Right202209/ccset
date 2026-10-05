@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { createElement } from 'react'
+import { act, createElement } from 'react'
 import { render } from 'ink-testing-library'
 import { App } from '../src/ui/App.js'
 import { AGENTS } from '../src/registry.js'
@@ -86,12 +86,20 @@ export class UiSession {
    * from an effect -- which has not run yet on the paint that follows mount. A
    * key written before then is left sitting unread, so it is re-sent until Ink
    * takes it rather than sent once into a guessed-at delay.
+   * Flush React effects before input too: an existing stdin reader can consume
+   * a key before a newly mounted menu has installed its useInput handler.
+   * Flush the resulting update before allowing the next key.
    */
   async send(input: string): Promise<void> {
     const deadline = Date.now() + WAIT_TIMEOUT_MS
     do {
-      this.instance.stdin.write(input)
-      await sleep(POLL_MS)
+      await act(async () => {
+        await sleep(POLL_MS)
+      })
+      await act(async () => {
+        this.instance.stdin.write(input)
+        await sleep(POLL_MS)
+      })
     } while (this.instance.stdin.data !== null && Date.now() < deadline)
     assert.equal(
       this.instance.stdin.data,

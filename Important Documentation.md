@@ -3134,3 +3134,19 @@ The focused fixture passed locally on Node 18.20.8; typecheck and code gates
 passed on Node 26.10.0. `git diff --check` passed. Remote confirmation remains
 pending. A temporary 1ms harness polling probe exposed an unrelated discovery
 timing assumption and was reverted; the shipped harness delay stays 10ms.
+
+### 9.69 Flush test-renderer effects around input (2026-10-05)
+
+Run 37299990808 narrowed the remaining UI failure to macOS Node 18: the new
+assertion observed Providers still focused after two Down keys, before Enter.
+Ink's existing stdin reader can consume a key while a newly mounted menu's
+React input effect is not yet installed. `UiSession.send` now flushes React
+effects with `act` before writing input and flushes the resulting update
+before the next key. The Status-focus assertion is retained.
+
+The UI fixture passed locally on Node 18.20.8. On Linux x86_64 WSL2,
+Node.js 26.10.0/npm 12.1.0, `npm run typecheck`, `npm run build`, and the full
+sequential `npm test` passed, including all UI fixtures, code gates, and packed
+artifact installation. The local log is `/tmp/ccset-v0100-final-tests.log`.
+`git diff --check` passed. Application source is unchanged; remote CI
+confirmation and npm publication remain pending at this entry.
