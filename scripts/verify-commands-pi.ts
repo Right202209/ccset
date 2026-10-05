@@ -49,7 +49,6 @@ async function backupCount(home: string): Promise<number> {
 }
 
 async function checkNewProvider(home: string): Promise<void> {
-  await verifyPiApiRemoval(home, 'cli')
   const missing = await runCli(
     ['--agent', 'pi', 'provider', 'set', 'router', '--base-url', 'https://r.example/v1', '--json'],
     home,
@@ -260,6 +259,7 @@ async function checkCommandsSurface(home: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  await withHome('pi-api-removal', (home) => verifyPiApiRemoval(home, 'cli'))
   await withHome('pi-new-provider', checkNewProvider)
   await withHome('pi-patch', checkPatchSemantics)
   await withHome('pi-dry-run', checkDryRunAndNoOp)

@@ -3094,3 +3094,31 @@ interaction runs passed separately. Browser libraries and fonts absent from
 the environment were unpacked under `/tmp/` for these checks, without site
 dependencies or system installation changes. Safari, Firefox, macOS, and
 Windows were not exercised. No CLI runtime or Agent configuration changed.
+
+### 9.67 v0.10.0 release fixture isolation (2026-10-05)
+
+The initial v0.10.0 publishing run (GitHub Actions 37294116298) failed in
+`verify:commands-pi`: the API-removal scenario seeded `models.json` in the
+same scratch home as the new-provider scenario, invalidating its fresh-file
+backup assertions. Running `npm run verify:commands-pi` reproduced the same
+failure locally. Giving API removal its own `withHome` scope fixes the fixture
+without changing application behavior or weakening either scenario's assertions.
+
+On Linux x86_64 (WSL2 6.6.87.2), Node.js 26.10.0, npm 12.1.0, zsh,
+`npm run verify:commands-pi`, `npm run typecheck`, `npm run build`, and the
+complete sequential `npm test` passed. Subprocess fixtures required execution
+outside the sandbox. The full log is local at `/tmp/ccset-v0100-tests.log`.
+The release-artifact fixture passed pack contents, installation, version,
+executable mode, and non-TTY checks. `git diff --check` passed.
+
+A separate `npm pack` contained only LICENSE, both README files, package.json,
+and executable dist/cli.js (126,972 bytes compressed). After installing it
+under `/tmp/ccset-v0100-smoke/install`, an agent-driven Linux PTY smoke used
+`CCSET_HOME=/tmp/ccset-v0100-smoke/home`, `CCSET_LOCALE=en`, and
+`--agent claude-code`: opened Global settings, saved with Ctrl+S, inspected
+the success path/activation command, returned to Status, and exited. The
+created settings file was mode 0600. Layout/resize and mouse behavior passed
+the automated suite; manual resize, macOS/Windows terminal smoke, and live
+Provider requests were not performed. Remote CI and npm publication are
+pending at this entry; the earlier macOS Node 22 UI timeout remains to be
+checked on the corrected revision.
