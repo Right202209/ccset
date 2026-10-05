@@ -3054,3 +3054,43 @@ clean; Vitest 14 files / 75 tests passing; `vite build` OK (CSS 33.05 kB /
 323.12 kB / 122.41 kB gzip); `scripts/smoke.mjs` passed (3 assets, all routes
 and the gzip budget OK). `git diff --check` clean. No manual dev-server
 screenshot was taken.
+
+
+### 9.66 ReveriePaint-inspired website UI (2026-10-05)
+
+**Scope:** `pages/` landing and shared document surfaces. The reference at
+`https://reveriepaint.lanrhyme.top/` informed the warm paper palette, ink
+headlines, pill controls, centered terminal frame, pastel cards, and fine
+section dividers. ccset content, repository Markdown sources, first-party
+asset loading, and the existing CLI-catalog terminal replay remain in place.
+The header now links to the landing features section from document routes;
+its navigation has an App-level assertion. Section reveal uses opacity so
+fragment navigation does not shift after a translated wrapper animates.
+
+**Automated verification:** Linux x86_64 (Arch Linux), Node.js 26.10.0, npm
+12.1.0, zsh. From `pages/`, `npm run typecheck`, `npm test`, `npm run build`,
+and `npm run smoke` passed. Vitest: 14 files / 76 tests, coverage 89.77%
+statements, 79.31% branches, 91.52% functions, 92.78% lines. Final build:
+CSS 32.74 kB / 6.89 kB gzip, main JS 222.93 kB / 73.60 kB gzip, Docs JS
+323.12 kB / 122.41 kB gzip; smoke passed the three assets, routes, and gzip
+budget. Root `npm run typecheck` and `npm run verify:code-gates` also passed
+(273 files, 10 unchanged baseline exceptions). `git diff --check` passed.
+
+**Browser verification:** Playwright with headless Chromium 151.0.7922.34 on
+the Vite dev server at `http://127.0.0.1:5173/ccset/`. Temporary drivers and screenshots
+are local artifacts under `/tmp/ccset-ui-review/`. `responsive.mjs` passed
+30 combinations: both locales, landing/user-guide/404, and widths 320, 390,
+768, 1024, and 1440px, with no horizontal page overflow. `check.mjs` in
+interaction-only mode passed clipboard copying, quick-start and cross-route
+feature anchors, mobile document menu/search, language persistence after
+reload, and reduced-motion styles; the run observed no browser console
+errors or external asset requests. Desktop (1440px) and mobile (390px)
+screenshots of the landing and document views were visually inspected.
+
+The initial browser probe caught a 16px fragment offset caused by section
+translation; removing that translation resolved it. One long navigation
+probe subsequently ended with a Chromium page crash; fresh responsive and
+interaction runs passed separately. Browser libraries and fonts absent from
+the environment were unpacked under `/tmp/` for these checks, without site
+dependencies or system installation changes. Safari, Firefox, macOS, and
+Windows were not exercised. No CLI runtime or Agent configuration changed.

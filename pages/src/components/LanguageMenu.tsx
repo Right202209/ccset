@@ -27,7 +27,7 @@ export function LanguageMenu() {
       >
         <GlobeIcon />
         <span>{languageName(locale)}</span>
-        <span aria-hidden="true">▾</span>
+        <span className="lang-menu-chevron" aria-hidden="true" />
       </button>
       {open && (
         <ul className="lang-menu-list" role="listbox">

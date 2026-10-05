@@ -4,6 +4,7 @@ import type { Catalog } from './types.js'
 export const zhHans: Catalog = {
   /* ------------------------------------------------------------------- nav */
   'nav.docs': '文档',
+  'nav.features': '功能',
   'nav.github': 'GitHub',
   'nav.language': '语言',
 
@@ -11,7 +12,7 @@ export const zhHans: Catalog = {
   'hero.tagline':
     '为 Claude Code、opencode、Codex CLI、pi 和 Grok Build 配置第三方 API 服务，既可以用交互式终端界面，也可以用可脚本化的命令。ccset 保留未被管理的设置，并在改动前备份现有文件。',
   'hero.eyebrow': '开源 · MIT 许可证',
-  'hero.headline': '为编程 Agent 写入设置文件。',
+  'hero.headline': '写好 Agent 配置，',
   'hero.headlineAccent': '启用权在你手中。',
   'hero.quickStart': '快速开始',
   'hero.docs': '文档',

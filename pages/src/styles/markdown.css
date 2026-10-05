@@ -65,7 +65,7 @@
 .markdown a {
   overflow-wrap: anywhere;
   text-decoration: underline;
-  text-decoration-color: rgb(74 222 128 / 0.35);
+  text-decoration-color: var(--color-border-accent);
   text-underline-offset: 0.15em;
 }
 
@@ -92,7 +92,7 @@
 
 .markdown code {
   background: var(--color-code-bg);
-  border: 1px solid rgb(255 255 255 / 0.06);
+  border: 1px solid var(--color-border);
   border-radius: 5px;
   padding: 0.12em 0.4em;
   font-size: 0.86em;
@@ -124,7 +124,7 @@
   font-size: 0.7rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-faint);
+  color: var(--color-terminal-muted);
 }
 
 .markdown pre code {
@@ -140,8 +140,8 @@
   top: var(--space-2);
   right: var(--space-2);
   background: rgb(255 255 255 / 0.06);
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
+  color: var(--color-terminal-muted);
+  border: 1px solid var(--color-terminal-line);
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   font-size: 0.72rem;
@@ -157,9 +157,9 @@
 
 .markdown pre .code-copy:hover {
   opacity: 1;
-  color: var(--color-fg-strong);
+  color: var(--color-terminal-fg);
   background: rgb(255 255 255 / 0.12);
-  border-color: var(--color-border-strong);
+  border-color: var(--color-terminal-muted);
 }
 
 /* Tables sit in a scroll wrapper (MarkdownView) so the rounded border and
@@ -193,7 +193,7 @@
 }
 
 .markdown th {
-  background: rgb(255 255 255 / 0.03);
+  background: var(--color-card-raised);
   color: var(--color-fg-strong);
   font-weight: 600;
 }
@@ -203,7 +203,7 @@
 }
 
 .markdown tbody tr:nth-child(even) td {
-  background: rgb(255 255 255 / 0.015);
+  background: var(--color-surface-hover);
 }
 
 .markdown hr {

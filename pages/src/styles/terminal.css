@@ -1,0 +1,155 @@
+/* --------------------------------------------------------------- terminal */
+.terminal {
+  position: relative;
+  background: var(--color-terminal-bg);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.terminal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.28), transparent);
+  pointer-events: none;
+}
+
+.terminal-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-terminal-soft);
+  border-bottom: 1px solid var(--color-terminal-line);
+}
+
+.terminal-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.18);
+  opacity: 0.85;
+}
+
+.terminal-dot:nth-child(1) {
+  background: var(--term-dot-close);
+}
+
+.terminal-dot:nth-child(2) {
+  background: var(--term-dot-minimize);
+}
+
+.terminal-dot:nth-child(3) {
+  background: var(--term-dot-zoom);
+}
+
+.terminal-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--color-terminal-fg);
+  opacity: 0.55;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.terminal-body {
+  margin: 0;
+  padding: var(--space-6) var(--space-8) var(--space-8);
+  color: var(--color-terminal-fg);
+  font-size: 0.92rem;
+  line-height: 1.75;
+  min-height: 26em;
+  overflow-x: auto;
+}
+
+.terminal-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.terminal-num {
+  display: inline-block;
+  width: 1.6em;
+  margin-right: 0.6em;
+  color: var(--term-dim);
+  opacity: 0.6;
+  text-align: right;
+  user-select: none;
+  font-size: 0.8em;
+}
+
+.terminal-command .terminal-prompt {
+  color: var(--color-ok);
+  font-weight: 700;
+}
+
+.terminal-command .terminal-cmd {
+  color: var(--term-cmd);
+}
+
+.terminal-accent {
+  color: var(--color-terminal-accent);
+  font-weight: 600;
+}
+
+.terminal-field {
+  color: var(--term-dim);
+}
+
+.terminal-field .terminal-suffix {
+  color: var(--term-path);
+}
+
+.terminal-prompt {
+  color: var(--color-ok);
+  font-weight: 700;
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  vertical-align: text-bottom;
+  background: var(--color-terminal-accent);
+  animation: terminal-blink 1s steps(1) infinite;
+}
+
+@keyframes terminal-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-cursor {
+    animation: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .terminal-body {
+    font-size: 0.75rem;
+    min-height: 29em;
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .terminal-num {
+    display: none;
+  }
+
+  .terminal-title {
+    left: auto;
+    right: var(--space-3);
+    transform: none;
+    font-size: 0.65rem;
+  }
+}

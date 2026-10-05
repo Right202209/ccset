@@ -9,11 +9,14 @@ import { Landing } from './routes/Landing.js'
 const Docs = lazy(() => import('./routes/Docs.js'))
 const NotFound = lazy(() => import('./routes/NotFound.js'))
 
-/** Scrolls to the top on ordinary navigation; fragment scrolling is MarkdownView's job. */
+/** Landing fragments are local sections; document fragments belong to MarkdownView. */
 function ScrollToTop() {
   const { pathname, hash } = useLocation()
   useEffect(() => {
     if (hash === '') window.scrollTo(0, 0)
+    if (pathname === '/' && hash !== '') {
+      document.getElementById(hash.slice(1))?.scrollIntoView()
+    }
   }, [pathname, hash])
   return null
 }

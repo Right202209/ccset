@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { useLanguage } from '../i18n/index.js'
 import { GitHubIcon } from './GitHubIcon.js'
 import { LanguageMenu } from './LanguageMenu.js'
@@ -14,11 +14,15 @@ export function Navbar() {
           <span>ccset</span>
         </NavLink>
         <nav className="navbar-links" aria-label="Main">
+          <Link to="/#features" className="navbar-link navbar-section-link">
+            {t('nav.features')}
+          </Link>
           <NavLink to="/docs" className="navbar-link">
             {t('nav.docs')}
           </NavLink>
+          <LanguageMenu />
           <a
-            className="navbar-link"
+            className="navbar-link navbar-github"
             href="https://github.com/Right202209/ccset"
             target="_blank"
             rel="noopener noreferrer"
@@ -26,7 +30,6 @@ export function Navbar() {
             <GitHubIcon />
             {t('nav.github')}
           </a>
-          <LanguageMenu />
         </nav>
       </div>
     </header>

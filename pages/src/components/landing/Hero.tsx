@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { CopyButton } from '../CopyButton.js'
 import { useLanguage } from '../../i18n/index.js'
 import { TerminalDemo } from './TerminalDemo.js'
+import { Stats } from './Stats.js'
 
 const AGENT_BADGES = ['claude-code', 'opencode', 'codex', 'pi', 'grok-build'] as const
 
@@ -21,21 +22,12 @@ export function Hero() {
     <section className="hero">
       <div className="container hero-inner">
         <div className="hero-copy">
-          <span className="hero-eyebrow">{t('hero.eyebrow')}</span>
-          <h1 className="hero-title">ccset</h1>
-          <p className="hero-headline">
+          <span className="hero-eyebrow">ccset · {t('hero.eyebrow')}</span>
+          <h1 className="hero-headline">
             {t('hero.headline')}
             <em>{t('hero.headlineAccent')}</em>
-          </p>
+          </h1>
           <p className="hero-tagline">{t('hero.tagline')}</p>
-          <ul className="hero-badges" aria-label="Agents">
-            {AGENT_BADGES.map((agent) => (
-              <li key={agent} className="hero-badge">
-                {agent}
-              </li>
-            ))}
-          </ul>
-          <InstallCommand />
           <div className="hero-actions">
             <a className="button button-primary" href="#quick-start">
               {t('hero.quickStart')}
@@ -47,17 +39,27 @@ export function Hero() {
               {t('hero.docs')}
             </Link>
           </div>
-          <ul className="hero-meta">
-            {META_KEYS.map((key) => (
-              <li key={key}>{t(key)}</li>
-            ))}
-          </ul>
+          <InstallCommand />
         </div>
         <div className="hero-visual">
           <TerminalDemo />
+          <ul className="hero-badges" aria-label="Agents">
+            {AGENT_BADGES.map((agent) => <li key={agent}>{agent}</li>)}
+          </ul>
         </div>
+        <Stats />
+        <HeroMeta />
       </div>
     </section>
+  )
+}
+
+function HeroMeta() {
+  const { t } = useLanguage()
+  return (
+    <ul className="hero-meta">
+      {META_KEYS.map((key) => <li key={key}>{t(key)}</li>)}
+    </ul>
   )
 }
 

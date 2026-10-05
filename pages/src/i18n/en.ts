@@ -8,6 +8,7 @@ import type { Catalog } from './types.js'
 export const en: Catalog = {
   /* ------------------------------------------------------------------- nav */
   'nav.docs': 'Docs',
+  'nav.features': 'Features',
   'nav.github': 'GitHub',
   'nav.language': 'Language',
 
@@ -15,7 +16,7 @@ export const en: Catalog = {
   'hero.tagline':
     'Configure third-party API providers for Claude Code, opencode, Codex CLI, pi, and Grok Build with an interactive terminal UI or scriptable commands. ccset preserves unmanaged settings and backs up existing files before changing them.',
   'hero.eyebrow': 'Open source · MIT license',
-  'hero.headline': 'Writes coding-agent settings files.',
+  'hero.headline': 'Agent settings, simplified.',
   'hero.headlineAccent': 'Activation stays yours.',
   'hero.quickStart': 'Quick start',
   'hero.docs': 'Documentation',

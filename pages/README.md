@@ -5,9 +5,12 @@ a viewer for the repository's own documentation, in English and Simplified
 Chinese. It renders the repository Markdown in place (`?raw` imports, links
 rewritten to routes or GitHub URLs) — never copy doc text here. Decisions are
 recorded in [ADR 0015](../docs/adr/0015-render-the-website-from-the-repository-markdown.md).
-The visual language (dark surfaces, green accent, glow hero) follows Alibaba's
-[open-code-review](https://github.com/alibaba/open-code-review) site; all
-colours live in [src/styles/tokens.css](src/styles/tokens.css).
+The visual language follows [ReveriePaint](https://reveriepaint.lanrhyme.top/):
+warm paper surfaces, ink typography, pill-shaped controls, fine dividers, and a
+centered, dark terminal demonstration. Theme colours live in
+[src/styles/tokens.css](src/styles/tokens.css); fonts use local system stacks
+and the site loads no assets from the reference. The landing page and docs
+share the same light theme, while code blocks retain their dark surfaces.
 
 ## Toolchain
 
