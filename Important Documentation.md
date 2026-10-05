@@ -3122,3 +3122,15 @@ the automated suite; manual resize, macOS/Windows terminal smoke, and live
 Provider requests were not performed. Remote CI and npm publication are
 pending at this entry; the earlier macOS Node 22 UI timeout remains to be
 checked on the corrected revision.
+
+### 9.68 v0.10.0 CI navigation follow-up (2026-10-05)
+
+CI run 37298068718 passed Windows Node 18/20/22 and the complete Linux
+Node 20 job, but five Linux/macOS jobs timed out in the rendered UI fixture:
+Enter opened Providers while the fixture expected Status. The driver now
+waits for the focused Status row after its two Down keys before sending
+Enter. This adds a transition assertion without changing application code.
+The focused fixture passed locally on Node 18.20.8; typecheck and code gates
+passed on Node 26.10.0. `git diff --check` passed. Remote confirmation remains
+pending. A temporary 1ms harness polling probe exposed an unrelated discovery
+timing assumption and was reverted; the shipped harness delay stays 10ms.

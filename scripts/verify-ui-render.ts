@@ -165,6 +165,7 @@ async function driveStatus(session: UiSession): Promise<void> {
   const menu = await session.waitFor(t('action.testDetail'))
   session.assertSingleFocus(menu, 'main menu')
   await session.sendEach(DOWN, 2)
+  await session.waitFor(session.focusedRow(`3. ${t('action.status')}`))
   await session.send(ENTER)
   const paint = await session.waitFor(t('claudeCode.status.stateTitle'))
   session.assertSingleFocus(paint, 'Status')
