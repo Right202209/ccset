@@ -132,7 +132,7 @@ interface SelectRowProps {
 }
 
 /**
- * The selection bar spans gutter, number, and the padded label, so it is one
+ * The selection bar spans gutter, number, label, and detail, so it is one
  * width down the list. The detail takes whatever the label leaves.
  */
 function registerRow(rows: Map<number, DOMElement>, index: number, element: DOMElement | null): void {
@@ -146,6 +146,11 @@ function SelectRow({ option, position, focused, labelWidth, room, register }: Se
   const ellipsis = fold('…')
   const label = padEnd(truncateEnd(fold(option.label), room, ellipsis), labelWidth)
   const detailRoom = room - stringWidth(label)
+  const detail = option.detail !== undefined && detailRoom > 0
+    ? truncateEnd(fold(`  ${safeDisplayValue(option.detail)}`), detailRoom, ellipsis)
+    : ''
+  // Focused, the bar runs the row's full width, so the detail reads as part of the selection.
+  const tail = focused ? padEnd(detail, detailRoom) : detail
   return (
     <Box ref={register} height={1} overflow="hidden">
       <Text {...style}>{focusGutter(glyphs, focused)}</Text>
@@ -153,8 +158,8 @@ function SelectRow({ option, position, focused, labelWidth, room, register }: Se
         {position < 9 ? `${position + 1}. ` : '   '}
       </Text>
       <Text {...style}>{label}</Text>
-      {option.detail !== undefined && detailRoom > 0 && (
-        <Text dimColor>{truncateEnd(fold(`  ${safeDisplayValue(option.detail)}`), detailRoom, ellipsis)}</Text>
+      {tail.length > 0 && (
+        <Text {...(focused ? { ...style, bold: false } : {})} dimColor={!focused}>{tail}</Text>
       )}
     </Box>
   )

@@ -13,6 +13,8 @@ export interface LabelSegment {
 
 /** Columns a border label costs beyond its text: two corners and a space on either side. */
 export const LABEL_CHROME = 4
+/** Border characters kept before a label, so it reads as a tab on the border rather than a gap in it. */
+const LABEL_LEAD = 1
 
 export function labelWidth(label: LabelSegment[]): number {
   return label.reduce((width, segment) => width + stringWidth(segment.text), 0)
@@ -27,16 +29,16 @@ interface BorderLineProps {
 }
 
 /**
- * One border row with its label centered in it. A border cannot wrap, so a
- * label that does not fit is dropped rather than broken; callers fit their
- * text to the width first.
+ * One border row with its label set near its left corner, like a tab. A
+ * border cannot wrap, so a label that does not fit is dropped rather than
+ * broken; callers fit their text to the width first.
  */
 function BorderLine({ width, corners, fill, label, color }: BorderLineProps): React.ReactElement {
   const inner = Math.max(0, width - 2)
   const text = labelWidth(label)
   const shown = text > 0 && text + LABEL_CHROME <= width
   const free = shown ? inner - text - 2 : inner
-  const left = Math.floor(free / 2)
+  const left = Math.min(LABEL_LEAD, free)
   const gap = shown ? ' ' : ''
   return (
     <Box height={1} flexShrink={0}>

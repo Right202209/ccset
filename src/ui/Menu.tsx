@@ -42,9 +42,9 @@ export function MainMenu({ agent, detected, previews, onRun, onChangeAgent, onEx
     { id: CHANGE_AGENT_ID, label: t('menu.changeAgent') },
     { id: EXIT_ID, label: t('menu.exit') },
   ]
-  const { colors, fold } = useTerminal()
+  const { colors, glyphs, fold } = useTerminal()
   const viewport = useViewport()
-  const warning = fold(t('menu.notDetected'))
+  const warning = `${glyphs.tone.warn} ${fold(t('menu.notDetected'))}`
   // The warning wraps on a narrow Panel, and every row it takes is one the list gives up.
   const warningRows = detected === false ? wrappedRows(warning, viewport.columns) + WARNING_MARGIN : 0
   return (
@@ -104,14 +104,14 @@ export function AgentSelect({ agents, onSelect, onExit }: AgentSelectProps): Rea
  * the user at a dead end; the main Panel's title carries the heading.
  */
 export function NoAgents({ onExit }: { onExit: () => void }): React.ReactElement {
-  const { colors, fold } = useTerminal()
+  const { colors, glyphs, fold } = useTerminal()
   useInput((_input, key) => {
     if (key.return) onExit()
   })
   return (
     <Box flexDirection="column">
-      <Text color={colors.tone.warn}>{fold(t('menu.noDetectedAgents'))}</Text>
-      <Text>{fold(t('menu.noDetectedAgentsHint'))}</Text>
+      <Text color={colors.tone.warn}>{`${glyphs.tone.warn} ${fold(t('menu.noDetectedAgents'))}`}</Text>
+      <Text dimColor>{fold(t('menu.noDetectedAgentsHint'))}</Text>
     </Box>
   )
 }

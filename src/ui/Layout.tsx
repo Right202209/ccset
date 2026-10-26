@@ -116,11 +116,12 @@ export function pathTitle(segments: string[], capacity: number, { separator, ell
 }
 
 /** The application's name, with its tagline beside it when both fit the border. */
-function frameTitle({ name, tagline }: { name: string; tagline: string }, columns: number, color: string): LabelSegment[] {
+function frameTitle({ name, tagline }: { name: string; tagline: string }, columns: number, { color, muted }: { color: string; muted: string }): LabelSegment[] {
+  // The name is the brand: bright and bold, with the tagline a quiet aside.
   const title: LabelSegment = { text: name, color, bold: true }
   const tail = `  ${tagline}`
   if (tagline.length === 0 || stringWidth(name) + stringWidth(tail) + LABEL_CHROME > columns) return [title]
-  return [title, { text: tail, dimColor: true }]
+  return [title, { text: tail, color: muted }]
 }
 
 export interface LayoutProps {
@@ -155,8 +156,8 @@ export function Layout({ viewport, name, tagline = '', path, color, help, side, 
   return (
     <Panel
       width={viewport.columns}
-      title={frameTitle({ name: fold(name), tagline: fold(tagline) }, viewport.columns, colors.heading)}
-      footer={plan.helpInBorder ? [{ text: shownHelp, dimColor: true }] : []}
+      title={frameTitle({ name: fold(name), tagline: fold(tagline) }, viewport.columns, { color: colors.accent, muted: colors.muted })}
+      footer={plan.helpInBorder ? helpSegments(shownHelp, colors.key, colors.muted) : []}
       color={colors.frame}
       paddingX={0}
     >
@@ -173,11 +174,44 @@ export function Layout({ viewport, name, tagline = '', path, color, help, side, 
       {plan.mode === 'strip' && strip}
       {plan.helpLines.map((line, index) => (
         <Box key={`${index}:${line}`} paddingX={HELP_PADDING}>
-          <Text dimColor>{line}</Text>
+          {helpSegments(line, colors.key, colors.muted).map((segment, position) => (
+            <Text key={position} color={segment.color} bold={segment.bold} dimColor={segment.dimColor}>
+              {segment.text}
+            </Text>
+          ))}
         </Box>
       ))}
     </Panel>
   )
+}
+
+const HELP_SEPARATOR = ' · '
+
+/**
+ * The key help as a key bar: each binding's keys bright, its description and
+ * the separators dim. The text is the help exactly as written -- only the
+ * styling is split -- so a border that holds it reads the same to a copy.
+ */
+export function helpSegments(help: string, keyColor: string, muted: string): LabelSegment[] {
+  const segments: LabelSegment[] = []
+  help.split(HELP_SEPARATOR).forEach((binding, index) => {
+    if (index > 0) segments.push({ text: HELP_SEPARATOR, color: muted })
+    const space = binding.indexOf(' ')
+    const keys = space === -1 ? binding : binding.slice(0, space)
+    segments.push({ text: keys, color: keyColor, bold: true })
+    if (space !== -1) segments.push({ text: binding.slice(space), color: muted })
+  })
+  return segments.filter((segment) => segment.text.length > 0)
+}
+
+/** The trail dims to where the core user came from; the current Screen's title leads in the Panel's color. */
+function trailSegments(title: string, separator: string, color: string, muted: string): LabelSegment[] {
+  const parts = title.split(separator)
+  return parts.flatMap((part, index): LabelSegment[] => {
+    const last = index === parts.length - 1
+    const text: LabelSegment = last ? { text: part, color, bold: true } : { text: part, color: muted }
+    return index === 0 ? [text] : [{ text: separator, color: muted }, text]
+  })
 }
 
 interface MainPanelProps {
@@ -188,11 +222,11 @@ interface MainPanelProps {
 }
 
 function MainPanel({ width, path, color, children }: MainPanelProps): React.ReactElement {
-  const { glyphs, fold } = useTerminal()
+  const { glyphs, colors, fold } = useTerminal()
   const marks = { separator: ` ${glyphs.pathSeparator} `, ellipsis: fold('…') }
   const title = pathTitle(path.map(fold), width - LABEL_CHROME, marks)
   return (
-    <Panel width={width} title={[{ text: title, bold: true }]} color={color}>
+    <Panel width={width} title={trailSegments(title, marks.separator, color, colors.muted)} color={color}>
       {children}
     </Panel>
   )

@@ -28,8 +28,9 @@ export function Busy({ label }: { label?: string }): React.ReactElement {
     return () => clearInterval(timer)
   }, [busyFrames])
   return (
-    <Text color={colors.tone.info}>
-      {busyFrames[frame]} {fold(label ?? t('app.busy'))}
+    <Text>
+      <Text color={colors.tone.info} bold>{busyFrames[frame]}</Text>
+      <Text> {fold(label ?? t('app.busy'))}</Text>
     </Text>
   )
 }
@@ -65,21 +66,67 @@ interface MessageViewProps {
 }
 
 export function MessageView({ screen, onDone }: MessageViewProps): React.ReactElement {
-  const { colors, fold } = useTerminal()
+  const { colors, glyphs, fold } = useTerminal()
   useInput((input, key) => {
     if (pressed(input, key).includes('enter')) onDone()
   })
   return (
     <Box flexDirection="column">
       {screen.lines.map((line, position) => (
-        <Text
+        <MessageLine
           key={`${position}:${line}`}
-          color={position === 0 ? toneColor(colors, screen.tone) : undefined}
-        >
+          line={fold(line)}
+          lead={position === 0 ? { glyph: glyphs.tone[screen.tone], color: toneColor(colors, screen.tone) } : undefined}
+          command={position > 0 && (screen.lines[position - 1] ?? '').trimEnd().endsWith(':')}
+        />
+      ))}
+    </Box>
+  )
+}
+
+/** `Path:   /home/...` -- a label, its alignment padding, and the value. */
+const LABELLED = /^(\S[^:]{0,30}:\s+)(\S.*)$/
+
+interface MessageLineProps {
+  line: string
+  /** The headline: the first line, led by its tone's glyph in its tone's color. */
+  lead?: { glyph: string; color?: string }
+  /** The line under an introducing `...:` line -- the command the core user copies -- stands out. */
+  command: boolean
+}
+
+/**
+ * One line of a message Screen. Only styling varies: every character of the
+ * line is painted as written, so what the core user selects and copies is
+ * exactly what the agent produced.
+ */
+function MessageLine({ line, lead, command }: MessageLineProps): React.ReactElement {
+  const { colors } = useTerminal()
+  const labelled = LABELLED.exec(line)
+  const prefix = lead === undefined ? null : <Text color={lead.color} bold>{`${lead.glyph} `}</Text>
+  if (command) return <Text>{prefix}<Text color={colors.accent} bold>{line}</Text></Text>
+  if (labelled === null) return <Text>{prefix}<Text color={lead?.color}>{line}</Text></Text>
+  return (
+    <Text>
+      {prefix}
+      <Text color={colors.muted}>{labelled[1]}</Text>
+      <Text color={lead?.color}>{labelled[2]}</Text>
+    </Text>
+  )
+}
+
+/** A decision's question, led by the warn glyph: what follows it changes something. */
+function Question({ lines }: { lines: string[] }): React.ReactElement {
+  const { glyphs, colors, fold } = useTerminal()
+  return (
+    <>
+      {lines.map((line, position) => (
+        <Text key={`${position}:${line}`}>
+          {position === 0 && <Text color={colors.tone.warn} bold>{`${glyphs.tone.warn} `}</Text>}
           {fold(line)}
         </Text>
       ))}
-    </Box>
+    </>
   )
 }
 
@@ -97,9 +144,7 @@ export function ConfirmView({ screen, onConfirm, onCancel }: ConfirmViewProps): 
   ]
   return (
     <Box flexDirection="column">
-      {screen.lines.map((line, position) => (
-        <Text key={`${position}:${line}`}>{fold(line)}</Text>
-      ))}
+      <Question lines={screen.lines} />
       <Box marginTop={1}>
         <SelectList
           options={options}
@@ -131,7 +176,7 @@ export function Prompt({ lineKey, confirmKey, onConfirm, onCancel }: PromptProps
   ]
   return (
     <Box flexDirection="column">
-      <Text>{fold(t(lineKey))}</Text>
+      <Question lines={[t(lineKey)]} />
       <Box marginTop={1}>
         <SelectList
           options={options}

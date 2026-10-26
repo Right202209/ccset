@@ -46,6 +46,14 @@ export interface GlyphSet {
   mask: string
   /** Separates Frame titles in the main Panel's navigation path. */
   pathSeparator: string
+  /**
+   * Leads a message Screen's headline and a side Panel's state line, in its
+   * tone's color. Text-presentation characters only: an emoji-capable one
+   * (U+2714) measures two columns and pushes a row past its border.
+   */
+  tone: Record<MessageTone, string>
+  /** Leads a Status section title. */
+  section: string
   box: BoxGlyphs
 }
 
@@ -69,8 +77,20 @@ export interface ColorSet {
   selection: { color: string; background: string }
   /** The application title and a Status section title. */
   heading: string
-  /** The application frame around every Screen. */
+  /** The application frame around every Screen: quiet, so the Panels inside it lead. */
   frame: string
+  /** The application name, and the Panel titles. */
+  accent: string
+  /** Side Panel borders: context, never the thing being worked on. */
+  side: string
+  /** The keys in the key help; their descriptions take the muted color. */
+  key: string
+  /**
+   * Secondary text that sits beside bold text. Ink merges adjacent styles and
+   * SGR 22 ends bold and dim together, so dim beside bold bleeds into it;
+   * a color does not.
+   */
+  muted: string
   panel: PanelColors
   tone: Record<MessageTone, string>
 }
@@ -89,14 +109,16 @@ export const UNICODE_GLYPHS: GlyphSet = {
   radioOff: '( )',
   mask: '•',
   pathSeparator: '›',
+  tone: { success: '✓', error: '✗', warn: '▲', info: '●' },
+  section: '◆',
   box: {
-    topLeft: '┌',
+    topLeft: '╭',
     top: '─',
-    topRight: '┐',
+    topRight: '╮',
     right: '│',
-    bottomRight: '┘',
+    bottomRight: '╯',
     bottom: '─',
-    bottomLeft: '└',
+    bottomLeft: '╰',
     left: '│',
   },
 }
@@ -112,6 +134,8 @@ export const ASCII_GLYPHS: GlyphSet = {
   radioOff: '( )',
   mask: '*',
   pathSeparator: '>',
+  tone: { success: '+', error: 'x', warn: '!', info: 'i' },
+  section: '#',
   box: {
     topLeft: '+',
     top: '-',
@@ -164,7 +188,11 @@ export const COLORS: ColorSet = {
   focus: 'cyan',
   selection: { color: 'black', background: 'cyan' },
   heading: 'cyan',
-  frame: 'blue',
+  frame: 'gray',
+  accent: 'cyanBright',
+  side: 'gray',
+  key: 'cyan',
+  muted: 'gray',
   panel: { browse: 'cyan', edit: 'green', decide: 'yellow' },
   tone: {
     success: 'green',

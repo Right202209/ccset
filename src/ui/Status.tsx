@@ -12,6 +12,8 @@ import { sanitizeForTerminal } from '../core/terminal-text.js'
 /** Labels indent under their section title and always keep a blank before the value. */
 const LABEL_INDENT = 2
 const LABEL_GAP = 1
+/** The section glyph and its space, before a section title. */
+const TITLE_LEAD = 2
 /**
  * The most of the Panel's width the label column may take: values are often
  * paths the core user copies, so they keep the larger share.
@@ -140,7 +142,7 @@ function StatusRegion({ plan, labelWidth }: { plan: StatusPlan; labelWidth: numb
 }
 
 type StatusRow =
-  | { kind: 'title'; key: string; text: string }
+  | { kind: 'title'; key: string; text: string; lead: boolean }
   | {
       kind: 'line'
       key: string
@@ -157,10 +159,12 @@ interface RowLayout {
 }
 
 function statusRows(section: StatusSection, { width, labelWidth, fold }: RowLayout): StatusRow[] {
-  const rows: StatusRow[] = wrapLines(fold(sanitizeForTerminal(section.title)), width).map((text, index) => ({
+  const titleWidth = Math.max(1, width - TITLE_LEAD)
+  const rows: StatusRow[] = wrapLines(fold(sanitizeForTerminal(section.title)), titleWidth).map((text, index) => ({
     kind: 'title',
     key: `title:${section.title}:${index}`,
     text,
+    lead: index === 0,
   }))
   const valueWidth = Math.max(1, width - labelWidth)
   for (const line of section.lines) {
@@ -187,10 +191,11 @@ function wrapLines(text: string, width: number): string[] {
 }
 
 function StatusRowView({ row, labelWidth }: { row: StatusRow; labelWidth: number }): React.ReactElement {
-  const { colors, fold } = useTerminal()
+  const { colors, glyphs, fold } = useTerminal()
   if (row.kind === 'title') {
     return (
       <Box height={1} overflow="hidden">
+        <Text color={colors.accent}>{row.lead ? `${glyphs.section} ` : ' '.repeat(TITLE_LEAD)}</Text>
         <Text bold color={colors.heading}>
           {fold(row.text)}
         </Text>
@@ -200,7 +205,7 @@ function StatusRowView({ row, labelWidth }: { row: StatusRow; labelWidth: number
   if (row.kind === 'note') {
     return (
       <Box height={1} overflow="hidden" paddingLeft={LABEL_INDENT}>
-        <Text dimColor wrap="wrap">{fold(row.text)}</Text>
+        <Text dimColor italic wrap="wrap">{fold(row.text)}</Text>
       </Box>
     )
   }

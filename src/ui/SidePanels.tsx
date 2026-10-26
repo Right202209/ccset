@@ -5,8 +5,8 @@ import type { ActionResult, MessageTone, StatusLine } from '../types.js'
 import { t } from '../i18n/index.js'
 import { sanitizeForTerminal } from '../core/terminal-text.js'
 import { SIDEBAR_WIDTH } from './Layout.js'
-import { Panel } from './Panel.js'
-import { useTerminal, type ColorSet } from './terminal.js'
+import { Panel, type LabelSegment } from './Panel.js'
+import { useTerminal, type ColorSet, type GlyphSet } from './terminal.js'
 import { truncateEnd, truncateStart } from './text-fit.js'
 import { planSide, type SidePanelInput } from './side-plan.js'
 import type { GlanceState } from './useGlance.js'
@@ -59,20 +59,30 @@ export function useLastResult(current: ActionResult | undefined): LastResult | n
   return last
 }
 
-function detectionLine(state: SideState, colors: ColorSet): SideLine {
+/** A side Panel's title: the accent, so the eye finds each Panel before reading it. */
+function sideTitle(text: string, colors: ColorSet, color: string = colors.accent): LabelSegment[] {
+  return [{ text, color, bold: true }]
+}
+
+/** A state line led by its tone's glyph: the color is never the only cue. */
+function toned(text: string, tone: MessageTone, colors: ColorSet, glyphs: GlyphSet): SideLine {
+  return { text: `${glyphs.tone[tone]} ${text}`, color: colors.tone[tone] }
+}
+
+function detectionLine(state: SideState, colors: ColorSet, glyphs: GlyphSet): SideLine {
   if (state.agentName === undefined) {
     if (state.found === null) return { text: t('side.checking'), dimColor: true }
     return { text: t('side.agentsFound', { count: state.found }) }
   }
   if (state.detected === null) return { text: t('side.checking'), dimColor: true }
   return state.detected
-    ? { text: t('side.configFound'), color: colors.tone.success }
-    : { text: t('side.configMissing'), color: colors.tone.warn }
+    ? toned(t('side.configFound'), 'success', colors, glyphs)
+    : toned(t('side.configMissing'), 'warn', colors, glyphs)
 }
 
-function resultLines(last: LastResult | null, colors: ColorSet): SideLine[] {
+function resultLines(last: LastResult | null, colors: ColorSet, glyphs: GlyphSet): SideLine[] {
   if (last === null) return [{ text: t('side.noResult'), dimColor: true }]
-  const title: SideLine = { text: last.title, color: colors.tone[last.tone], bold: true }
+  const title: SideLine = { ...toned(last.title, last.tone, colors, glyphs), bold: true }
   return last.line === undefined ? [title] : [title, { text: last.line, dimColor: true }]
 }
 
@@ -142,8 +152,9 @@ interface PanelProps {
 }
 
 function AgentPanel({ state, name, width, fit, rows, colors }: PanelProps & { name: SideLine }): React.ReactElement {
-  const lines = [name, detectionLine(state, colors)]
-  return <Panel width={width} title={[{ text: fit(t('side.agentTitle')) }]} color={colors.panel.browse}>
+  const { glyphs } = useTerminal()
+  const lines = [name, detectionLine(state, colors, glyphs)]
+  return <Panel width={width} title={sideTitle(fit(t('side.agentTitle')), colors)} color={colors.side}>
     {lines.slice(0, rows).map((line, index) => <Line key={index} line={line} fit={fit} />)}
     {rows > 2 && <HomeLine home={state.home} width={width} />}
   </Panel>
@@ -158,7 +169,7 @@ function StatusPanel({ id, title, lines, width, fit, rows, colors }: {
   rows: number
   colors: ColorSet
 }): React.ReactElement {
-  return <Panel width={width} title={[{ text: fit(title) }]} color={colors.panel.browse}>
+  return <Panel width={width} title={sideTitle(fit(title), colors)} color={colors.side}>
     {lines.slice(0, rows).map((line, index) => <StatusLineView key={`${id}:${index}`} line={previewLine(line)} width={width} fit={fit} colors={colors} />)}
   </Panel>
 }
@@ -166,20 +177,23 @@ function StatusPanel({ id, title, lines, width, fit, rows, colors }: {
 function WarningsPanel({ state, width, fit, rows, more, colors }: PanelProps & { more: number }): React.ReactElement {
   const findings = state.glance.findings
   const shown = more > 0 ? findings.slice(0, Math.max(0, rows - 1)) : findings.slice(0, rows)
-  const title = t('side.warningsTitle', { count: warningCount(findings) })
-  return <Panel width={width} title={[{ text: fit(title) }]} color={colors.panel.browse}>
+  const { glyphs } = useTerminal()
+  const count = warningCount(findings)
+  const title = t('side.warningsTitle', { count })
+  return <Panel width={width} title={sideTitle(fit(title), colors, count > 0 ? colors.tone.warn : colors.accent)} color={colors.side}>
     {findings.length === 0
-      ? <Text dimColor>{fit(t('side.noWarnings'))}</Text>
+      ? <Line line={toned(t('side.noWarnings'), 'success', colors, glyphs)} fit={fit} />
       : <>
-          {shown.map((finding, index) => <Line key={index} line={{ text: finding.text, color: colors.tone[finding.tone] }} fit={fit} />)}
+          {shown.map((finding, index) => <Line key={index} line={toned(finding.text, finding.tone, colors, glyphs)} fit={fit} />)}
           {more > 0 && <Text dimColor>{fit(t('side.more', { count: more }))}</Text>}
         </>}
   </Panel>
 }
 
 function ResultPanel({ state, width, fit, rows, colors }: PanelProps): React.ReactElement {
-  return <Panel width={width} title={[{ text: fit(t('side.resultTitle')) }]} color={colors.panel.browse}>
-    {resultLines(state.last, colors).slice(0, rows).map((line, index) => <Line key={index} line={line} fit={fit} />)}
+  const { glyphs } = useTerminal()
+  return <Panel width={width} title={sideTitle(fit(t('side.resultTitle')), colors)} color={colors.side}>
+    {resultLines(state.last, colors, glyphs).slice(0, rows).map((line, index) => <Line key={index} line={line} fit={fit} />)}
   </Panel>
 }
 
@@ -194,10 +208,13 @@ function StatusLineView({ line, width, fit, colors }: {
     const label = `${line.label}: `
     const room = Math.max(1, width - SIDE_CHROME - stringWidth(fold(label)))
     const value = truncateStart(fold(sanitizeForTerminal(line.value)), room, fold('…'))
-    return <Text color={line.tone === undefined ? undefined : colors.tone[line.tone]}>{fold(label)}{value}</Text>
+    return <Text color={line.tone === undefined ? undefined : colors.tone[line.tone]}><Text dimColor>{fold(label)}</Text>{value}</Text>
   }
-  const text = line.value.length === 0 ? line.label : `${line.label}: ${line.value}`
-  return <Text color={line.tone === undefined ? undefined : colors.tone[line.tone]}>{fit(text)}</Text>
+  const text = fit(line.value.length === 0 ? line.label : `${line.label}: ${line.value}`)
+  const cut = line.value.length === 0 ? -1 : text.indexOf(': ')
+  return <Text color={line.tone === undefined ? undefined : colors.tone[line.tone]}>
+    {cut === -1 ? text : <><Text dimColor>{text.slice(0, cut + 2)}</Text>{text.slice(cut + 2)}</>}
+  </Text>
 }
 
 export function DetailStrip({ state, width }: { state: SideState; width: number }): React.ReactElement {
@@ -207,7 +224,7 @@ export function DetailStrip({ state, width }: { state: SideState; width: number 
   const title = t('side.detailsTitle', { count: warningCount(state.glance.findings) })
   const summary = state.glance.summary.map((line) => lineText(previewLine(line))).join(' · ') || t('side.checking')
   const detail = stripDetail(preview, state.glance.findings)
-  return <Panel width={width} title={[{ text: fit(title) }]} color={colors.panel.browse}>
+  return <Panel width={width} title={sideTitle(fit(title), colors)} color={colors.side}>
     <Text>{fit(summary)}</Text>
     <Text color={detail.tone === undefined ? undefined : colors.tone[detail.tone]}>{fit(detail.text)}</Text>
   </Panel>
