@@ -25,7 +25,6 @@ const MAX_COMPLEXITY = 10
 
 const BASELINE: readonly string[] = [
   'src/agents/claude-code/commands.ts:proxyWrites',
-  'src/agents/codex/actions.ts:openProviders',
   'src/agents/codex/status-dto.ts:codexStatusFindings',
   'src/core/toml/value-check.ts:checkBasic',
   'src/core/toml/value-check.ts:checkBare',

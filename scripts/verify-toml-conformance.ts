@@ -133,3 +133,39 @@ export function verifyTomlConformance(): void {
   verifyStrictOracle()
   verifyExistingRepresentations()
 }
+
+/**
+ * Deleting a path that names a table removes the whole section -- the header,
+ * its keys and its sub-tables -- because removing a provider from a document has
+ * to take its table with it. What is not the table's is not ccset's: the comment
+ * above the header, the sibling tables and everything after them stay.
+ */
+export function verifyTableDelete(): void {
+  const doc = '# keep me\n[model.acme]\nbase_url = "https://a/v1"\n\n[model.acme.sub]\nn = 1\n\n[model.other]\nbase_url = "https://b/v1"\n'
+  const out = applyTomlWrites(doc, [{ path: ['model', 'acme'], value: undefined }])
+  assert.equal(out, '# keep me\n\n[model.other]\nbase_url = "https://b/v1"\n', 'a table delete removed the wrong bytes')
+  assert.equal(findTomlProblem(out), null, 'a table delete produced invalid TOML')
+  assert.deepEqual(readTomlObject(out), { model: { other: { base_url: 'https://b/v1' } } })
+  assert.equal(
+    applyTomlWrites(out, [{ path: ['model', 'acme'], value: undefined }]),
+    out,
+    'deleting an absent table changed the document',
+  )
+  // A sub-table reached by its own path goes on its own, leaving its parent.
+  const nested = applyTomlWrites(doc, [{ path: ['model', 'acme', 'sub'], value: undefined }])
+  assert.equal(nested.includes('[model.acme.sub]'), false, 'the sub-table header survived')
+  assert.equal(nested.includes('[model.acme]'), true, 'deleting a sub-table took its parent with it')
+  // A table spelled only with dotted keys has no header to remove; its lines go.
+  const dotted = 'model_providers.router.name = "R"\nmodel_providers.router.base_url = "https://a/v1"\nkeep = 1\n'
+  assert.equal(
+    applyTomlWrites(dotted, [{ path: ['model_providers', 'router'], value: undefined }]),
+    'keep = 1\n',
+    'a dotted-only table was not removed',
+  )
+  // An array of tables is not ccset's to remove, and neither is a comment: the
+  // JSONC Codec keeps every one of them, so a dangling one stays here too.
+  const arrays = '[[x]]\nn = 1\n'
+  assert.equal(applyTomlWrites(arrays, [{ path: ['x'], value: undefined }]), arrays, 'an array of tables was removed')
+  const dangling = '[x]\na = 1\n\n# trailing note\n'
+  assert.equal(applyTomlWrites(dangling, [{ path: ['x'], value: undefined }]), '\n# trailing note\n', 'a comment went with the table')
+}

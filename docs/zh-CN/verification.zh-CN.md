@@ -42,6 +42,7 @@ npm 脚本使用 POSIX shell 语法。PTY fixture 需要 `python3` 及其 POSIX 
 | --- | --- |
 | `npm run verify:global-settings` | Claude Code 受管写入、非受管键保留、代理删除、无操作重存、备份的字节与权限模式 |
 | `npm run verify:provider-safety` | Claude Code 的 provider 保留、激活命令的引号处理、轮换、遮罩、无密钥失败 |
+| `npm run verify:provider-management` | 各 Agent 的提供商删除（文件或共享配置块，兄弟项与注释保留，先备份，不存在时为无操作，Codex 路由拒绝与凭据 sidecar）、ccset 设置文件中的忽略列表，以及遵循该列表的列表与探测 Screen |
 | `npm run verify:write-safety` | 仅创建状态、SIGKILL 下的原子写入、备份完整性、权限失败 |
 | `npm run verify:opencode` | Global/provider 语义、models 映射按条目合并、JSONC 语料与目标选择、遮罩与备份 |
 | `npm run verify:codex` | TOML 语料、provider 不变量、Auth profile、切换/采纳、恢复失败、Screen 文案解析 |

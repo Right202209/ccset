@@ -13,6 +13,7 @@ export const zhHans: Record<string, string> = {
   'app.detectingAgents': '正在检测本地 Agent…',
   'app.busyConnecting': '正在连接 {host}…',
   'app.busyWriting': '正在写入 {path}…',
+  'app.busyDeleting': '正在删除 {path}…',
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': '退出',
@@ -62,6 +63,18 @@ export const zhHans: Record<string, string> = {
   'action.testDetail': '可选的网络检查',
   'action.providerAdd': '添加提供商',
   'action.providerEdit': '编辑提供商：{name}',
+  'action.providerEditDetail': '修改端点、凭据或模型',
+  'action.providerDelete': '删除此提供商',
+  'action.providerDeleteDetail': '先备份，再从磁盘上移除',
+  'action.providerIgnore': '忽略此提供商',
+  'action.providerIgnoreDetail': '在 ccset 中隐藏它 — 磁盘上不做任何改动',
+  'action.providerUnignore': '不再忽略此提供商',
+  'action.providerUnignoreDetail': '让它重新出现在提供商列表中',
+  'action.showIgnored': '显示被忽略的提供商（{count}）',
+  'action.showIgnoredDetail': '显示出来，以便再次使用或取消忽略',
+  'action.hideIgnored': '隐藏被忽略的提供商',
+  'action.hideIgnoredDetail': '重新把它们收起来',
+  'provider.ignored': '已忽略',
   'action.clearBackups': '清除 ccset 备份',
   'action.clearBackupsDetail': '备份中可能仍存有已轮换的令牌',
 
@@ -131,6 +144,10 @@ export const zhHans: Record<string, string> = {
   /* ----------------------------------------------------------------- write */
   'write.globalSaved': '全局设置已保存',
   'write.providerSaved': '提供商已保存',
+  'write.providerDeleted': '提供商已删除',
+  'write.providerIgnored': '已忽略 {name} — ccset 不会再提供它。',
+  'write.providerUnignored': '{name} 已重新提供。',
+  'write.nothingRemoved': '没有删除任何内容 — 它已经不在了。',
   'write.path': '路径：{path}',
   'write.mode': '权限：{mode}',
   'write.backup': '备份：{path}',
@@ -141,6 +158,10 @@ export const zhHans: Record<string, string> = {
   /* --------------------------------------------------------------- confirm */
   'confirm.clear': '删除这些备份',
   'confirm.clearBackups': '这将永久删除所有 ccset 备份，包括你可能还需要的设置副本。',
+  'confirm.delete': '删除',
+  'confirm.deleteProvider': '这会删除 {name}（{path}）。ccset 会先做备份。',
+  'confirm.providerIgnore': 'ccset 将不再提供 {name}。配置仍留在磁盘上，其 Agent 也照常读取。',
+  'confirm.providerUnignore': 'ccset 将重新提供 {name}。',
   'confirm.send': '发送请求',
   'confirm.testHost': '目标主机：{host}',
   'confirm.testToken': '发送的令牌：{token}',

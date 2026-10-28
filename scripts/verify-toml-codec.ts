@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { applyTomlWrites, findTomlProblem, readTomlObject } from '../src/core/toml/index.js'
 import type { JsonObject } from '../src/types.js'
-import { verifyTomlConformance } from './verify-toml-conformance.js'
+import { verifyTableDelete, verifyTomlConformance } from './verify-toml-conformance.js'
 
 /**
  * The codec, on its own. Not a gate with an npm script: it runs inside
@@ -114,6 +114,7 @@ function verifyInsertPlacement(): void {
 }
 
 function verifyDelete(): void {
+  verifyTableDelete()
   const src = '[t]\nkeep = 1\ndrop = 2  # goes with the key\nalso = 3\n'
   const out = applyTomlWrites(src, [{ path: ['t', 'drop'], value: undefined }])
   assert.equal(out, '[t]\nkeep = 1\nalso = 3\n', 'a delete removed the wrong bytes')

@@ -12,6 +12,7 @@ export const en: Record<string, string> = {
   'app.detectingAgents': 'Detecting local agents…',
   'app.busyConnecting': 'Connecting to {host}…',
   'app.busyWriting': 'Writing {path}…',
+  'app.busyDeleting': 'Deleting {path}…',
 
   /* ------------------------------------------------------------------ menu */
   'menu.exit': 'Exit',
@@ -61,6 +62,18 @@ export const en: Record<string, string> = {
   'action.testDetail': 'Opt-in network check',
   'action.providerAdd': 'Add a provider',
   'action.providerEdit': 'Edit provider: {name}',
+  'action.providerEditDetail': 'Change its endpoint, credential or model',
+  'action.providerDelete': 'Delete this provider',
+  'action.providerDeleteDetail': 'Remove it from disk, after a backup',
+  'action.providerIgnore': 'Ignore this provider',
+  'action.providerIgnoreDetail': 'Hide it from ccset — nothing on disk changes',
+  'action.providerUnignore': 'Stop ignoring this provider',
+  'action.providerUnignoreDetail': 'Offer it in the provider list again',
+  'action.showIgnored': 'Show ignored providers ({count})',
+  'action.showIgnoredDetail': 'Revealed so they can be used or un-ignored again',
+  'action.hideIgnored': 'Hide ignored providers',
+  'action.hideIgnoredDetail': 'Keep them out of the way again',
+  'provider.ignored': 'ignored',
   'action.clearBackups': 'Clear ccset backups',
   'action.clearBackupsDetail': 'Backups can still hold a rotated token',
 
@@ -130,6 +143,10 @@ export const en: Record<string, string> = {
   /* ----------------------------------------------------------------- write */
   'write.globalSaved': 'Global settings saved',
   'write.providerSaved': 'Provider saved',
+  'write.providerDeleted': 'Provider deleted',
+  'write.providerIgnored': 'Ignored {name} — ccset will not offer it.',
+  'write.providerUnignored': '{name} is offered again.',
+  'write.nothingRemoved': 'Nothing was removed — it is already gone.',
   'write.path': 'Path:   {path}',
   'write.mode': 'Mode:   {mode}',
   'write.backup': 'Backup: {path}',
@@ -140,6 +157,10 @@ export const en: Record<string, string> = {
   /* --------------------------------------------------------------- confirm */
   'confirm.clear': 'Delete the backups',
   'confirm.clearBackups': 'This permanently deletes every ccset backup, including copies of settings you may still want.',
+  'confirm.delete': 'Delete it',
+  'confirm.deleteProvider': 'This deletes {name} ({path}). ccset backs it up first.',
+  'confirm.providerIgnore': 'ccset will stop offering {name}. The configuration stays on disk, and its Agent keeps reading it.',
+  'confirm.providerUnignore': 'ccset will offer {name} again.',
   'confirm.send': 'Send the request',
   'confirm.testHost': 'Destination host: {host}',
   'confirm.testToken': 'Token sent:      {token}',

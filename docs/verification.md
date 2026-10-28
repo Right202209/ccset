@@ -58,6 +58,7 @@ is shared between a TUI save and a Non-interactive command.
 | --- | --- |
 | `npm run verify:global-settings` | Claude Code managed writes, unmanaged-key preservation, proxy deletion, no-op re-save, backup bytes and modes |
 | `npm run verify:provider-safety` | Claude Code provider preservation, activation command quoting, rotation, masking, secret-free failures |
+| `npm run verify:provider-management` | Provider deletion per Agent (file or shared block, siblings and comments preserved, backup taken, no-op when absent, Codex routing refusal and credential sidecar), the ignore list in ccset's settings file, and the list and probe Screens that honor it |
 | `npm run verify:write-safety` | Create-only state and adoption publication races, atomic writes under SIGKILL, backup integrity, permission failures |
 | `npm run verify:opencode` | Global/provider semantics, per-key models merging, JSONC corpus and target selection, masking and backups |
 | `npm run verify:codex` | TOML corpus, provider invariants, Auth profiles, switching/adoption, recovery failures, screen string resolution |

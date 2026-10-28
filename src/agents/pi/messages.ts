@@ -8,7 +8,7 @@ export const piMessages: Record<string, Record<string, string>> = {
   en: {
     /* --------------------------------------------------------- action detail */
     'pi.action.globalDetail': 'Startup defaults in ~/.pi/agent/settings.json',
-    'pi.action.providersDetail': 'Add or edit a provider block in ~/.pi/agent/models.json',
+    'pi.action.providersDetail': 'Add, edit or delete a provider block in ~/.pi/agent/models.json',
     'pi.action.providerAddDetail': 'Add a provider block',
 
     /* ---------------------------------------------------------------- fields */
@@ -87,7 +87,7 @@ export const piMessages: Record<string, Record<string, string>> = {
   'zh-Hans': {
     /* --------------------------------------------------------- action detail */
     'pi.action.globalDetail': '~/.pi/agent/settings.json 中的启动默认项',
-    'pi.action.providersDetail': '在 ~/.pi/agent/models.json 中添加或编辑提供商配置块',
+    'pi.action.providersDetail': '在 ~/.pi/agent/models.json 中添加、编辑或删除提供商配置块',
     'pi.action.providerAddDetail': '添加提供商配置块',
 
     /* ---------------------------------------------------------------- fields */

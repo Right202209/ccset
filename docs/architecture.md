@@ -57,9 +57,11 @@ Shared file-safety helpers live under `src/core/`:
 | `backup.ts` | Backups and per-file rotation in the directory supplied by the Agent |
 | `config-file.ts` | Read, check, render, and write through the selected Codec |
 | `save.ts` | Translate save errors into TUI recovery/confirmation Screens and success messages |
+| `remove.ts` | Delete one managed path through the same plan/apply core, or delete a file after backing it up |
+| `provider-actions.ts` | The provider-management Screens every Agent shares: the list that hides ignored providers, and one provider's screen with edit, ignore and delete |
 | `mask.ts`, `errors.ts` | Secret-safe display and typed errors with message keys and exit codes |
 | `values.ts`, `validate.ts` | Shared coercions and validator factories; Agent policy stays with the Agent |
-| `paths.ts`, `settings.ts` | Shared home/backup helpers and ccset's own locale preference file |
+| `paths.ts`, `settings.ts` | Shared home/backup helpers and ccset's own settings document: the locale preference and the ignored providers |
 
 `ConfigFile.codec` selects `json`, `jsonc`, or `toml`. `LoadedConfig` carries
 both parsed data and original text. JSON can be rendered from the merged object;

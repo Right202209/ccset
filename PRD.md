@@ -91,6 +91,9 @@ Not served in v1: unattended/scripted deployment (see §5.6 and Milestone 3).
    actually removes the proxy variables from the file.
 5. As a user whose provider just broke, I run a connection test from inside ccset
    and learn whether the endpoint or the token is at fault.
+6. As a user who has finished with a provider, I delete it from its own screen —
+   after a backup — or ignore it so ccset stops offering it without touching the
+   file the Agent reads.
 
 ---
 
@@ -111,7 +114,7 @@ Main menu (generated from the registry, §4.3):
 | Entry | Notes |
 | --- | --- |
 | Global settings | Edit `~/.claude/settings.json` |
-| Providers | List / add / edit `~/.claude/settings.<name>.json` |
+| Providers | List / add / edit / ignore / delete `~/.claude/settings.<name>.json` |
 | Status | Read-only view of everything on disk (§4.2.4) |
 | Test connection | Opt-in network check (§4.2.6) |
 | Exit | |
@@ -286,6 +289,29 @@ Malformed network config warns but does not block saving. A failed agent module 
 a warning and the remaining agents still load.
 
 ---
+
+### 4.5 Deleting and ignoring providers (all Agents)
+
+Every provider in the **Providers** list opens a screen of its own with
+**Edit**, **Ignore** and **Delete**.
+
+**Delete** removes ccset's configuration for that provider and nothing else: for
+Claude Code the provider's own `settings.<name>.json`, and for opencode, Codex,
+pi and Grok Build that provider's block inside the shared configuration document,
+removed through the same format-preserving codec as every other write, so the
+sibling providers, the comments and the formatting survive. A backup is taken
+first, in the Agent's `backups/ccset/` directory. A Codex delete also removes the
+provider's saved credential sidecar, and is refused while `model_provider` names
+the provider, because Codex does not start on routing that names no table. Delete
+is interactive only: the Non-interactive command tree excludes destructive
+maintenance until it has a safety contract of its own (ADR 0007).
+
+**Ignore** hides a provider from ccset without changing anything the Agent reads.
+The note is ccset's own, recorded in `<home>/.ccset/settings.json` keyed by Agent
+id (ADR 0019). An ignored provider leaves the Providers list and stops being a
+Test-connection target; the list keeps a row that reveals the ignored providers,
+and a revealed provider's screen offers **Stop ignoring**. No managed key of any
+Agent configuration is written to express it.
 
 ## 5. Non-Functional Requirements
 

@@ -13,9 +13,20 @@ import { runSave } from '../../core/save.js'
 import { t } from '../../i18n/index.js'
 import { seedSettings, seedSettingsFromDisk, saveSettings } from './settings.js'
 import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
-import { loadProviders, saveProvider, seedProvider, type ProviderRecord } from './providers.js'
+import {
+  loadProviders,
+  removeProvider,
+  saveProvider,
+  seedProvider,
+  type ProviderRecord,
+} from './providers.js'
 import { backupsDir, modelsFile, settingsFile } from './paths.js'
 import { buildStatus } from './status.js'
+import { providerListScreen, providerManageScreen } from '../../core/provider-actions.js'
+import { readIgnoredProviders, setProviderIgnored } from '../../core/settings.js'
+
+/** The id the ignore list is keyed by; the registry owns the same id. */
+const AGENT_ID = 'pi'
 
 /* -------------------------------------------------------------- settings */
 
@@ -87,8 +98,29 @@ function providerDetail(record: ProviderRecord): string {
     .join(' · ')
 }
 
-async function openProviders(ctx: Ctx): Promise<ActionResult> {
-  const list = await loadProviders(ctx)
+/** One provider's own screen: edit it, ignore it, or delete it. */
+async function openProvider(ctx: Ctx, id: string, targetPath: string): Promise<ActionResult> {
+  const ignored = (await readIgnoredProviders(ctx.home, AGENT_ID)).includes(id)
+  return providerManageScreen({
+    id,
+    edit: {
+      id: 'edit',
+      label: t('action.providerEdit', { name: id }),
+      detail: t('action.providerEditDetail'),
+      run: async () => openProviderForm(ctx, id),
+    },
+    targetPath,
+    remove: () => removeProvider(ctx, id),
+    ignored,
+    setIgnored: (value) => setProviderIgnored(ctx.home, AGENT_ID, id, value),
+  })
+}
+
+async function openProviders(ctx: Ctx, showIgnored = false): Promise<ActionResult> {
+  const [list, ignored] = await Promise.all([
+    loadProviders(ctx),
+    readIgnoredProviders(ctx.home, AGENT_ID),
+  ])
   if (!list.parsed) {
     return {
       kind: 'message',
@@ -101,28 +133,29 @@ async function openProviders(ctx: Ctx): Promise<ActionResult> {
       tone: 'error',
     }
   }
-  const items: ListItem[] = [
-    {
-      id: '__add__',
-      label: t('action.providerAdd'),
-      detail: t('pi.action.providerAddDetail'),
-      run: async () => openProviderForm(ctx, ''),
-    },
-    ...list.records.map((record) => ({
+  return providerListScreen({
+    title: t('action.providers'),
+    empty: t('pi.status.noProviders'),
+    leading: [
+      {
+        id: '__add__',
+        label: t('action.providerAdd'),
+        detail: t('pi.action.providerAddDetail'),
+        run: async () => openProviderForm(ctx, ''),
+      },
+    ],
+    entries: list.records.map((record) => ({
       id: record.id,
       label: record.id,
       detail: providerDetail(record),
       preview: providerPreview(record, list.path),
       tone: record.problemKey === undefined ? undefined : ('warn' as const),
-      run: async () => openProviderForm(ctx, record.id),
+      run: async () => openProvider(ctx, record.id, list.path),
     })),
-  ]
-  return {
-    kind: 'list',
-    title: t('action.providers'),
-    empty: t('pi.status.noProviders'),
-    items,
-  }
+    ignored,
+    showIgnored,
+    reopen: (next) => openProviders(ctx, next),
+  })
 }
 
 function providerPreview(record: ProviderRecord, path: string): StatusLine[] {

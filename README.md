@@ -63,6 +63,13 @@ ccset --agent claude-code
   saved default per session. ccset honours `GROK_HOME` when using your real
   home directory.
 
+Providers are managed from the **Providers** list, where each one has a screen of
+its own: **Edit**, **Ignore** and **Delete**. Deleting removes just that
+provider — its file, or its block in the shared document — after taking a
+backup; ignoring hides it from ccset without writing anything to the Agent's
+configuration, and the list keeps a row that reveals and un-ignores it. Deleting
+is interactive only: the command line carries no destructive maintenance.
+
 See the [agent configuration guide](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#agent-configuration)
 for file selection, Codex credential handling, and environment constraints.
 

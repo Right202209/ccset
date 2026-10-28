@@ -104,8 +104,7 @@ async function verifyMouseClicks(): Promise<void> {
   const mouseHome = await fs.mkdtemp(path.join(os.tmpdir(), `${HOME_PREFIX}mouse-`))
   await writeJson(globalSettingsPath(mouseHome), {})
   await writeJson(providerSettingsPath(mouseHome, 'demo'), {
-    env: { ANTHROPIC_BASE_URL: 'https://demo.example/v1', ANTHROPIC_AUTH_TOKEN: SENTINEL },
-    model: 'demo-model',
+    env: { ANTHROPIC_BASE_URL: 'https://demo.example/v1', ANTHROPIC_AUTH_TOKEN: SENTINEL }, model: 'demo-model',
   })
   await writeJson(claudeStatePath(mouseHome), {})
   const before = await snapshot(mouseHome)
@@ -118,6 +117,8 @@ async function verifyMouseClicks(): Promise<void> {
     await clickText(active, '2. Providers', true)
     await active.waitFor(t('action.providerAdd'))
     await clickText(active, '2. demo')
+    await active.waitFor(t('action.providerDelete')) // the provider's own Screen
+    await clickText(active, `1. ${t('action.providerEdit', { name: 'demo' })}`) // row 1 is Edit
     const paint = await active.waitFor(t('field.providerName'))
     assert.ok(paint.includes('https://demo.example/v1'), `A mouse-opened provider omitted its URL:\n${paint}`)
     assertNoSecret(active.paints())

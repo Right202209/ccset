@@ -147,3 +147,9 @@ _避免_: Terminal capability, detected locale
 ccset 自己拥有的 `<home>/.ccset/settings.json` 文档，包含带版本号的界面语言偏好。它与
 每一个 Agent 配置和备份都相互独立。
 _避免_: Agent config, backup
+
+**Ignored provider（被忽略的提供商）**:
+磁盘上仍然存在、但核心用户已告知 ccset 不要再提供的提供商。该记录保存在 ccset
+自己的设置文件中，以 Agent id 为键；它不会被写入任何 Agent 配置，也不会改变该
+Agent 读取到的内容。
+_避免_: Disabled provider, deleted provider

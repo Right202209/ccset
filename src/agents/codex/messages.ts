@@ -8,7 +8,7 @@ export const codexMessages: Record<string, Record<string, string>> = {
   en: {
     /* --------------------------------------------------------- action detail */
     'codex.action.globalDetail': '~/.codex/config.toml',
-    'codex.action.providersDetail': 'Add, edit or switch to a provider',
+    'codex.action.providersDetail': 'Add, edit, switch to or delete a provider',
     'codex.action.providerAddDetail': 'Add a [model_providers.<id>] table',
     'codex.action.edit': 'Edit settings',
     'codex.action.editDetail': 'Endpoint, key and retry limits',
@@ -82,6 +82,7 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.validate.providerDisplayNameRequired': 'A provider needs a non-empty label (--display-name): Codex refuses a provider without one.',
     'codex.validate.providerTokenRequired':
       'A provider without a saved credential needs a key from CCSET_TOKEN or --token-stdin.',
+    'codex.validate.routedToProvider': 'Codex is routed here. Switch model_provider before deleting.',
     'codex.status.noProfileFor':
       'No saved credential for {id}. Edit the provider and enter its API key first.',
     'codex.status.authTitle': 'Live credential',
@@ -162,7 +163,7 @@ export const codexMessages: Record<string, Record<string, string>> = {
   'zh-Hans': {
     /* --------------------------------------------------------- action detail */
     'codex.action.globalDetail': '~/.codex/config.toml',
-    'codex.action.providersDetail': '添加、编辑或切换提供商',
+    'codex.action.providersDetail': '添加、编辑、切换或删除提供商',
     'codex.action.providerAddDetail': '添加 [model_providers.<id>] 表',
     'codex.action.edit': '编辑设置',
     'codex.action.editDetail': '端点、密钥与重试限制',
@@ -222,13 +223,13 @@ export const codexMessages: Record<string, Record<string, string>> = {
     'codex.status.credentialSource': '{keys} 的优先级高于 auth.json，已保存的凭据会被忽略。',
     'codex.warning.noBaseUrl': 'Provider {name} 没有设置 base_url。',
     'codex.warning.noAmbientAuth': 'Provider {name} 未设置 requires_openai_auth，因此 Codex 不会为它读取 auth.json。',
-    'codex.warning.keyringStore':
-      'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；已保存的凭据配置不会生效。',
+    'codex.warning.keyringStore': 'Codex 把凭据保存在操作系统钥匙串中，不会读取 auth.json；已保存的凭据配置不会生效。',
     'codex.warning.homeOverride':
       '已设置 CODEX_HOME 为 {path}；Codex 从那里读取配置，而 ccset 写入的是本次运行指定的主目录。',
     'codex.validate.providerBaseUrlRequired': '新建 provider 需要 --base-url。',
     'codex.validate.providerDisplayNameRequired': 'provider 需要非空标签（--display-name）：Codex 拒绝没有名称的提供商。',
     'codex.validate.providerTokenRequired': '没有已保存凭据的 provider 需要 CCSET_TOKEN 或 --token-stdin 提供的密钥。',
+    'codex.validate.routedToProvider': 'Codex 当前路由到该提供商。请先切换 model_provider 再删除。',
     'codex.status.noProfileFor': '{id} 没有已保存的凭据。请先编辑该提供商并填入它的 API 密钥。',
     'codex.status.authTitle': '当前凭据',
     'codex.status.authMode': '认证方式',

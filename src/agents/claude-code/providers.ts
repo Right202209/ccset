@@ -2,6 +2,7 @@ import type { Ctx, FormValues, JsonObject, WriteReport } from '../../types.js'
 import { ValidationError, JsonParseError } from '../../core/errors.js'
 import { jsonFile, readJsonFile } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath, type ManagedWrite } from '../../core/merge.js'
+import { removeFile, type RemovalReport } from '../../core/remove.js'
 import { commitOne, readPatchBase } from '../../operations/commit.js'
 import {
   activationCommand,
@@ -123,4 +124,16 @@ async function loadProvider(name: string, filePath: string): Promise<ProviderRec
 export async function loadProviders(ctx: Ctx): Promise<ProviderRecord[]> {
   const refs = await listProviderFiles(ctx.home)
   return Promise.all(refs.map((ref) => loadProvider(ref.name, ref.path)))
+}
+
+/**
+ * Deletes a provider file, after backing it up. Nothing parses the file first:
+ * a provider ccset cannot read is exactly the one the core user may want gone,
+ * and a whole-file delete has no managed keys to merge.
+ */
+export async function removeProvider(ctx: Ctx, name: string): Promise<RemovalReport> {
+  const problem = validateProviderName(name)
+  if (problem !== null) throw new ValidationError(problem, { name })
+  const record = await removeFile(backupsDir(ctx.home), providerSettingsPath(ctx.home, name))
+  return { changed: record.changed, targets: [record] }
 }

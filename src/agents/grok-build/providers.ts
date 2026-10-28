@@ -3,6 +3,7 @@ import { readConfigFile } from '../../core/config-file.js'
 import { ConfigParseError } from '../../core/errors.js'
 import { isPlainObject } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath, type ManagedWrite } from '../../core/merge.js'
+import { removeConfigPath, type RemovalReport } from '../../core/remove.js'
 import { commitOne, readPatchBase } from '../../operations/commit.js'
 import { jsonToText, textOrUndefined, withDefaults } from '../../core/values.js'
 import { ValidationError } from '../../core/errors.js'
@@ -159,4 +160,17 @@ export async function loadProviders(ctx: Ctx): Promise<ProviderList> {
       problemDetail: err instanceof ConfigParseError ? err.params['position'] : undefined,
     }
   }
+}
+
+/**
+ * Deletes one [model.<id>] table. The TOML codec removes the table's own span,
+ * so the comments and keys around it survive, and the document is backed up
+ * before the removal lands.
+ */
+export async function removeProvider(ctx: Ctx, id: string): Promise<RemovalReport> {
+  const problem = validateProviderId(id)
+  if (problem !== null) throw new ValidationError(problem, { name: id })
+  const file = configFile(ctx.home)
+  const record = await removeConfigPath(file, providerPath(id), backupsDir(ctx.home))
+  return { changed: record.changed, targets: [record] }
 }

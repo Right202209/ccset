@@ -7,6 +7,7 @@ import {
   getPath,
   type ManagedWrite,
 } from '../../core/merge.js'
+import { removeConfigPath, type RemovalReport } from '../../core/remove.js'
 import { commitOne, readPatchBase } from '../../operations/commit.js'
 import { csvOrUndefined, jsonToText, textOrUndefined, withDefaults } from '../../core/values.js'
 import { JsonParseError, ValidationError } from '../../core/errors.js'
@@ -239,4 +240,17 @@ export async function loadProviders(ctx: Ctx): Promise<ProviderList> {
       problemDetail: err instanceof JsonParseError ? err.params['position'] : undefined,
     }
   }
+}
+
+/**
+ * Deletes one provider block. The JSONC codec removes the property from the
+ * original text, so every sibling block, comment and blank line survives, and
+ * the document is backed up before the removal lands.
+ */
+export async function removeProvider(ctx: Ctx, id: string): Promise<RemovalReport> {
+  const problem = validateProviderId(id)
+  if (problem !== null) throw new ValidationError(problem, { name: id })
+  const file = modelsFile(ctx.home)
+  const record = await removeConfigPath(file, providerPath(id), backupsDir(ctx.home))
+  return { changed: record.changed, targets: [record] }
 }

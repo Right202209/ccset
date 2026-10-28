@@ -9,7 +9,7 @@ export const grokBuildMessages: Record<string, Record<string, string>> = {
     /* --------------------------------------------------------- action detail */
     'grokBuild.action.globalDetail': 'Default model in ~/.grok/config.toml',
     'grokBuild.action.providersDetail':
-      'Add or edit a [model.<id>] block in ~/.grok/config.toml',
+      'Add, edit or delete a [model.<id>] block in ~/.grok/config.toml',
     'grokBuild.action.providerAddDetail': 'Add a custom model block',
 
     /* ---------------------------------------------------------------- fields */
@@ -66,7 +66,7 @@ export const grokBuildMessages: Record<string, Record<string, string>> = {
   'zh-Hans': {
     /* --------------------------------------------------------- action detail */
     'grokBuild.action.globalDetail': '~/.grok/config.toml 中的默认模型',
-    'grokBuild.action.providersDetail': '在 ~/.grok/config.toml 中添加或编辑 [model.<id>] 配置块',
+    'grokBuild.action.providersDetail': '在 ~/.grok/config.toml 中添加、编辑或删除 [model.<id>] 配置块',
     'grokBuild.action.providerAddDetail': '添加自定义模型配置块',
 
     /* ---------------------------------------------------------------- fields */

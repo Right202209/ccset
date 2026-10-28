@@ -3178,3 +3178,59 @@ The current npm trusted-publishing documentation notes that new connections
 may allow staged publishing only. No fallback token was introduced. A
 temporary one-stage wizard at `/tmp/ccset-npm-publisher-wizard.sh` was checked
 with `bash -n`; it opens npm settings and collects no secrets.
+
+### 9.71 Deleting and ignoring providers (2026-10-28)
+
+Providers could be added and edited but never removed, and every provider ccset
+found was offered, including ones the user had finished with. Each provider now
+opens a Screen of its own -- Edit, Ignore, Delete -- for all five Agents.
+Deleting removes the Claude Code provider file whole, a file ccset cannot parse
+included, or one block of a shared document through the format-preserving codec
+for opencode, Codex, pi and Grok Build, always after a backup; a provider that
+is already gone is a no-op rather than a rewrite. A Codex delete also removes
+the provider's `auth.<id>.json` sidecar -- credential first, mirroring the save
+order -- and is refused while `model_provider` names that provider. Ignoring is
+ccset's own note in `<home>/.ccset/settings.json` under `ignoredProviders`,
+keyed by Agent id: the provider leaves the Providers list and stops being a
+Test-connection target, the list keeps a row that reveals it and un-ignores it,
+and no Agent configuration is written to express it. The Non-interactive command
+tree is unchanged, because ADR 0007 keeps destructive maintenance out until it
+has its own safety contract; ADR 0019 records both decisions.
+
+The TOML Codec could delete a key's line but not a table, so deleting a Codex or
+Grok Build provider reported success while writing nothing. `deleteTomlPath` now
+removes a table's whole section -- header, keys and sub-tables -- and stops at
+the section's last own line, so a comment or blank line after it survives, which
+is what the JSONC Codec already does when it removes a property. Writing stays in
+`core/toml/edit.ts`; the deletion half moved to `core/toml/remove.ts` and the
+span rules to `core/toml/table-span.ts`, which also brought the editor back
+inside the 300-line gate. The Codex provider Screen moved to
+`agents/codex/provider-actions.ts` for the same reason, and that removed the
+last code-gate baseline entry this change touched.
+
+**Checks.** Linux x86_64 WSL2, Node.js 26.12.1/npm, zsh: `npm run typecheck`,
+`npm run build`, `git diff --check`, `npm run verify:code-gates` (280 files, 9
+baseline exceptions, one fewer than before), and the complete sequential
+`npm test` all passed, including the new `verify:provider-management`. That
+fixture asserts, on real files in scratch homes, that a delete removes only the
+named provider, keeps its siblings and the document's comments, backs up the
+removed bytes, is a no-op when the provider is absent, refuses a routed Codex
+provider and takes its credential sidecar with it; that the ignore list survives
+a locale change and the locale survives the ignore list, that a broken settings
+document reads as empty, that an ignored provider is hidden from the list and
+from the probe while its file is untouched, and that opening a Screen writes
+nothing. The TOML shape corpus gained table deletion -- sub-tables, dotted-only
+tables, arrays of tables left alone, a dangling comment kept. The UI fixtures
+were extended for the extra Screen: the provider row now opens the provider's
+Screen and row 1 is Edit, in both the keyboard and the mouse drive. Only the
+prose of `docs/adr/0019-*.md` changed after this suite ran.
+
+**Not verified here.** Manual runs in a real terminal, macOS and Windows
+terminals, remote CI, and live Provider requests were not performed. An
+independent code-review agent was started twice for this change and failed both
+times on a provider rate limit, so no independent review is recorded; the review
+performed here covered the removal paths for over-deletion, the credential
+handling and sidecar ordering, `ListItem.run()` purity, ignore-state isolation
+from Agent configuration, TOML deletion edges (last table, CRLF, header plus
+dotted keys, parent tables, inline tables, dangling comments), and `en`/`zh-Hans`
+key and placeholder parity.

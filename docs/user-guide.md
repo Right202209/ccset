@@ -230,6 +230,36 @@ one row shorter than the terminal, so earlier terminal output stays in the
 scrollback. Set `CCSET_ASCII=1`
 if your terminal cannot draw the box characters.
 
+## Deleting and ignoring providers
+
+Each provider in the **Providers** list has a screen of its own: **Edit**,
+**Ignore** and **Delete**. Both new verbs work for every Agent.
+
+Deleting removes what ccset manages for that provider and nothing else. For
+Claude Code it deletes the provider's own `settings.<name>.json` — even if the
+file no longer parses, which is often why it is being removed. For opencode,
+Codex, pi and Grok Build it removes that provider's block from the shared
+configuration document, through the same format-preserving edit as every other
+write, so the other providers, the comments and the formatting stay as they
+were. A backup is taken first, in the `backups/ccset/` directory beside that
+Agent's config, and it still holds the credential — **Clear ccset backups** is
+what removes those copies.
+
+Deleting a Codex provider deletes its saved credential sidecar too, and ccset
+refuses while `model_provider` names that provider: Codex does not start when
+its routing names a provider table that is not there.
+
+Ignoring is a note in ccset's own settings file, `~/.ccset/settings.json`. It
+hides the provider from the Providers list and from **Test connection**, and
+changes nothing on disk: the Agent keeps reading that configuration exactly as
+before. While any provider is ignored the list carries a row that reveals them,
+marked `ignored`, and a revealed provider's screen offers **Stop ignoring**.
+
+Neither verb is on the command line. Deleting is destructive maintenance, which
+the non-interactive contract keeps out until it has a safety contract of its own
+(ADR 0007); ignoring is state ccset keeps for its own interface, so it has no
+place in a script that configures an Agent.
+
 ## What it will not do to your files
 
 - **Unmanaged keys survive.** ccset owns a fixed list of keys. `hooks`,

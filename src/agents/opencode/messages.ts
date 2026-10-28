@@ -9,7 +9,7 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     /* --------------------------------------------------------- action detail */
     'opencode.action.globalDetail':
       '~/.config/opencode/opencode.jsonc when it exists, else opencode.json',
-    'opencode.action.providersDetail': 'Add or edit a provider block in that file',
+    'opencode.action.providersDetail': 'Add, edit or delete a provider block in that file',
     'opencode.action.providerAddDetail': 'Add a provider block',
 
     /* ---------------------------------------------------------------- fields */
@@ -73,7 +73,7 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
     /* --------------------------------------------------------- action detail */
     'opencode.action.globalDetail':
       '~/.config/opencode/opencode.jsonc（若存在），否则为 opencode.json',
-    'opencode.action.providersDetail': '在该文件中添加或编辑提供商配置块',
+    'opencode.action.providersDetail': '在该文件中添加、编辑或删除提供商配置块',
     'opencode.action.providerAddDetail': '添加提供商配置块',
 
     /* ---------------------------------------------------------------- fields */

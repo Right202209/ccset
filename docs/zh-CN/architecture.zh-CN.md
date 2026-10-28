@@ -29,9 +29,11 @@ TUI 表单映射与命令补丁映射保持分离。TUI 中留空的字段可以
 | `backup.ts` | 在 Agent 提供的目录中备份并按文件轮换 |
 | `config-file.ts` | 通过所选 Codec 读取、检查、渲染并写入 |
 | `save.ts` | 把保存错误转换为 TUI 的恢复/确认 Screen 与成功消息 |
+| `remove.ts` | 通过同一套 plan/apply 核心删除一个受管路径，或先备份再删除整个文件 |
+| `provider-actions.ts` | 所有 Agent 共享的提供商管理 Screen：隐藏被忽略提供商的列表，以及单个提供商的编辑/忽略/删除界面 |
 | `mask.ts`、`errors.ts` | 不泄露密钥的显示，以及带消息键与退出码的类型化错误 |
 | `values.ts`、`validate.ts` | 共享的强制转换与校验器工厂；Agent 策略留在 Agent 内 |
-| `paths.ts`、`settings.ts` | 共享的主目录/备份辅助函数，以及 ccset 自己的界面语言偏好文件 |
+| `paths.ts`、`settings.ts` | 共享的主目录/备份辅助函数，以及 ccset 自己的设置文档：界面语言偏好与被忽略的提供商 |
 
 `ConfigFile.codec` 选择 `json`、`jsonc` 或 `toml`。`LoadedConfig` 同时携带解析后的数据与原始文本。JSON 可以从合并后的对象渲染；TOML 和 JSONC 则编辑原文区间，以保留注释、空白和键顺序。对这些格式而言，空的写入列表必须做到逐字节一致，受管编辑必须不碰无关字节。
 

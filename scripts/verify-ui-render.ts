@@ -77,7 +77,11 @@ async function assertBusyLabelsAreSpecificAndSecretFree(home: string): Promise<v
   const providersScreen = await providersAction.run({ home })
   assert.equal(providersScreen.kind, 'list')
   if (providersScreen.kind !== 'list') return
-  const providerScreen = await providersScreen.items.find((item) => item.id === PROVIDER)?.run()
+  // A provider row opens the provider's own Screen first; Edit is its row 1.
+  const providerMenu = await providersScreen.items.find((item) => item.id === PROVIDER)?.run()
+  assert.equal(providerMenu?.kind, 'list')
+  if (providerMenu?.kind !== 'list') return
+  const providerScreen = await providerMenu.items.find((item) => item.id === 'edit')?.run()
   assert.equal(providerScreen?.kind, 'form')
   if (providerScreen?.kind !== 'form') return
   const providerBusy = providerScreen.busyLabel?.(providerScreen.values) ?? ''
@@ -141,8 +145,13 @@ async function driveProviderList(session: UiSession): Promise<void> {
   assertPainted(paint, first, 'The provider list does not focus row 1')
 }
 
+/** Row 1 of the provider's own Screen is Edit, which opens the review form. */
 async function driveProviderForm(session: UiSession): Promise<void> {
   await session.send(LIST_PROVIDER_ROW)
+  const providerScreen = await session.waitFor(t('action.providerDelete'))
+  session.assertSingleFocus(providerScreen, 'provider screen')
+  assertPainted(providerScreen, `${session.focusedRow('1.')} ${t('action.providerEdit', { name: PROVIDER })}`, 'The provider screen does not focus Edit')
+  await session.send(ENTER)
   const paint = await session.waitFor(t('action.providerEdit', { name: PROVIDER }))
   session.assertSingleFocus(paint, 'review form')
   assertPainted(paint, session.focusedRow(t('field.providerName')), 'The form does not focus row 1')
@@ -159,6 +168,8 @@ async function driveTokenEditor(session: UiSession, terminal: Terminal): Promise
 }
 
 async function driveStatus(session: UiSession): Promise<void> {
+  await session.send(ESC)
+  await session.waitFor(t('action.providerDelete'))
   await session.send(ESC)
   await session.waitFor(t('claudeCode.action.providerAddDetail'))
   await session.send(ESC)

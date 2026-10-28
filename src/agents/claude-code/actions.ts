@@ -1,24 +1,19 @@
-import type {
-  Action,
-  ActionResult,
-  Ctx,
-  FieldSpec,
-  FormValues,
-  ListItem,
-  StatusLine,
-} from '../../types.js'
+import type { Action, ActionResult, Ctx, FormValues, ListItem } from '../../types.js'
 import { clearBackups } from '../../core/backup.js'
 import { readJsonFile } from '../../core/json-file.js'
-import { maskSecret } from '../../core/mask.js'
-import { backupsDir, globalSettingsPath, providerSettingsPath } from './paths.js'
+import { runSave } from '../../core/save.js'
 import { t } from '../../i18n/index.js'
 import { seedGlobal, seedGlobalFromDisk, saveGlobal } from './global.js'
-import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
-import { loadProviders, saveProvider, seedProvider, type ProviderRecord } from './providers.js'
-import { runSave } from '../../core/save.js'
+import { GLOBAL_FIELDS } from './manifest.js'
+import { backupsDir, globalSettingsPath } from './paths.js'
+import { openProviders, openTest } from './provider-actions.js'
 import { buildStatus } from './status.js'
 import { createStateIfMissing } from './state.js'
-import { probeEndpoint, probeHost, warnsPlaintextHttp } from './test-connection.js'
+
+/**
+ * Claude Code's menu: its global settings file, the provider Screens that live
+ * in provider-actions.ts, Status, and the opt-in probe.
+ */
 
 /* -------------------------------------------------------------- global */
 
@@ -39,93 +34,6 @@ async function openGlobal(ctx: Ctx): Promise<ActionResult> {
         t('app.busyWriting', { path: globalSettingsPath(ctx.home) }),
       ),
   }
-}
-
-/* ------------------------------------------------------------ providers */
-
-/** Renaming would orphan the old file, so the name is fixed once written. */
-function providerFields(isNew: boolean): FieldSpec[] {
-  if (isNew) return PROVIDER_FIELDS
-  return PROVIDER_FIELDS.map((field) =>
-    field.id === 'name' ? { ...field, readOnly: true } : field,
-  )
-}
-
-function providerForm(ctx: Ctx, record: ProviderRecord | null): ActionResult {
-  const isNew = record === null
-  const values = isNew ? seedProvider({}, '') : seedProvider(record.data, record.name)
-  return {
-    kind: 'form',
-    title: isNew ? t('action.providerAdd') : t('action.providerEdit', { name: record.name }),
-    fields: providerFields(isNew),
-    values,
-    baseline: { ...values },
-    notes: [t('claudeCode.note.providerPath'), t('note.preserved')],
-    busyLabel: (next) =>
-      t('app.busyWriting', {
-        path: providerSettingsPath(ctx.home, String(next['name'] ?? '').trim()),
-      }),
-    submit: async (next: FormValues) =>
-      runSave(
-        'write.providerSaved',
-        (fresh) => saveProvider(ctx, next, fresh),
-        t('app.busyWriting', {
-          path: providerSettingsPath(ctx.home, String(next['name'] ?? '').trim()),
-        }),
-      ),
-  }
-}
-
-function providerDetail(record: ProviderRecord): string {
-  if (!record.parsed) return t('status.unreadable')
-  if (record.baseUrl.length === 0) return t('claudeCode.status.noBaseUrl')
-  return record.baseUrl
-}
-
-function providerItem(ctx: Ctx, record: ProviderRecord): ListItem {
-  return {
-    id: record.name,
-    label: record.name,
-    detail: providerDetail(record),
-    preview: providerPreview(record),
-    tone: record.parsed ? undefined : 'error',
-    run: async () =>
-      record.parsed
-        ? providerForm(ctx, record)
-        : {
-            kind: 'message',
-            title: t('status.providerTitle', { name: record.name }),
-            lines: [
-              record.path,
-              t(record.problemKey ?? 'status.readError', { detail: record.problemDetail ?? '' }),
-              t('note.fixByHand'),
-            ],
-            tone: 'error',
-          },
-  }
-}
-
-function providerPreview(record: ProviderRecord): StatusLine[] {
-  return [
-    { label: t('status.path'), value: record.path },
-    { label: t('field.baseUrl'), value: record.baseUrl || t('status.unset') },
-    { label: t('field.providerModel'), value: record.model || t('status.unset') },
-    { label: t('field.token'), value: t(record.token.length > 0 ? 'status.yes' : 'status.no') },
-  ]
-}
-
-async function openProviders(ctx: Ctx): Promise<ActionResult> {
-  const records = await loadProviders(ctx)
-  const items: ListItem[] = [
-    {
-      id: '__add__',
-      label: t('action.providerAdd'),
-      detail: t('claudeCode.action.providerAddDetail'),
-      run: async () => providerForm(ctx, null),
-    },
-    ...records.map((record) => providerItem(ctx, record)),
-  ]
-  return { kind: 'list', title: t('action.providers'), empty: t('claudeCode.status.noProviders'), items }
 }
 
 /* --------------------------------------------------------------- status */
@@ -151,16 +59,6 @@ function createStateItem(ctx: Ctx): ListItem {
   }
 }
 
-async function clearBackupsResult(ctx: Ctx): Promise<ActionResult> {
-  const removed = await clearBackups(backupsDir(ctx.home))
-  return {
-    kind: 'message',
-    title: t('action.clearBackups'),
-    lines: [t('write.backupsCleared', { count: removed })],
-    tone: 'success',
-  }
-}
-
 function clearBackupsItem(ctx: Ctx): ListItem {
   return {
     id: 'clear-backups',
@@ -171,7 +69,12 @@ function clearBackupsItem(ctx: Ctx): ListItem {
       title: t('action.clearBackups'),
       lines: [t('confirm.clearBackups')],
       confirmLabel: t('confirm.clear'),
-      confirm: () => clearBackupsResult(ctx),
+      confirm: async () => ({
+        kind: 'message',
+        title: t('action.clearBackups'),
+        lines: [t('write.backupsCleared', { count: await clearBackups(backupsDir(ctx.home)) })],
+        tone: 'success',
+      }),
     }),
   }
 }
@@ -190,61 +93,6 @@ async function openStatus(ctx: Ctx): Promise<ActionResult> {
     title: t('action.status'),
     sections: data.sections,
     items: statusItems(ctx, data.state.exists),
-  }
-}
-
-/* ------------------------------------------------------ test connection */
-
-function probeConfirm(record: ProviderRecord): ActionResult {
-  return {
-    kind: 'confirm',
-    title: t('action.test'),
-    lines: [
-      t('confirm.testHost', { host: probeHost(record.baseUrl) }),
-      t('confirm.testToken', { token: maskSecret(record.token) }),
-      t('confirm.testWarning'),
-      ...(warnsPlaintextHttp(record.baseUrl) ? [t('confirm.testPlaintext')] : []),
-    ],
-    confirmLabel: t('confirm.send'),
-    busyLabel: t('app.busyConnecting', { host: probeHost(record.baseUrl) }),
-    confirm: async () => {
-      const result = await probeEndpoint(record)
-      return {
-        kind: 'message',
-        title: t('action.test'),
-        lines: [
-          t('probe.host', { host: result.host }),
-          t('probe.status', { status: result.status === null ? '-' : String(result.status) }),
-          t(result.key),
-          t('probe.noBody'),
-        ],
-        tone: result.ok ? 'success' : 'error',
-      }
-    },
-  }
-}
-
-async function openTest(ctx: Ctx): Promise<ActionResult> {
-  const usable = (await loadProviders(ctx)).filter(
-    (record) => record.parsed && record.baseUrl.length > 0,
-  )
-  if (usable.length === 0) {
-    return {
-      kind: 'message',
-      title: t('action.test'),
-      lines: [t('probe.noTargets')],
-      tone: 'info',
-    }
-  }
-  return {
-    kind: 'list',
-    title: t('action.test'),
-    items: usable.map((record) => ({
-      id: record.name,
-      label: record.name,
-      detail: record.baseUrl,
-      run: async () => probeConfirm(record),
-    })),
   }
 }
 

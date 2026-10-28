@@ -11,7 +11,7 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
   en: {
     /* --------------------------------------------------------- action detail */
     'claudeCode.action.globalDetail': '~/.claude/settings.json',
-    'claudeCode.action.providersDetail': 'Add or edit settings.<name>.json',
+    'claudeCode.action.providersDetail': 'Add, edit or delete settings.<name>.json',
     'claudeCode.action.providerAddDetail': 'Create a new settings.<name>.json',
     'claudeCode.action.createState': 'Create ~/.claude.json',
     'claudeCode.action.createStateDetail':
@@ -79,7 +79,7 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
   'zh-Hans': {
     /* --------------------------------------------------------- action detail */
     'claudeCode.action.globalDetail': '~/.claude/settings.json',
-    'claudeCode.action.providersDetail': '添加或编辑 settings.<name>.json',
+    'claudeCode.action.providersDetail': '添加、编辑或删除 settings.<name>.json',
     'claudeCode.action.providerAddDetail': '新建 settings.<name>.json',
     'claudeCode.action.createState': '创建 ~/.claude.json',
     'claudeCode.action.createStateDetail': '仅当文件不存在时 — ccset 绝不重写此文件',

@@ -9,9 +9,12 @@ import { scanKeyPath, scanToml, scanValue, skipSpace, type TomlDoc, type TomlEnt
 /**
  * Applies the manifest to a TOML document by editing its text, not by rebuilding
  * it. Setting a key replaces the span its value occupies; adding one inserts a
- * single line; deleting one removes a single line. Every comment, blank line and
- * key ordering outside those spans is copied through byte for byte, which is how
- * "unmanaged keys survive" holds for a format that carries all three (ADR 0003).
+ * single line; deleting one removes a single line, and deleting a path that
+ * names a table removes that table's whole section -- its header, its keys and
+ * its sub-tables -- because a provider removed from a document has to take its
+ * table with it. Every comment, blank line and key ordering outside those spans
+ * is copied through byte for byte, which is how "unmanaged keys survive" holds
+ * for a format that carries all three (ADR 0003).
  *
  * Each write re-scans. Documents are a few kilobytes and the alternative --
  * tracking how every earlier edit shifted every later offset -- is the kind of
@@ -31,7 +34,8 @@ function pathKey(path: string[]): string {
 }
 
 /** Latest definition wins, matching how the reader resolves a repeated key. */
-function findEntry(doc: TomlDoc, path: string[]): TomlEntry | undefined {
+/** Exported for the deletion module: one editing contract, two halves. */
+export function findEntry(doc: TomlDoc, path: string[]): TomlEntry | undefined {
   const key = pathKey(path)
   let found: TomlEntry | undefined
   for (const entry of doc.entries) {
@@ -112,7 +116,7 @@ function appendTable(text: string, path: string[], value: JsonValue): string {
 /* ------------------------------------------------- existing representations */
 
 /** The deepest entry on the target's ancestor chain written as an inline table. */
-function findInlineAncestor(text: string, doc: TomlDoc, path: string[]): TomlEntry | undefined {
+export function findInlineAncestor(text: string, doc: TomlDoc, path: string[]): TomlEntry | undefined {
   let best: TomlEntry | undefined
   for (const entry of doc.entries) {
     if (entry.inArray || !isPrefix(entry.path, path)) continue
@@ -165,7 +169,7 @@ function inlinePairs(text: string, entry: TomlEntry): InlinePair[] | null {
   }
 }
 
-function inlinePathExists(text: string, entry: TomlEntry, path: string[]): boolean {
+export function inlinePathExists(text: string, entry: TomlEntry, path: string[]): boolean {
   let current: JsonValue = parseTomlValue(text.slice(entry.valueStart, entry.valueEnd))
   for (const key of path.slice(entry.path.length)) {
     if (!isPlainObject(current) || !Object.prototype.hasOwnProperty.call(current, key)) return false
@@ -183,7 +187,7 @@ function inlinePathExists(text: string, entry: TomlEntry, path: string[]): boole
  * nothing to spell out, so the assignment is dropped and the insert recreates
  * the table in header form.
  */
-function convertInlineToDotted(text: string, doc: TomlDoc, entry: TomlEntry): string {
+export function convertInlineToDotted(text: string, doc: TomlDoc, entry: TomlEntry): string {
   const pairs = inlinePairs(text, entry)
   // null is the walk giving up, so the line stays as it is; only a genuinely
   // empty inline table is dropped for the insert to recreate as a header.
@@ -255,36 +259,4 @@ export function setTomlPath(text: string, path: string[], value: JsonValue): str
     if (dotted !== null) return insertAt(current, dotted.offset, formatTomlLine(dotted.keys, value))
     return appendTable(current, path, value)
   }
-}
-
-/**
- * Removes the key's whole line, a trailing comment on it included -- that
- * comment describes the key that is going. An emptied table header is left
- * behind: ccset did not write it, so removing it is not its call.
- */
-export function deleteTomlPath(text: string, path: string[]): string {
-  let current = text
-  for (;;) {
-    const doc = scanToml(current)
-    const entry = findEntry(doc, path)
-    if (entry !== undefined) {
-      return `${current.slice(0, entry.lineStart)}${current.slice(entry.lineEnd)}`
-    }
-    const inline = findInlineAncestor(current, doc, path)
-    if (inline === undefined || !inlinePathExists(current, inline, path)) return current
-    const expanded = convertInlineToDotted(current, doc, inline)
-    if (expanded === current) return current
-    current = expanded
-  }
-}
-
-export function applyTomlWrites(text: string, writes: ManagedWrite[]): string {
-  let current = text
-  for (const write of writes) {
-    current =
-      write.value === undefined
-        ? deleteTomlPath(current, write.path)
-        : setTomlPath(current, write.path, write.value)
-  }
-  return current
 }

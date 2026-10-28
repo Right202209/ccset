@@ -1,8 +1,16 @@
 import type { Ctx, FormValues, JsonObject, JsonValue, WriteReport } from '../../types.js'
 import { configFile, readConfigFile } from '../../core/config-file.js'
-import { CcsetError, EXIT_RUNTIME, ConfigParseError, ValidationError } from '../../core/errors.js'
+import {
+  CcsetError,
+  EXIT_RUNTIME,
+  ConfigParseError,
+  PartialCommitError,
+  ValidationError,
+  toCcsetError,
+} from '../../core/errors.js'
 import { isPlainObject } from '../../core/json-file.js'
 import { countUnmanagedKeys, getPath, type ManagedWrite } from '../../core/merge.js'
+import { removeConfigPath, removeFile, type RemovalReport } from '../../core/remove.js'
 import { applyPlan, planTargets, readPatchBase } from '../../operations/commit.js'
 import { intOrUndefined, jsonToText, textOrUndefined, withDefaults } from '../../core/values.js'
 import { t } from '../../i18n/index.js'
@@ -11,6 +19,7 @@ import { CREDENTIAL_SOURCE_KEYS, REQUIRES_OPENAI_AUTH, WIRE_API_RESPONSES } from
 import { codexConfigFile } from './global.js'
 import {
   INTEGER_FIELD_IDS,
+  MODEL_PROVIDER_PATH,
   PROVIDER_DEFAULTS,
   PROVIDER_KEYS,
   PROVIDER_ROOT,
@@ -236,5 +245,32 @@ export async function loadProviders(ctx: Ctx): Promise<ProviderList> {
       problemKey: err instanceof ConfigParseError ? 'status.parseErrorToml' : 'status.readError',
       problemDetail: err instanceof ConfigParseError ? err.params['position'] : undefined,
     }
+  }
+}
+
+/**
+ * Deletes a provider: its saved credential first, then the table. That order is
+ * the mirror of the save's -- a failure leaves a credential-less table rather
+ * than a live key for a provider that no longer exists.
+ *
+ * Routing is a precondition, not a warning: Codex fails to start when
+ * `model_provider` names no table, so the core user switches first.
+ */
+export async function removeProvider(ctx: Ctx, id: string): Promise<RemovalReport> {
+  const problem = validateProviderId(id)
+  if (problem !== null) throw new ValidationError(problem, { name: id })
+  const file = codexConfigFile(ctx.home)
+  const base = await readConfigFile(file)
+  if (jsonToText(getPath(base.data, MODEL_PROVIDER_PATH)) === id) {
+    throw new ValidationError('codex.validate.routedToProvider', { id })
+  }
+  const profile = await removeFile(backupsDir(ctx.home), authProfilePath(ctx.home, id))
+  try {
+    const table = await removeConfigPath(file, providerPath(id), backupsDir(ctx.home))
+    return { changed: profile.changed || table.changed, targets: [profile, table] }
+  } catch (err) {
+    // The credential is already gone, so the failure has to say what landed.
+    if (profile.changed) throw new PartialCommitError([profile], toCcsetError(err))
+    throw err
   }
 }

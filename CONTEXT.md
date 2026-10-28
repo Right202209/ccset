@@ -167,3 +167,9 @@ _Avoid_: Terminal capability, detected locale
 The ccset-owned `<home>/.ccset/settings.json` document containing the versioned
 locale preference. It is separate from every Agent configuration and backup.
 _Avoid_: Agent config, backup
+
+**Ignored provider**:
+A provider on disk that the core user has told ccset not to offer. The note lives
+in ccset's own settings document, keyed by Agent id; it is never written into an
+Agent configuration and does not change what that Agent reads.
+_Avoid_: Disabled provider, deleted provider

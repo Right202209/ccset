@@ -1,30 +1,16 @@
-import type {
-  Action,
-  ActionResult,
-  Ctx,
-  FieldSpec,
-  FormValues,
-  ListItem,
-  StatusLine,
-  MessageTone,
-} from '../../types.js'
+import type { Action, ActionResult, Ctx, FormValues, ListItem } from '../../types.js'
 import { clearBackups } from '../../core/backup.js'
 import { readConfigFile } from '../../core/config-file.js'
 import { runSave } from '../../core/save.js'
 import { t } from '../../i18n/index.js'
-import { openActivate, openRestore } from './activate.js'
-import {
-  listAuthProfiles,
-  loadAdoptedRouting,
-  removeAuthProfile,
-  type AdoptedRouting,
-  type AuthProfile,
-} from './auth.js'
 import { codexConfigFile, saveGlobal, seedGlobal, seedGlobalFromDisk } from './global.js'
-import { GLOBAL_FIELDS, PROVIDER_FIELDS } from './manifest.js'
-import { loadProviders, saveProvider, seedProvider, type ProviderRecord } from './providers.js'
+import { GLOBAL_FIELDS } from './manifest.js'
 import { backupsDir } from './paths.js'
+import { openProviders } from './provider-actions.js'
 import { buildStatus } from './status.js'
+
+/** Codex's menu: config.toml's global keys, the provider Screens that live in
+ *  provider-actions.ts, and Status. */
 
 /* -------------------------------------------------------------- global */
 
@@ -43,185 +29,6 @@ async function openGlobal(ctx: Ctx): Promise<ActionResult> {
     submit: async (values: FormValues) =>
       runSave('write.globalSaved', (fresh) => saveGlobal(ctx, values, fresh), busy),
   }
-}
-
-/* ------------------------------------------------------------ providers */
-
-/** Renaming would leave the old table behind, so the id is fixed once written. */
-function providerFields(isNew: boolean): FieldSpec[] {
-  if (isNew) return PROVIDER_FIELDS
-  return PROVIDER_FIELDS.map((field) => (field.id === 'id' ? { ...field, readOnly: true } : field))
-}
-
-function providerForm(ctx: Ctx, values: FormValues, isNew: boolean): ActionResult {
-  const file = codexConfigFile(ctx.home)
-  const busy = t('app.busyWriting', { path: file.path })
-  return {
-    kind: 'form',
-    title: isNew
-      ? t('action.providerAdd')
-      : t('action.providerEdit', { name: String(values['id'] ?? '') }),
-    fields: providerFields(isNew),
-    values,
-    baseline: { ...values },
-    notes: [
-      t('codex.note.configPath', { path: file.path }),
-      t('codex.note.keyGoesToProfile'),
-      t('codex.note.wireApi'),
-    ],
-    busyLabel: () => busy,
-    submit: async (next: FormValues) =>
-      runSave('write.providerSaved', (fresh) => saveProvider(ctx, next, fresh), busy),
-  }
-}
-
-async function openProviderForm(ctx: Ctx, id: string): Promise<ActionResult> {
-  const [loaded, profiles] = await Promise.all([
-    readConfigFile(codexConfigFile(ctx.home)),
-    listAuthProfiles(ctx),
-  ])
-  const saved = profiles.find((profile) => profile.name === id)
-  return providerForm(ctx, seedProvider(loaded.data, id, saved?.apiKey ?? ''), id.length === 0)
-}
-
-/**
- * Removing the sidecar leaves the provider block alone: the block is settings
- * the user may still want, the sidecar is a credential they asked to be rid of.
- */
-function removeProfileItem(ctx: Ctx, id: string): ListItem {
-  return {
-    id: 'remove-profile',
-    label: t('codex.action.removeProfile'),
-    detail: t('codex.action.removeProfileDetail'),
-    run: async () => ({
-      kind: 'confirm',
-      title: t('codex.action.removeProfile'),
-      lines: [t('codex.confirm.removeProfile', { id })],
-      confirmLabel: t('codex.confirm.remove'),
-      confirm: async () => ({
-        kind: 'message',
-        title: t('codex.action.removeProfile'),
-        lines: [
-          (await removeAuthProfile(ctx, id))
-            ? t('codex.write.profileRemoved', { id })
-            : t('codex.write.profileAbsent', { id }),
-          t('status.backupsNote'),
-        ],
-        tone: 'success',
-      }),
-    }),
-  }
-}
-
-/** One provider's own screen: edit it, switch to it, or drop its credential. */
-async function openProvider(ctx: Ctx, id: string): Promise<ActionResult> {
-  const profiles = await listAuthProfiles(ctx)
-  const items: ListItem[] = [
-    {
-      id: 'edit',
-      label: t('codex.action.edit'),
-      detail: t('codex.action.editDetail'),
-      run: async () => openProviderForm(ctx, id),
-    },
-    {
-      id: 'use',
-      label: t('codex.action.use', { id }),
-      detail: t('codex.action.useDetail'),
-      run: async () => openActivate(ctx, id),
-    },
-  ]
-  if (profiles.some((profile) => profile.name === id)) items.push(removeProfileItem(ctx, id))
-  return { kind: 'list', title: t('status.providerTitle', { name: id }), items }
-}
-
-function providerDetail(record: ProviderRecord): string {
-  if (record.problemKey !== undefined) return t(record.problemKey)
-  return record.baseUrl
-}
-
-/**
- * A sidecar whose name matches no provider table is a login ccset adopted (or
- * one copied by hand). The adopt screen calls it a switchable profile, so it
- * is listed here with the routing it restores to -- otherwise the promise has
- * no path anywhere in the app.
- */
-function restoreDetail(
-  profile: AuthProfile,
-  routing: AdoptedRouting,
-): { detail: string; tone: MessageTone | undefined } {
-  if (!profile.readable) return { detail: t('status.unreadable'), tone: 'error' }
-  const recorded = routing[profile.name]
-  return {
-    detail:
-      typeof recorded === 'string' && recorded.length > 0
-        ? t('codex.detail.adoptedRouting', { route: recorded })
-        : t('codex.detail.adoptedUnset'),
-    tone: undefined,
-  }
-}
-
-async function openProviders(ctx: Ctx): Promise<ActionResult> {
-  const [list, profiles, routing] = await Promise.all([
-    loadProviders(ctx),
-    listAuthProfiles(ctx),
-    loadAdoptedRouting(ctx),
-  ])
-  if (!list.parsed) {
-    return {
-      kind: 'message',
-      title: t('action.providers'),
-      lines: [
-        list.path,
-        t(list.problemKey ?? 'status.readError', { detail: list.problemDetail ?? '' }),
-        t('note.fixByHand'),
-      ],
-      tone: 'error',
-    }
-  }
-  const known = new Set(list.records.map((record) => record.id))
-  const adopted = profiles.filter((profile) => !known.has(profile.name))
-  const items: ListItem[] = [
-    {
-      id: '__add__',
-      label: t('action.providerAdd'),
-      detail: t('codex.action.providerAddDetail'),
-      run: async () => openProviderForm(ctx, ''),
-    },
-    ...list.records.map((record) => ({
-      id: record.id,
-      label: record.id,
-      detail: providerDetail(record),
-      preview: providerPreview(record, profiles, list.path),
-      tone: record.problemKey === undefined ? undefined : ('warn' as const),
-      run: async () => openProvider(ctx, record.id),
-    })),
-    ...adopted.map((profile) => {
-      const shown = restoreDetail(profile, routing)
-      return {
-        id: profile.name,
-        label: profile.name,
-        detail: shown.detail,
-        tone: shown.tone,
-        run: async () => openRestore(ctx, profile.name),
-      }
-    }),
-  ]
-  return {
-    kind: 'list',
-    title: t('action.providers'),
-    empty: t('codex.status.noProviders'),
-    items,
-  }
-}
-
-function providerPreview(record: ProviderRecord, profiles: AuthProfile[], path: string): StatusLine[] {
-  const profile = profiles.find((item) => item.name === record.id)
-  return [
-    { label: t('status.path'), value: path },
-    { label: t('field.baseUrl'), value: record.baseUrl || t('status.unset') },
-    { label: t('codex.field.wireApi'), value: record.wireApi || t('status.unset') },
-    { label: t('codex.field.apiKey'), value: t(profile?.apiKey ? 'status.yes' : 'status.no') },
-  ]
 }
 
 /* --------------------------------------------------------------- status */
