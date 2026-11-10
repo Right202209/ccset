@@ -3234,3 +3234,43 @@ handling and sidecar ordering, `ListItem.run()` purity, ignore-state isolation
 from Agent configuration, TOML deletion edges (last table, CRLF, header plus
 dotted keys, parent tables, inline tables, dangling comments), and `en`/`zh-Hans`
 key and placeholder parity.
+
+### 9.72 README demo and quick-start checks (2026-11-10)
+
+The English and Chinese READMEs now follow introduction, demo, Quick Start,
+core features, and FAQ. The demo at `docs/media/ccset-demo.gif` comes from
+the real Ink App through `scripts/ui-session.ts`, with a 100-column,
+28-row Viewport, English, and `NO_COLOR=1`. A temporary capture driver
+opened Claude Code's Providers list, added `demo`, entered
+`https://api.example.com`, a fictional credential, and `demo-model`, then
+pressed Ctrl+S. Assertions checked the saved provider file and confirmed
+that no Rendered paint contained the credential or the local user's home
+path. Every read and write used a newly created scratch home, removed after
+capture; no real Agent configuration or Provider request was involved.
+
+FFmpeg rendered the 33 captured paints into a 15.2-second, 1160 × 670 GIF
+(155,735 bytes). The random scratch-directory suffix was replaced with
+`sample` at the same width. All published frame text was checked for personal
+paths, usernames, and the unmasked fictional credential; the GIF has no
+format metadata. The README also links to the GIF for the website viewer,
+whose existing Markdown sanitizer excludes inline media under ADR 0015.
+This is a component-driven demonstration, not a real-terminal smoke check.
+
+**Runtime checks.** Linux x64, Node.js 26.13.0, zsh: root `npm run build`
+passed. The built CLI ran both README examples with a scratch `CCSET_HOME`:
+`node dist/cli.js --agent claude-code status --json` returned a successful
+JSON envelope, and `node dist/cli.js --agent opencode global set --model
+example/model --dry-run` exited successfully. Neither created files or
+backups. The UI capture's save assertions passed after correcting the
+driver's expected menu label to the catalog's “Add a provider”.
+
+From `pages/`, `npm run typecheck`, `npm test` (76 tests), `npm run build`,
+and `npm run smoke` passed. The first website test run failed because the
+search fixture expected the old Chinese phrase “文件与密钥安全”; retaining
+that phrase in the FAQ's safety link restored the existing search behavior.
+The first smoke attempt could not bind localhost inside the sandbox (EPERM);
+the permitted rerun passed all routes, assets, and gzip-budget checks.
+
+No runtime source changed. The full root fixture suite, fresh npm install,
+desktop/mobile browser checks, other platforms, and live Provider requests
+were not run for this documentation change.

@@ -1,221 +1,92 @@
 # ccset
 
-[English](README.md) | 中文说明
+在同一个终端界面或脚本化 CLI 中，为 **Claude Code、opencode、Codex CLI、pi 和 Grok Build** 配置第三方 API 提供商。
 
-一个用于正确写入编程 Agent 设置文件的终端界面工具，也是一条可脚本化的命令行。
+简体中文 · [English](https://github.com/Right202209/ccset/blob/master/README.md) · [文档网站](https://right202209.github.io/ccset/)
 
-文档与指南也有配套网站：[right202209.github.io/ccset](https://right202209.github.io/ccset/)（英文/简体中文）。
+## 动图演示
 
-将编程 Agent 指向第三方 API 端点时，手动编辑 JSON 容易因字段名拼写错误而导致配置静默失效。ccset 会生成和编辑这些文件，并显示磁盘上已有的配置。
+![ccset 演示：添加 Claude Code 提供商，填写示例配置并保存](https://raw.githubusercontent.com/Right202209/ccset/master/docs/media/ccset-demo.gif)
 
-目前支持五个 Agent：**Claude Code**、**opencode**、**Codex CLI**、**pi** 和 **Grok Build**。ccset 会询问你要配置哪一个，但只列出本机检测到的 Agent（只检测到一个时直接进入）；也可以用 `--agent <id>` 指定（包括本机尚无配置文件的 Agent），或无界面地执行单条命令——见 [命令行](#cli)。
+[查看动图](https://github.com/Right202209/ccset/blob/master/docs/media/ccset-demo.gif)。使用隔离临时目录和虚构配置，从实际界面采集；不含个人配置，也未向真实 API 发送请求。
 
-**ccset 只生成配置，不会启用配置。** 对 Claude Code，启用时请运行 `claude --settings <path>`，每次成功写入后 ccset 都会打印该命令。opencode、Codex、pi 和 Grok Build 在启动时自行读取配置文件，无需启用命令——ccset 会如实说明，而不是编造一条命令。
+## 一键安装 / Quick Start
+
+需要 **Node.js 18+**。无需全局安装，直接运行：
 
 ```bash
 npx @droite/ccset
 ```
 
-终端宽度至少为 100 列且高度至少为 16 行时，侧栏会显示本地配置摘要、
-警告、光标所在行的预览和最近结果。宽度为 80–99 列且高度至少为 20 行时，
-会改用两行的详情条；窄于 80 列时隐藏这些信息。凭据只显示为已设置或未设置。
+1. 首次启动时选择英文或简体中文，再选择 Agent。列表只显示本机检测到的 Agent；只有一个时会直接进入。
+2. 进入**提供商 → 添加提供商**，填写提供商 ID、API 地址和凭据。具体字段因 Agent 而异。
+3. 检查表单，按 **Ctrl+S** 保存，再按下表中对应 Agent 的方式启用。
 
-要求 Node.js 18 或更高版本。支持 macOS 和 Linux；Windows 为尽力支持。
+方向键移动，**Enter** 选择，**Esc** 返回。
 
-ccset 是尽力维护的开源项目，并非托管服务。仅支持 npm 上的最新版本。平台与维护边界见
-[支持政策](https://github.com/Right202209/ccset/blob/master/SUPPORT.md)，报告安全问题前请阅读
-[安全政策](https://github.com/Right202209/ccset/blob/master/SECURITY.md)。
-
-## 功能
-
-提供商在**提供商**列表中管理，每一项都有自己的界面：**编辑**、**忽略**和**删除**。删除只移除该提供商本身 —— 它的文件，或共享文档中的那个配置块 —— 并在删除前先备份；忽略只是在 ccset 中隐藏它，不会写入 Agent 的任何配置，列表中始终保留一行用于显示并取消忽略。删除仅限交互界面：命令行不提供破坏性维护操作。
-
-### Claude Code
-
-| 菜单项 | 操作对象 |
-| --- | --- |
-| Global settings | `~/.claude/settings.json` |
-| Providers | `~/.claude/settings.<name>.json`，可添加、编辑、查看 |
-| Status | 读取上述文件及 `~/.claude.json`，不会写入 |
-| Test connection | 向选定的提供商发送一次需确认的连接请求 |
-
-### opencode
-
-| 菜单项 | 操作对象 |
-| --- | --- |
-| Global settings | `~/.config/opencode/opencode.jsonc`（若存在），否则为 `~/.config/opencode/opencode.json`：模型、分享、自动更新 |
-| Providers | 同一文件中的 `provider.<id>` 配置块，可添加、编辑、查看 |
-| Status | 读取上述内容，不会写入 |
-
-opencode 将所有 provider 保存在同一个文件中，而不是每个 provider 一个文件，因此编辑某个 provider 只会重写对应的配置块。其中的 `models` 映射按条目合并：磁盘上已有的模型保留自身设置，新增的 id 会被添加，从列表中移除的 id 会被删除。
-
-**当 `opencode.jsonc` 存在时，ccset 写入该文件。** opencode 会同时读取两份配置并按键合并，冲突时以 `.jsonc` 为准——而且全新安装时 opencode 自己就会生成一份 `.jsonc`。这一合并顺序读自 opencode 的源码，尚未通过运行 opencode 证实。因此该文件存在时，它就是 ccset 唯一读写的文件，并且就地编辑：你的注释、键顺序和格式在每次保存后保持不变，与 Codex 的 TOML 就地编辑是同一承诺。只存在 `opencode.json` 时，一切照旧。受管理的 `.jsonc` 旁如有旧的 `opencode.json`，Status 会将其标注为不受管理：它仍会被加载，但两边都设置的键以 `.jsonc` 的值为准。ccset 从不创建 `.jsonc`，也从不改写或删除旧的 `.json`，并且一如既往地忽略 `config.json`。
-
-**真实主目录下会遵循 `XDG_CONFIG_HOME`。** 设置了该变量时 opencode 读取 `$XDG_CONFIG_HOME/opencode`，ccset 也随之读写同一位置。通过 `CCSET_HOME` 指向其他主目录的运行不受环境变量影响，始终使用该主目录自己的 `.config/opencode`。
-
-opencode 没有 Test connection：自定义 provider 的通信协议取决于你指定的 SDK 包，因此不存在 ccset 能够如实探测的单一端点。
-
-### Codex CLI
-
-| 菜单项 | 操作对象 |
-| --- | --- |
-| Global settings | `~/.codex/config.toml`：模型、provider、推理强度、审批策略、沙箱模式 |
-| Providers | 同一文件中的 `[model_providers.<id>]` 表，以及每个 provider 各自保存的凭据，可添加、编辑、切换 |
-| Status | 读取上述内容及 `~/.codex/auth.json`，不会写入 |
-
-Codex 的配置格式是 TOML，不是 JSON。ccset **就地修改** `config.toml`，而不是重新生成：设置某个键时只替换它的值，新增时插入一行，移除时删除一行；你的注释、空行、对齐和键顺序会逐字节保留。
-
-**API Key 不会写入 `config.toml`，因为 Codex 不从那里读取它。** ccset 会把它保存到 `~/.codex/auth.<id>.json`（权限 `0600`），并在 provider 表中写入 `requires_openai_auth = true`——正是这一项让 Codex 使用该凭据。选择 **Use this provider** 后，ccset 会把保存的凭据复制到 `~/.codex/auth.json`，同时把 `model_provider` 指向该表：切换的两个环节一步完成，因为只换凭据会让 Codex 拿着新凭据继续访问旧端点。
-
-如果 `auth.json` 中已有并非 ccset 保存的内容（例如 ChatGPT 登录态，或你手动填写的 Key），ccset 会在替换前请你为它取个名字保存下来，以便日后切换回去。无论是否保存，都会先做备份。切换回去是真实的操作：这个已保存的登录会出现在 **Providers** 列表中，并注明它恢复到哪条路由；选择它即可同时恢复凭据和收养时的 `model_provider`。
-
-CLI 和 TUI 的收养操作都会保存原来的路由，之后可从任一界面同时恢复凭据与路由。如果其他会话抢先创建了同名档案，原文件保持不变，请返回选择其他名称；恢复时若原 Provider 表已被删除，则会拒绝操作。
-
-写入的 provider 表使用 `wire_api = "responses"`——这是当前 Codex 唯一接受的取值，因此端点必须支持 OpenAI Responses API。
-
-**设置了 `env_key` 或 `experimental_bearer_token` 的表会被拒绝保存。** Codex 会先从这些来源读取凭据，轮不到 `auth.json`；把 Key 存进这样的表只会报告成功，而 Codex 仍使用旧来源。请先从表中移除这些键。
-
-**如果 Codex 配置了 `cli_auth_credentials_store = "keyring"`，它就完全不读取 `auth.json`**，而 ccset 无法写入系统密钥链。此时 Status 会如实说明，CLI 和 TUI 都会拒绝切换或恢复凭据；确认时也会重新检查该设置。
-
-**`CODEX_HOME` 只会被提示，不会被采用。** 如果设置了该变量，Codex 会从那里读取配置，而 ccset 仍然写入本次运行所使用的主目录。Status 会指出这一差异，避免写错目录却看起来写入成功。ccset 不会跟随该变量：那会让隔离运行的写入跑到指定目录之外。非交互命令在目录不一致时会在写入前拒绝操作。
-
-Codex 没有 Test connection：ccset 内置的探测请求是 Anthropic 形态的，而 Responses API 端点需要另一种请求，目前没有可靠的探测方式。
-
-### pi
-
-| 菜单项 | 操作对象 |
-| --- | --- |
-| Global settings | `~/.pi/agent/settings.json`：默认提供商、默认模型、默认思考级别 |
-| Providers | `~/.pi/agent/models.json` 中的 `providers.<id>` 配置块，可添加、编辑、查看 |
-| Provider use | 把默认提供商与默认模型写入 `settings.json` |
-| Status | 读取上述内容及 `~/.pi/agent/auth.json`，不会写入 |
-
-pi 把自定义 provider 保存在 `models.json` 中（每个 id 一个配置块），启动默认项则读取 `settings.json`。编辑某个 provider 只会重写对应的配置块。其中的 `models` 数组按成员合并：磁盘上已有的模型保留自身设置（`cost`、`compat`、`headers` 等 ccset 不管理的字段），新增的 id 会以 `{ "id": … }` 追加，从列表中移除的 id 会被删除。不带模型的配置块是有意支持的——用 `anthropic` 这类内置 id 只写 `baseUrl` 正是 pi 文档中让内置提供商走代理的方式。
-
-**`models.json` 就地编辑；`settings.json` 是纯 JSON。** pi 读取 `models.json` 时会自行剥离注释（已从 pi 源码核实），因此该文件可以带注释，ccset 对它使用与 opencode 的 `.jsonc` 相同的格式保留式 JSONC 编辑器：注释、键顺序和格式在每次保存后保持不变。`settings.json` 由 pi 按纯 JSON 解析，因此 ccset 对它重新序列化。
-
-**ccset 把 provider 密钥写入该配置块自己的 `apiKey`。** pi 按其文档顺序解析凭据（CLI 参数、`auth.json`、环境变量、再到 `models.json`），该值原样支持 pi 的取值形式——字面量、`$ENV_VAR` 或 `!command`——因此可以存 `$MY_KEY` 而不是密钥本身。ccset 绝不编辑 `auth.json`：它由 pi 的 `/login` 管理；文件存在时 Status 会如实标注，而不是假装管理它。
-
-**真实主目录下会遵循 `PI_CODING_AGENT_DIR`。** pi 设置了该变量时从这个目录读取配置，ccset 也随之读写同一位置。通过 `CCSET_HOME` 指向其他主目录的运行不受环境变量影响，始终使用该主目录自己的 `.pi/agent`。项目级 `.pi/settings.json` 受 pi 的信任机制管理，ccset 不管理它。
-
-pi 没有 Test connection：`models.json` 的 provider 使用四种 API 类型之一，不存在 ccset 能够如实探测的单一端点。
-
-**`provider use <id>` 会同时写入 `defaultProvider` 与 `defaultModel`**——pi 只有在两者同时设置时才会采用保存的启动默认项。未传 `--model` 时使用该 provider 磁盘条目中的第一个模型；不带模型的配置块（内置覆盖形态）必须显式传 `--model`，因为它的启动模型在 pi 自己的目录中，ccset 不读取。
-
-### Grok Build
-
-| 菜单项 | 操作对象 |
-| --- | --- |
-| Global settings | `~/.grok/config.toml`：默认模型（`models.default`） |
-| Providers | 同一文件中的 `[model.<id>]` 配置块，可添加、编辑、查看 |
-| Status | 读取上述内容及 `~/.grok/auth.json`，不会写入 |
-
-Grok Build 的配置格式是 TOML，与 Codex 一样就地修改：注释、空行、对齐和键顺序在每次保存后逐字节保留。`auth.json` 是 Grok 自己的凭据存储，由 `grok login` 写入；ccset 只在 Status 中说明它，绝不编辑。
-
-一个 provider 对应一个 `[model.<id>]` 表。ccset 管理其中的 `model`（端点收到的模型标识）、`base_url`、`name`、`api_backend`（`chat_completions`、`responses` 或 `messages`）和 `api_key`；表中的其余键——`env_key`、`extra_headers`、`query_params`、采样与窗口数值——全部原样保留。命名一个内置模型的配置块只覆盖你设置的字段，这是 Grok 文档中的内置覆盖方式，因此新建配置块不强制要求 `base_url`；没有 `base_url` 的配置块会在 Status 和命令警告中标注，因为自定义模型没有它就无法连接任何端点。
-
-**Provider use** 只写入 `models.default`：Grok 为每个新会话读取它，`/model` 和 `-m` 仍可按会话覆盖。切换到没有对应 `[model.*]` 块的 id 时会给出警告而不是拒绝，因为该 id 可能是内置模型。Grok 解析凭据的顺序是 `api_key`、`env_key`、登录会话令牌、`XAI_API_KEY`；ccset 保存的密钥以明文写入 `config.toml` 并在所有显示中遮罩。若不想把密钥写进文件，请手工设置不受管理的 `env_key`。
-
-**真实主目录下会遵循 `GROK_HOME`。** 设置了该变量时 Grok 读取 `$GROK_HOME`，ccset 也随之读写同一位置——但仅当 ccset 本身指向真实主目录时。通过 `CCSET_HOME` 指向其他主目录的运行始终使用该主目录自己的 `.grok`，继承的环境变量不会把隔离运行的写入带出临时目录。
-
-Grok Build 同样没有 Test connection：它的三种 API 后端各有自己的请求形态，ccset 内置的 Anthropic 形态探测对哪种都无法如实发送。
-
-方向键移动，`1`-`9` 选择当前窗口内对应编号的可见行，Enter 选择，Esc 返回。长列表会显示当前可见范围和总行数。表单在放弃未保存修改前会请求确认。进入嵌套界面后，标题会显示完整导航路径；终端较窄时仍保留最后两级路径。
-
-## 文件与密钥安全
-
-- 未管理的键会保留，包括 `hooks`、`statusLine`、`permissions`、`enabledPlugins` 及手动设置的环境变量。
-- 只写入叶子节点，绝不整体覆盖其父对象，因此你手动写在被管理对象内部的同级键会被保留。
-- 关闭代理时会删除 `HTTP_PROXY` 和 `HTTPS_PROXY`；空字段会被省略，而不是写入 `null` 或空字符串。
-- 写入前会重新读取文件，写入采用同目录临时文件、权限设置和重命名，保证原子性。
-- POSIX 系统写入文件权限为 `0600`。每次写入前会备份到该 Agent 配置目录下的 `backups/ccset/`：Claude Code 为 `~/.claude/backups/ccset/`，opencode 为 `~/.config/opencode/backups/ccset/`，Codex 为 `~/.codex/backups/ccset/`，pi 为 `~/.pi/agent/backups/ccset/`，Grok Build 为 `~/.grok/backups/ccset/`，最多保留每个文件十份。
-- Token 仅在确认 **Test connection** 后发送，并在界面和错误信息中遮罩显示。备份仍可能包含旧 Token，可从对应 Agent 的 Status 中清除 ccset 备份。备份被中断产生的残缺副本同样保存着正在复制的凭据，Status 会列出并警告，清除 ccset 备份时一并删除。
-- 保存失败不会结束会话：错误以独立屏幕显示，已输入的内容不会丢失，`esc` 返回表单，修正后可重试。
-- 对带注释的格式，注释和排版同样会保留：Codex 与 Grok Build 的 `config.toml`、opencode 的 `opencode.jsonc` 和 pi 的 `models.json` 采用就地修改，注释、空行、对齐和键顺序都完整保留。
-- 无法解析的文件不会被静默覆盖；工具会指明是 JSON 还是 TOML，并提示你备份后重新创建。
-- `~/.codex/auth.json` 只会被整体替换，绝不会被就地编辑：它是 Codex 的活跃凭据，登录和刷新令牌时都会被改写，因此 ccset 只在你明确要求时整文件覆盖。把已有凭据保存为 profile 时是逐字节复制，因此 ccset 不理解的 OAuth 令牌结构也能完整保留。
-
-## CLI
-
-```text
-ccset [--agent <id>]             # 交互式界面
-ccset --agent <id> <command> …   # 单条操作，无界面
-ccset -v | --version | -h | --help
-```
-
-`--agent` 可取 `claude-code`、`opencode`、`codex`、`pi` 或 `grok-build`。不带命令时启动交互式界面；通过管道或在 CI 中运行时会提示并以退出码 `2` 退出，不会向日志输出控制序列。带命令时以无界面方式执行：默认输出面向人的行式报告，加 `--json` 则在 stdout 输出一份 JSON 信封。
-
-### 命令
-
-| Agent | 命令 |
-| --- | --- |
-| `claude-code` | `status` · `global set` · `provider set <id>` · `state init` |
-| `opencode` | `status` · `global set` · `provider set <id>` |
-| `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
-| `pi` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
-| `grok-build` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
-
-`status` 只读取，不写入。各 `set` 命令只修补你给出的字段：省略的字段保留磁盘值，`--unset <field>` 显式删除一项，受管键周围的非受管键逐字节保留——在 Codex 与 Grok Build 的 `config.toml` 中连注释、空行和键顺序一起保留。ccset 写入的任何内容都不会启用提供商：Claude Code 等你运行 `claude --settings`，Codex、pi 和 Grok Build 等你执行 `provider use`，opencode 在启动时自行读取配置。`state init` 在 Claude Code 的 `~/.claude.json` 不存在时创建它，否则原样保留。
-
-各命令共享的选项：
-
-| 选项 | 作用 |
-| --- | --- |
-| `--json` | 在 stdout 输出一份 JSON 信封，代替面向人的行式输出 |
-| `--dry-run` | 读取、校验并计划；不备份，不写入。仅限会更改状态的命令——`status` 会拒绝它 |
-| `--unset <field>` | 显式删除一个字段；绝不隐式推断删除 |
-| `--replace-invalid` | 确认替换已无法解析的目标；先备份无法读取的原文件 |
-| `--token-stdin` | 从 stdin 读取 API 密钥 |
-
-密钥只能通过 `CCSET_TOKEN` 或 `--token-stdin` 进入 ccset——绝不允许作为选项、位置参数或文件，这些都会被拒绝为用法错误——并且只会写进该 provider 自己的目标：Claude Code 的 provider 文件、opencode 对应配置块的 `options.apiKey`、Codex 的 `auth.<id>.json` 旁路文件、pi 对应 `providers` 配置块的 `apiKey`、Grok Build 对应 `[model.<id>]` 表的 `api_key`。它绝不会被打印——不在面向人的输出里，不在 JSON 信封里，也不在错误、警告或备份里。
-
-关于 Codex 的细节：`provider set` 每次保存都会重新断言 `wire_api = "responses"` 与 `requires_openai_auth = true`，并把密钥写入 `auth.<id>.json`——绝不写入 `config.toml`，也绝不碰在用的 `auth.json`。`provider use` 会把指定凭据配置复制为 `auth.json` 并在同一操作中移动 `model_provider`，先提交路由。如果 `auth.json` 中已有不属于任何已保存凭据配置的内容，切换会被拒绝，直到你传且只传 `--adopt-current-as <name>`（把它保存为新的可切换配置）或 `--replace-current-auth`（丢弃——无论如何都会先备份）。这个选择只在需要时才会被问到：如果 `auth.json` 已与某个已保存凭据配置一致，再传 `--adopt-current-as` 会被拒绝——没有任何内容会被替换，也就没有可采纳的对象。
-
-| 退出码 | 含义 |
-| --- | --- |
-| 0 | 成功 |
-| 1 | 运行时错误——被拒绝的操作，或无法如实执行该操作的环境 |
-| 2 | 非 TTY（仅交互模式） |
-| 3 | 目标路径权限不足（会指出路径与所需模式） |
-| 4 | 已有文件无法解析（JSON 或 TOML） |
-| 64 | 用法错误——未知字段或选项、非法值、空补丁 |
-| 65 | 未知 Agent id |
-| 66 | 该 Agent 不支持的命令 |
-
-### 环境变量
-
-| 变量 | 作用 |
-| --- | --- |
-| `CCSET_LOCALE` | 界面语言覆盖。设为 `zh-Hans` 选择简体中文；未设置或其他任何值均为英文。设置该变量时——包括空值与未知值——会抑制首次使用提示，且绝不持久化。没有覆盖时，首次交互运行会询问一次并保存选择；ccset 永远不会探测系统语言环境。 |
-| `CCSET_ASCII=1` | 使用七位 ASCII 界面：装饰字形、帮助和标点以及掩码值都会折叠为可打印 ASCII。不设置时使用 Unicode 字形。中文不做转写，七位终端无法显示。 |
-| `CCSET_HOME` | 覆盖 ccset 读写的主目录，供隔离测试使用，不建议日常使用。 |
-
-颜色开关不在 ccset：渲染经由 Ink，它已支持 `NO_COLOR`。
-
-## 添加 Agent
-
-扩展边界是 Agent 模块加静态注册表：在 `src/agents/<id>/` 下实现 `src/types.ts` 中的 `Agent` 接口（`detect()`、`getActions()`、双语文案，以及需要提供的非交互命令），然后将其加入 `src/registry.ts`。模块内部可以拆分多个文件；验证脚本、npm 脚本接入和文档也是交付的一部分。若需要新增通用能力，应明确说明核心接口的改动和验证范围。
-
-通用文件读写、合并、备份、遮罩和路径解析位于 `src/core/`，应直接复用。`ConfigFile` 支持 `json`、`jsonc` 和 `toml`；后两者通过修改原文本保留注释、格式与键顺序。完整指南见
-[docs/adding-an-agent.md](docs/adding-an-agent.md)。
-供编码助手执行接入任务的[中文工作流程](docs/agents/add-agent-workflow.md)包含范围确认、
-配置契约核实、实现顺序、验证要求和可复用的任务模板。
-
-## 开发
+首次配置、尚未检测到 Agent 时，可以直接指定：
 
 ```bash
-npm ci
-npm run typecheck
-npm run build
+npx @droite/ccset --agent claude-code
 ```
 
-修改流程统一见 [AGENTS.md](AGENTS.md)，按改动范围选择检查的方式、运行环境要求和验证命令见
-[验证指南](docs/verification.md)。`npm test` 顺序运行全部验证脚本；各脚本共用输出目录，不能并行执行。
-纯文档修改检查链接、示例和事实准确性，运行时改动还需执行对应的验证脚本。
-`Important Documentation.md` 保存人工验证场景与实际执行记录。
-Pull Request 可以直接提出产品改动；验收和验证要求见
-[贡献指南](https://github.com/Right202209/ccset/blob/master/CONTRIBUTING.md)。
+如需安装为常用命令：
 
-## 许可证
+```bash
+npm install -g @droite/ccset
+ccset
+```
 
-MIT。
+## 核心特性
+
+- **五种 Agent，一个界面。** 管理全局设置和多个提供商，通过状态页检查本地配置。
+- **保留自定义设置。** 编辑时保留各层级中不受 ccset 管理的键；TOML 和 JSONC 编辑还会保留无关的注释与排版。
+- **先备份，再写入。** 修改已有文件前先备份，逐文件原子写入，POSIX 系统使用 `0600` 权限；替换无法解析的配置需要明确确认。
+- **管理提供商列表。** 在交互界面中编辑、忽略或删除提供商。忽略只在 ccset 中隐藏；删除则在备份后移除对应文件或配置块。
+- **适合脚本与 CI。** 显式命令支持 JSON 输出和 dry-run 预览。`set` 只修改传入的字段，`--unset` 显式删除字段。
+- **中英双语，适配终端宽度。** 界面记住语言选择，宽终端可同时显示配置摘要。
+
+| Agent | `--agent` ID | 保存提供商后如何启用 |
+| --- | --- | --- |
+| Claude Code | `claude-code` | 运行 ccset 给出的 `claude --settings <path>` 命令。 |
+| opencode | `opencode` | 启动 opencode，由它读取配置。 |
+| Codex CLI | `codex` | 选择提供商的「使用」操作，同时切换路由和已保存的凭据；端点须支持 Responses API。 |
+| pi | `pi` | 在「全局设置」中设置默认提供商和模型，或使用 CLI 的 `provider use <id>`。 |
+| Grok Build | `grok-build` | 在「全局设置」中设置默认模型，或使用 CLI 的 `provider use <id>`，供新会话读取。 |
+
+配置文件位置、凭据处理和环境变量覆盖规则见 [Agent 配置指南](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#agent-配置)。
+
+## 常见问题
+
+### 会上传我的配置或 API 密钥吗？
+
+配置编辑在本地完成。只有 Claude Code 可选的「测试连接」会发送提供商请求，发送前会显示目标主机并要求确认，且拒绝重定向。其他 Agent 不提供此探测。
+
+界面会遮罩凭据，命令输出不包含密钥。**配置文件和备份可能包含明文凭据**，遮罩不等于加密。备份位于对应 Agent 的 `backups/ccset/` 目录，每个文件最多保留十份。轮换密钥后，可通过**状态 → 清除 ccset 备份**移除旧副本。分享日志或报告问题前，请阅读[安全政策](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/SECURITY.zh-CN.md)。
+
+### 会覆盖我已有的设置吗？
+
+ccset 保存前会重新读取文件，修改受管理字段并保留不受管理的同级键。TUI 中清空字段会删除对应的受管理值；命令中省略选项则保留已有值。显式删除提供商会在备份后移除整个提供商文件或配置块，包括其中的自定义键。详见[文件与密钥安全说明](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#不会对你的文件做的事)。
+
+### 可以在脚本或 CI 中使用吗？
+
+可以。安装后，使用带 `--agent` 的显式命令：
+
+```bash
+ccset --agent claude-code status --json
+ccset --agent opencode global set --model example/model --dry-run
+```
+
+`status` 只读；`--dry-run` 仅生成变更计划，不写文件、不创建备份。密钥通过密钥存储注入 **`CCSET_TOKEN`**，或使用 **`--token-stdin`** 传入，不要放在命令参数中。交互模式需要 TTY。完整命令、选项和退出码见 [CLI 参考](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#cli)。
+
+### 为什么保存后没有切换到新提供商？
+
+保存与启用是两个步骤，请使用上表中对应 Agent 的操作。Codex、pi 和 Grok Build 也提供 CLI 命令 `provider use <id>`。Codex 替换尚未保存为档案的登录凭据前，需要你选择另存为档案或替换，两种情况都会先备份。凭据与 `CODEX_HOME` 的限制见 [Codex 指南](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#codex-cli)。
+
+### 支持哪些平台？
+
+支持 **macOS 和 Linux**。**WSL、Windows Terminal + PowerShell** 为尽力支持，`cmd.exe` 不受支持。仅维护 npm 上的最新版本。详见[支持政策](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/SUPPORT.zh-CN.md)和 [Windows 限制](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#windows)。
+
+### 如何贡献或添加 Agent？
+
+请从[贡献指南](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/CONTRIBUTING.zh-CN.md)、[验证指南](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/verification.zh-CN.md)和[添加 Agent](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/adding-an-agent.zh-CN.md)开始。项目采用 [MIT 许可证](https://github.com/Right202209/ccset/blob/master/LICENSE)。

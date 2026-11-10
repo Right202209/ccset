@@ -1,149 +1,92 @@
 # ccset
 
-[中文说明](https://github.com/Right202209/ccset/blob/master/README.zh-CN.md) | English
+Configure third-party API providers for **Claude Code, opencode, Codex CLI, pi, and Grok Build** from one terminal UI or scriptable CLI.
 
-Configure third-party API providers for **Claude Code**, **opencode**,
-**Codex CLI**, **pi**, and **Grok Build** with an interactive terminal UI or scriptable
-commands. ccset preserves unmanaged settings and backs up existing files before
-changing them.
+[简体中文](https://github.com/Right202209/ccset/blob/master/README.zh-CN.md) · English · [Documentation](https://right202209.github.io/ccset/)
 
-Documentation, guides, and this introduction are also available as a website:
-[right202209.github.io/ccset](https://right202209.github.io/ccset/).
+## Demo
 
-## Quick start
+![ccset demo: add a Claude Code provider, enter example settings, and save](https://raw.githubusercontent.com/Right202209/ccset/master/docs/media/ccset-demo.gif)
 
-Requires **Node.js 18+**.
+[View the animation](https://github.com/Right202209/ccset/blob/master/docs/media/ccset-demo.gif). Captured from the actual UI with fictional settings in an isolated temporary directory; no personal configuration or live API requests.
+
+## Quick Start
+
+Requires **Node.js 18+**. Run without a global install:
 
 ```bash
 npx @droite/ccset
 ```
 
-ccset asks which agent to configure, listing only the agents it finds on this
-machine; when it finds one, it opens it directly. Review the settings and
-save. To set up an agent that has no files here yet, run
-`ccset --agent <id>`. The first interactive run asks for English or Simplified
-Chinese and remembers your choice. Arrow keys move, Enter selects, Esc goes
-back, and Ctrl+S saves a form.
+1. Choose English or Simplified Chinese on first launch, then select an agent. Only locally detected agents appear; a sole match opens automatically.
+2. Open **Providers → Add a provider** and enter your provider ID, API endpoint, and credential. Fields vary by agent.
+3. Review the fields and press **Ctrl+S** to save. Follow the agent's activation step described below.
 
-On terminals at least 100 columns wide and 16 rows tall, side panels show a
-local config summary, warnings, the focused row's Preview, and the last result.
-At 80–99 columns and 20 rows or more, a two-line details strip appears instead;
-below 80 columns, this extra context is hidden. Credentials appear only as set
-or unset.
+Use the arrow keys to move, **Enter** to select, and **Esc** to go back.
 
-To install the `ccset` command:
+For first-time setup when an agent is not detected:
+
+```bash
+npx @droite/ccset --agent claude-code
+```
+
+To keep the `ccset` command installed:
 
 ```bash
 npm install -g @droite/ccset
-ccset --agent claude-code
+ccset
 ```
 
-## Supported agents
+## Core features
 
-| Agent | `--agent` ID | Default configuration |
+- **Five agents, one interface.** Manage global settings and multiple providers; inspect local configuration with Status.
+- **Keep your custom settings.** Edits preserve unmanaged keys at every nesting level. TOML and JSONC edits also preserve unrelated comments and formatting.
+- **Back up before changing files.** Existing files are backed up, each file is written atomically, and writes use `0600` permissions on POSIX. Replacing malformed configuration requires an explicit choice.
+- **Control provider lists.** Edit, ignore, or delete providers from the TUI. Ignoring only hides a provider in ccset; deletion removes its file or configuration block after a backup.
+- **Use scripts and CI.** Explicit commands support JSON output and dry-run previews. `set` changes only supplied fields; `--unset` explicitly removes a field.
+- **Work in English or Simplified Chinese.** The TUI remembers your choice and adapts to terminal width, with configuration summaries on wider terminals.
+
+| Agent | `--agent` ID | After saving a provider |
 | --- | --- | --- |
-| Claude Code | `claude-code` | `~/.claude/settings.json` and `settings.<name>.json` |
-| opencode | `opencode` | `~/.config/opencode/opencode.jsonc` when present, otherwise `opencode.json` |
-| Codex CLI | `codex` | `~/.codex/config.toml` and saved `auth.<id>.json` profiles |
-| pi | `pi` | `~/.pi/agent/settings.json` and `models.json` |
-| Grok Build | `grok-build` | `~/.grok/config.toml` |
+| Claude Code | `claude-code` | Run the `claude --settings <path>` command ccset prints. |
+| opencode | `opencode` | Launch opencode to read the configuration. |
+| Codex CLI | `codex` | Choose the provider's **Use** action to switch routing and the saved credential together. Requires a Responses API endpoint. |
+| pi | `pi` | Set the default provider and model in **Global settings**, or use the CLI's `provider use <id>`. |
+| Grok Build | `grok-build` | Set the default model in **Global settings**, or use the CLI's `provider use <id>` for new sessions. |
 
-- **Claude Code:** ccset prints the `claude --settings <path>` command to run
-  after saving a provider.
-- **opencode:** reads its configuration on launch. ccset honours
-  `XDG_CONFIG_HOME` when using your real home directory.
-- **Codex CLI:** save a provider, then choose **Use this provider** or run
-  `provider use` to switch both routing and the live credential. The endpoint
-  must support the OpenAI Responses API.
-- **pi:** custom providers live in `models.json` and the startup defaults in
-  `settings.json`. `provider use` sets both default provider and default model;
-  pi's `auth.json` stays owned by its `/login`. ccset honours
-  `PI_CODING_AGENT_DIR` when using your real home directory.
-- **Grok Build:** reads `config.toml` on launch; `/model` and `-m` override the
-  saved default per session. ccset honours `GROK_HOME` when using your real
-  home directory.
+See the [agent configuration guide](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#agent-configuration) for file locations, credential handling, and environment overrides.
 
-Providers are managed from the **Providers** list, where each one has a screen of
-its own: **Edit**, **Ignore** and **Delete**. Deleting removes just that
-provider — its file, or its block in the shared document — after taking a
-backup; ignoring hides it from ccset without writing anything to the Agent's
-configuration, and the list keeps a row that reveals and un-ignores it. Deleting
-is interactive only: the command line carries no destructive maintenance.
+## FAQ
 
-See the [agent configuration guide](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#agent-configuration)
-for file selection, Codex credential handling, and environment constraints.
+### Will ccset upload my configuration or API key?
 
-## CLI
+Configuration editing is local. Only Claude Code's optional **Test connection** sends a provider request, after showing the destination host and asking for confirmation. Redirects are refused. Other agents do not offer this probe.
 
-With no subcommand, ccset opens the interactive UI and requires a TTY. Explicit
-commands run in scripts and CI; each requires `--agent`.
+The TUI masks credentials, and command output omits them. **Configuration files and backups can contain plaintext credentials**; masking is not encryption. Backups keep up to ten copies per file under the agent's `backups/ccset/` directory. After rotating a key, remove old copies through **Status → Clear ccset backups**. See the [security policy](https://github.com/Right202209/ccset/blob/master/SECURITY.md) before sharing logs or reporting a problem.
 
-```text
-ccset --agent <id> status [--json]
-ccset --agent <id> global set [options]
-ccset --agent <id> provider set <provider-id> [options]
-ccset --agent codex provider use <provider-id> [options]
-ccset --agent pi provider use <provider-id> [options]
-ccset --agent grok-build provider use <provider-id> [options]
-ccset --agent claude-code state init
-```
+### Will it overwrite settings I already have?
 
-For example:
+ccset re-reads files before saving and changes managed fields while preserving unmanaged siblings. Blank TUI fields remove their managed values; omitted command options preserve existing values. Explicit provider deletion removes the entire provider file or block, including its custom keys, after a backup. See the [file safety details](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#what-it-will-not-do-to-your-files).
+
+### Can I use it in scripts or CI?
+
+Yes. After installation, use an explicit command with `--agent`:
 
 ```bash
 ccset --agent claude-code status --json
 ccset --agent opencode global set --model example/model --dry-run
 ```
 
-`set` changes only the fields you supply. Omitted fields keep their values;
-`--unset <field>` removes one explicitly. Use `--dry-run` to preview changes
-without writing or creating backups, and `--json` for structured output.
+`status` is read-only; `--dry-run` plans a change without writing files or creating backups. Supply secrets through **`CCSET_TOKEN`** from your secret store or **`--token-stdin`**, never command arguments. Interactive mode requires a TTY. The [CLI reference](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#cli) covers commands, options, and exit codes.
 
-Codex commands refuse writes when `CODEX_HOME` points elsewhere. Switching and
-restoring profiles refuse keyring mode in both CLI and TUI. Adoption keeps the
-original routing with the credential so either surface can switch back.
+### Why did saving a provider not switch my agent to it?
 
-Supply API keys through **`CCSET_TOKEN`** or **`--token-stdin`**, never command
-arguments. Inject `CCSET_TOKEN` through your shell or CI secret store. Codex
-switches that would replace an unsaved login require `--adopt-current-as <id>`
-or `--replace-current-auth`.
+Saving and activation are separate steps; use the agent-specific action in the table above. Codex, pi, and Grok Build also expose `provider use <id>` in the CLI. Before Codex replaces an unsaved login, you must choose whether to save it as a profile or replace it; a backup is taken either way. See the [Codex guide](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#codex-cli) for credential and `CODEX_HOME` constraints.
 
-The [CLI reference](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#cli)
-covers shared options, exit codes, and environment variables. `ccset --help`
-shows launch options; `ccset --version` prints the installed version.
+### Which platforms are supported?
 
-## File safety
+**macOS and Linux** are supported. **WSL and Windows Terminal with PowerShell** are best-effort; `cmd.exe` is unsupported. Only the latest npm release is supported. See the [support policy](https://github.com/Right202209/ccset/blob/master/SUPPORT.md) and [Windows limitations](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#windows).
 
-- Unmanaged keys survive. TOML and JSONC edits preserve comments and formatting.
-- Targets are re-read before saving, and each file is written atomically.
-  Written files use mode `0600` on POSIX.
-- Invalid config requires explicit confirmation in the UI or
-  `--replace-invalid` on a supported command.
-- Tokens are masked in the UI. Only Claude Code's opt-in **Test connection**
-  sends a token over the network.
-- **Backups retain old tokens:** ten copies are kept per file under the agent's
-  `backups/ccset/` directory. Clear them from the agent's Status screen after
-  rotating credentials.
+### How can I contribute or add an agent?
 
-See the [file safety details](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#what-it-will-not-do-to-your-files)
-and [security policy](https://github.com/Right202209/ccset/blob/master/SECURITY.md).
-
-## Development and support
-
-```bash
-npm ci
-npm run typecheck
-npm run build
-```
-
-See the [contribution guide](https://github.com/Right202209/ccset/blob/master/CONTRIBUTING.md),
-[verification commands and prerequisites](https://github.com/Right202209/ccset/blob/master/docs/verification.md),
-[verification register](https://github.com/Right202209/ccset/blob/master/Important%20Documentation.md),
-and [adding an agent](https://github.com/Right202209/ccset/blob/master/docs/adding-an-agent.md).
-
-macOS and Linux are supported. Windows is best-effort; interactive behavior and
-file permissions have [platform limitations](https://github.com/Right202209/ccset/blob/master/docs/user-guide.md#windows).
-Only the latest npm release is supported; see the
-[support policy](https://github.com/Right202209/ccset/blob/master/SUPPORT.md).
-
-[MIT License](https://github.com/Right202209/ccset/blob/master/LICENSE).
+Start with the [contribution guide](https://github.com/Right202209/ccset/blob/master/CONTRIBUTING.md), [verification guide](https://github.com/Right202209/ccset/blob/master/docs/verification.md), and [adding an agent](https://github.com/Right202209/ccset/blob/master/docs/adding-an-agent.md). ccset is released under the [MIT License](https://github.com/Right202209/ccset/blob/master/LICENSE).
