@@ -179,7 +179,7 @@ async function checkCliExitCodes(home: string): Promise<void> {
   await expectUsage([...base, '--proxy-url', 'not a url'], 'Not a valid URL')
   await expectUsage([...base, '--no-such-option', 'x'], 'Unknown option')
   await expectUsage([...base, '--unset', 'proxy'], 'does not support --unset')
-  await expectUsage(['global', 'set', '--model', 'a'], 'explicit agent')
+  await expectUsage(['global', 'set', '--model', 'a'], 'explicit Agent')
 
   const unknownAgent = await runCli(['--agent', 'nope', 'global', 'set', '--model', 'a'], {
     CCSET_HOME: home,
@@ -189,8 +189,8 @@ async function checkCliExitCodes(home: string): Promise<void> {
   assert.equal(unknownVerb.code, EXIT_USAGE, 'an unknown verb did not exit 64')
 
   // A verb another agent serves is a distinct failure from one no agent does:
-  // provider use is Codex-only, so claude-code must refuse it with 66.
-  const unsupported = await runCli(['--agent', 'claude-code', 'provider', 'use', 'x'], {
+  // Session launching is Claude-only, so opencode must refuse it with 66.
+  const unsupported = await runCli(['--agent', 'opencode', 'provider', 'run', 'x'], {
     CCSET_HOME: home,
   })
   assert.equal(unsupported.code, EXIT_UNSUPPORTED_COMMAND, 'an unsupported command did not exit 66')
@@ -198,7 +198,7 @@ async function checkCliExitCodes(home: string): Promise<void> {
     unsupported.stderr.includes('does not serve'),
     `the refusal does not name the capability: ${unsupported.stderr}`,
   )
-  const unsupportedJson = await runCli(['--agent', 'claude-code', 'provider', 'use', 'x', '--json'], {
+  const unsupportedJson = await runCli(['--agent', 'opencode', 'provider', 'run', 'x', '--json'], {
     CCSET_HOME: home,
   })
   assert.equal(unsupportedJson.code, EXIT_UNSUPPORTED_COMMAND)
@@ -208,7 +208,7 @@ async function checkCliExitCodes(home: string): Promise<void> {
     exitCode: number
     error: { code: string }
   }
-  assert.equal(unsupportedEnvelope.agent, 'claude-code')
+  assert.equal(unsupportedEnvelope.agent, 'opencode')
   assert.equal(unsupportedEnvelope.operation, null, 'an unmatched declaration was named anyway')
   assert.equal(unsupportedEnvelope.exitCode, EXIT_UNSUPPORTED_COMMAND)
   assert.equal(unsupportedEnvelope.error?.code, 'error.unsupportedCommand')

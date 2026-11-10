@@ -28,6 +28,7 @@ export interface ParsedCommand {
   json: boolean
   /** Where the operation's secret must come from; null when none applies. */
   secretSource: 'env' | 'stdin' | null
+  launchArgs: string[]
 }
 
 export function missingAgentError(): CcsetError {
@@ -37,6 +38,7 @@ export function missingAgentError(): CcsetError {
 /** Strips --json and reads --agent, which every command requires explicitly. */
 function extractGlobals(tokens: string[]): { agentId: string; json: boolean; rest: string[] } {
   const scan = scanGlobals(tokens)
+  if (scan.agentConflict) throw usage('cli.usage.agentConflict')
   if (scan.missingValueFor !== null) {
     throw usage('cli.usage.missingValue', { option: scan.missingValueFor })
   }
@@ -54,13 +56,14 @@ function matchDeclaration(
   agent: Agent,
   agents: Agent[],
 ): { declaration: CommandDeclaration; tokens: string[] } {
-  const pair = `${tokens[0] ?? ''} ${tokens[1] ?? ''}`.trim().replace(' ', '.')
+  const alias = tokens[0] === 'use' || tokens[0] === 'run'
+  const pair = alias ? `provider.${tokens[0]}` : `${tokens[0] ?? ''} ${tokens[1] ?? ''}`.trim().replace(' ', '.')
   const operations = agent.commands?.operations ?? []
   const declaration =
     operations.find((candidate) => candidate.id === pair) ??
     operations.find((candidate) => candidate.id === tokens[0])
   if (declaration !== undefined) {
-    const width = declaration.id.includes('.') ? 2 : 1
+    const width = !alias && declaration.id.includes('.') ? 2 : 1
     return { declaration, tokens: tokens.slice(width) }
   }
   const requested = tokens.slice(0, 2).join(' ')
@@ -145,6 +148,13 @@ function finishParse(
   }
 }
 
+function splitLaunchArgs(tokens: string[], declaration: CommandDeclaration): { options: string[]; launchArgs: string[] } {
+  const separator = tokens.indexOf('--')
+  if (separator === -1) return { options: tokens, launchArgs: [] }
+  if (declaration.id !== 'provider.run') throw usage('cli.usage.passthrough')
+  return { options: tokens.slice(0, separator), launchArgs: tokens.slice(separator + 1) }
+}
+
 export function parseCommand(argv: string[], agents: Agent[], tokenEnv: string | undefined): ParsedCommand {
   const { agentId, json, rest } = extractGlobals([...argv])
   const agent = agents.find((candidate) => candidate.id === agentId)
@@ -153,8 +163,10 @@ export function parseCommand(argv: string[], agents: Agent[], tokenEnv: string |
   }
   const { declaration, tokens } = matchDeclaration(rest, agent, agents)
   try {
-    const { request, secretSource } = finishParse(declaration, tokens, tokenEnv)
-    return { agent, declaration, json, request, secretSource }
+    const { options, launchArgs } = splitLaunchArgs(tokens, declaration)
+    const { request, secretSource } = finishParse(declaration, options, tokenEnv)
+    if (declaration.id === 'provider.run' && json && !request.dryRun) throw usage('cli.usage.runJson')
+    return { agent, declaration, json, request, secretSource, launchArgs }
   } catch (err) {
     // The declaration had matched, so a failure envelope can still name the
     // operation even though no ParsedCommand escapes the parser.

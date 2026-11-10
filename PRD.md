@@ -6,6 +6,13 @@ ccset — npm package `@droite/ccset`
 
 **Status:** v2, revised after design review. Supersedes `PRD.tmp.md`.
 
+The P0 command extension in [ADR 0020](docs/adr/0020-add-short-commands-presets-and-session-launch.md)
+supersedes the original no-launcher scope and mandatory `--agent` spelling.
+Explicit Claude Code `run` starts a session; `use` prints its command. Other
+Agents save startup selection. Terminal `add --preset` may ask for a hidden
+key; scripts retain explicit selectors and the existing two secret sources.
+The original v1 requirements below remain historical where superseded.
+
 ---
 
 ## 1. Overview

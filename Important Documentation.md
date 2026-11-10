@@ -3274,3 +3274,65 @@ the permitted rerun passed all routes, assets, and gzip-budget checks.
 No runtime source changed. The full root fixture suite, fresh npm install,
 desktop/mobile browser checks, other platforms, and live Provider requests
 were not run for this documentation change.
+
+
+### 9.73 P0 command shortcuts, presets, and activation (2026-11-10)
+
+**Scope.** ADR 0020 records positional/flag/environment Agent selection,
+terminal-only inference, static preset expansion, all-Agent `use`, and the
+explicit Claude Code `run` launcher. Claude Code `use` only validates and
+prints its session command, as requested in the product review follow-up.
+Other Agents report next-start activation. Codex `use --model` changes the
+model with routing and restores both managed leaves on a failed auth move.
+
+**Environment and executed checks.** Linux x64, Node.js 26.13.0, zsh, Python
+POSIX PTY bridge, isolated temporary homes with placeholder credentials:
+
+- Root `npm run typecheck`, `npm run build`, and `npm run verify:code-gates`
+  passed. The final gate covered 292 TypeScript files with the existing nine
+  baseline exceptions; no exception was added.
+- Root `npm test` passed on the final runtime tree (exit 0; local transcript
+  `/tmp/ccset-p0-suite-final.log`), including the full sequential fixture suite
+  and release-artifact verification.
+- `npm run verify:short-commands` passed for all nine preset/Agent entries,
+  selector precedence and redacted errors, TTY-only automatic selection,
+  explicit overrides/unsets, dry-run and repeated-save no-ops, POSIX modes,
+  secret-source conflict, all five `use` results, and opencode sibling/comment
+  preservation. Real PTY cases verified hidden key entry, cancellation without
+  a write, and redaction of an invalid TUI `CCSET_AGENT` value.
+- The launcher fixture used a local fake `claude` executable in a scratch path
+  containing spaces. It verified literal argument forwarding (including shell
+  metacharacters and `--help` after `--`), inherited output, child exit 23,
+  no launch on dry-run, live JSON refusal, and missing-executable failure.
+- `npm run verify:commands-codex-use` passed with auth-move fault injection:
+  model and routing restore after failure, including deletion when the old
+  model was absent, plus the existing post-rename/rollback-failure scenarios.
+- A deliberate mutation made opencode `use` replace the Provider map with an
+  empty object. `checkOpencodeSafety` failed on preservation of the existing
+  model's unmanaged `limit` value. The mutation was restored immediately;
+  the focused fixture and final full suite passed afterward.
+
+Initial sandbox runs could not capture child stdout/stderr, including from a
+minimal Node child that only wrote two strings. The approved runs outside that
+sandbox passed; the empty-output failure was not evidence of a ccset defect.
+
+**Preset sources.** Read the public OpenRouter Claude Code and Responses docs,
+DeepSeek's Anthropic compatibility docs (including Bearer-token support), and
+OpenRouter's unauthenticated model catalog. The catalog listed
+`anthropic/claude-sonnet-4.5` and `openai/gpt-5.4`; the Responses documentation's
+`openai/o4-mini` example was no longer listed, so it was not kept as a preset
+suggestion. These reads establish configuration references, not live inference
+compatibility. Existing credential precedence can still need user resolution,
+as documented in `presets/README.md`.
+
+**Website.** From `pages/`, `npm run typecheck`, `npm test` (76 tests),
+`npm run build`, and `npm run smoke` passed. Smoke checked routes, three assets,
+and gzip budgets. This checked the rendered repository content; no site layout
+or styling changed.
+
+No real Agent home was written and no credential-bearing Provider request was
+made. Actual Claude execution used a stub, not a live Agent. Fresh dependency
+installs, native macOS/Windows interactive checks, live Agent/Provider checks,
+and desktop/mobile browser screenshots were not performed. The npm version
+remains 0.10.0; these commands have not been published. Earlier compatibility
+unknowns, including opencode merge-order runtime verification, remain open.

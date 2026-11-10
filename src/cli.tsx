@@ -34,6 +34,7 @@ function buildProgram(): Command {
     .description(t('cli.description'))
     .version(VERSION, '-v, --version')
     .option('--agent <id>', t('cli.agentOption'))
+    .addHelpText('after', () => `\n${t('cli.shortHelp')}\n`)
     .allowExcessArguments(false)
   return program
 }
@@ -72,14 +73,16 @@ function resolveAgentId(requested: string | undefined): string | undefined {
   if (findAgent(requested) === undefined) {
     // The same code the command parser uses (65), so the exit status says
     // "unknown agent" whichever surface refused it.
-    throw new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: requested })
+    throw new CcsetError('error.unknownAgent', EXIT_UNKNOWN_AGENT, { id: '[redacted]' })
   }
   return requested
 }
 
 /** Help and version finish before anything else, TTY guard included. */
 function requestedInfo(argv: string[]): 'help' | 'version' | null {
-  return argv.map((token) => INFO_FLAGS[token]).find((info) => info !== undefined) ?? null
+  const separator = argv.indexOf('--')
+  const options = separator === -1 ? argv : argv.slice(0, separator)
+  return options.map((token) => INFO_FLAGS[token]).find((info) => info !== undefined) ?? null
 }
 
 /** Launch mode is structural: a positional token means a command, none means TUI. */
@@ -175,7 +178,7 @@ async function launchTui(): Promise<void> {
   if (settled.persistFailed) {
     process.stderr.write(`${t('warn.localePersistFailed', { path: settingsFilePath(home) })}\n`)
   }
-  const agentId = resolveAgentId(options.agent)
+  const agentId = resolveAgentId(options.agent ?? process.env['CCSET_AGENT'])
   const ctx = { home }
   // Task errors recover inside the app as a Screen on the stack; what still
   // escapes the render tree reaches main().catch, which restores nothing.
@@ -205,7 +208,10 @@ async function main(): Promise<void> {
   // parser learns only whether a token is present, and the secret reader its value.
   // Exit code, not process.exit: the envelope was queued on the thread pool, and
   // only a drained event loop guarantees it reaches the pipe whole.
-  process.exitCode = await runCommand(argv, AGENTS, process.env['CCSET_TOKEN'])
+  process.exitCode = await runCommand(argv, AGENTS, {
+    tokenEnv: process.env['CCSET_TOKEN'], agentEnv: process.env['CCSET_AGENT'],
+    home: resolveHome(), interactive: process.stdin.isTTY === true && process.stdout.isTTY === true,
+  })
 }
 
 main().catch((err: unknown) => fail(toCcsetError(err)))

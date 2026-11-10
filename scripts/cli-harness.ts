@@ -67,7 +67,7 @@ function spawnCli(
   return new Promise((resolve, reject) => {
     const nodeArgs = options.preload === undefined ? [] : ['--require', options.preload]
     const child = spawn(process.execPath, [...nodeArgs, path.join(process.cwd(), 'dist/cli.js'), ...args], {
-      env: { ...process.env, ...options.env },
+      env: { ...process.env, CCSET_AGENT: undefined, ...options.env },
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     let stdout = ''

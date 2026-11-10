@@ -29,7 +29,13 @@ and `ManagedWrite[]` do not cross the public operation contract. See ADR 0006.
 `src/commands/` adapts argv to that contract. The parser uses declarations from
 each Agent, secret readers supply `CCSET_TOKEN` or explicitly selected stdin,
 and presenters produce localized lines or the `schemaVersion: 1` JSON envelope.
-The printed error and process exit status must agree. The command specification
+The printed error and process exit status must agree. The command adapter resolves
+explicit positional/flag/environment selectors, only lets a terminal infer its
+target from filesystem detection, and expands bundled preset data
+into the same declared provider options (ADR 0020). Only terminal `add` can ask
+for a hidden key. The explicit `run` adapter executes the Agent-provided argument
+array without a shell, after the operation validates the Provider; `use` and
+dry-run never spawn it. The command specification
 records known conformance differences; changing those is a behavior change, not
 a documentation cleanup.
 
@@ -96,8 +102,10 @@ The interactive App runs every registered Agent's filesystem-only `detect(ctx)`
 check in parallel before rendering Agent selection, and passes only positive
 results to that list. A single positive result is selected automatically. An
 explicit `--agent` skips this discovery so first-time configuration remains a
-deliberate option; Non-interactive commands always retain their explicit
-`--agent` contract and never infer a target from detection.
+deliberate option; scripts retain an explicit Agent through a positional selector,
+`--agent`, or `CCSET_AGENT`. A command on a terminal with both stdin and stdout attached may
+select a sole detected Agent; every other missing selection fails with 64 and
+candidates. See ADR 0020, which supersedes this part of ADR 0016.
 
 The PRD's extension boundary allows multiple files inside
 an Agent module. Fixtures, package wiring, and docs are additional expected
@@ -108,8 +116,9 @@ Agent-specific constraints that are easy to miss:
 
 - **Claude Code:** global settings and each Provider use separate JSON files.
   `state.ts` creates `~/.claude.json` only when missing; never update this live
-  state store. `test-connection.ts` is the only outbound network path: confirm
-  the destination before sending a token and never print the response body.
+  state store. `test-connection.ts` is ccset's only outbound network path:
+  confirm the destination before sending a token and never print the response
+  body. An explicitly launched Claude process owns its own requests.
 - **opencode:** Providers share one document under `provider.<id>`.
   `provider.<id>.models` merges per model ID, preserving options on retained
   models. `opencodeTarget` in `paths.ts` selects an existing `.jsonc`, otherwise

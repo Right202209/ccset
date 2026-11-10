@@ -1,6 +1,10 @@
 # ccset
 
-在同一个终端界面或脚本化 CLI 中，为 **Claude Code、opencode、Codex CLI、pi 和 Grok Build** 配置第三方 API 提供商。
+在任何终端中给编码 Agent 换供应商。不装桌面端，不起本地代理，保留你手写的非托管配置。
+
+```bash
+npx @droite/ccset
+```
 
 简体中文 · [English](https://github.com/Right202209/ccset/blob/master/README.md) · [文档网站](https://right202209.github.io/ccset/)
 
@@ -12,11 +16,7 @@
 
 ## 一键安装 / Quick Start
 
-需要 **Node.js 18+**。无需全局安装，直接运行：
-
-```bash
-npx @droite/ccset
-```
+需要 **Node.js 18+**。上方命令直接打开交互界面，支持 Claude Code、Codex CLI、opencode、pi 和 Grok Build。
 
 1. 首次启动时选择英文或简体中文，再选择 Agent。列表只显示本机检测到的 Agent；只有一个时会直接进入。
 2. 进入**提供商 → 添加提供商**，填写提供商 ID、API 地址和凭据。具体字段因 Agent 而异。
@@ -37,6 +37,21 @@ npm install -g @droite/ccset
 ccset
 ```
 
+使用预设时，选定 Agent 后只需在隐藏输入提示中粘贴密钥：
+
+```bash
+ccset claude-code add relay --preset openrouter
+ccset claude-code run relay
+```
+
+`ccset presets list` 列出内置预设，后面加搜索词即可筛选。
+其他 Agent 保存后运行 `ccset <agent> use relay`。Claude Code 的 `use` 打印会话
+启动命令，`run` 才启动；其他 Agent 的默认选择在下次启动时生效。
+显式选择优先于 `CCSET_AGENT`，只有交互终端才会自动选择唯一检测到的 Agent。
+
+以上简写命令面向下一版本。体验当前源码时，先运行 `npm ci`、`npm run build`，
+再将示例中的 `ccset` 替换为 `node dist/cli.js`。
+
 ## 核心特性
 
 - **五种 Agent，一个界面。** 管理全局设置和多个提供商，通过状态页检查本地配置。
@@ -48,11 +63,11 @@ ccset
 
 | Agent | `--agent` ID | 保存提供商后如何启用 |
 | --- | --- | --- |
-| Claude Code | `claude-code` | 运行 ccset 给出的 `claude --settings <path>` 命令。 |
-| opencode | `opencode` | 启动 opencode，由它读取配置。 |
+| Claude Code | `claude-code` | `ccset claude-code use <id>` 打印会话命令，`ccset claude-code run <id>` 启动会话。 |
+| opencode | `opencode` | `ccset opencode use <id>` 保存默认供应商和模型，下次启动时生效。 |
 | Codex CLI | `codex` | 选择提供商的「使用」操作，同时切换路由和已保存的凭据；端点须支持 Responses API。 |
-| pi | `pi` | 在「全局设置」中设置默认提供商和模型，或使用 CLI 的 `provider use <id>`。 |
-| Grok Build | `grok-build` | 在「全局设置」中设置默认模型，或使用 CLI 的 `provider use <id>`，供新会话读取。 |
+| pi | `pi` | 在「全局设置」中设置默认提供商和模型，或使用 CLI 的 `use <id>`。 |
+| Grok Build | `grok-build` | 在「全局设置」中设置默认模型，或使用 CLI 的 `use <id>`，供新会话读取。 |
 
 配置文件位置、凭据处理和环境变量覆盖规则见 [Agent 配置指南](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#agent-配置)。
 
@@ -60,7 +75,7 @@ ccset
 
 ### 会上传我的配置或 API 密钥吗？
 
-配置编辑在本地完成。只有 Claude Code 可选的「测试连接」会发送提供商请求，发送前会显示目标主机并要求确认，且拒绝重定向。其他 Agent 不提供此探测。
+配置编辑在本地完成。`run` 会启动已安装的 Claude Code，由它自行发送请求。ccset 自身只有 Claude Code 可选的「测试连接」会发送提供商请求，发送前会显示目标主机并要求确认，且拒绝重定向。其他 Agent 不提供此探测。
 
 界面会遮罩凭据，命令输出不包含密钥。**配置文件和备份可能包含明文凭据**，遮罩不等于加密。备份位于对应 Agent 的 `backups/ccset/` 目录，每个文件最多保留十份。轮换密钥后，可通过**状态 → 清除 ccset 备份**移除旧副本。分享日志或报告问题前，请阅读[安全政策](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/SECURITY.zh-CN.md)。
 
@@ -70,18 +85,18 @@ ccset 保存前会重新读取文件，修改受管理字段并保留不受管�
 
 ### 可以在脚本或 CI 中使用吗？
 
-可以。安装后，使用带 `--agent` 的显式命令：
+可以。通过位置参数、`--agent` 或 `CCSET_AGENT` 指定 Agent：
 
 ```bash
-ccset --agent claude-code status --json
-ccset --agent opencode global set --model example/model --dry-run
+ccset claude-code status --json
+ccset opencode global set --model example/model --dry-run
 ```
 
 `status` 只读；`--dry-run` 仅生成变更计划，不写文件、不创建备份。密钥通过密钥存储注入 **`CCSET_TOKEN`**，或使用 **`--token-stdin`** 传入，不要放在命令参数中。交互模式需要 TTY。完整命令、选项和退出码见 [CLI 参考](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#cli)。
 
 ### 为什么保存后没有切换到新提供商？
 
-保存与启用是两个步骤，请使用上表中对应 Agent 的操作。Codex、pi 和 Grok Build 也提供 CLI 命令 `provider use <id>`。Codex 替换尚未保存为档案的登录凭据前，需要你选择另存为档案或替换，两种情况都会先备份。凭据与 `CODEX_HOME` 的限制见 [Codex 指南](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#codex-cli)。
+保存与选择仍是两个步骤。五个 Agent 都接受 `use <id>`，生效时机见上表；现有 `--agent <id> provider use <id>` 命令继续兼容。Codex 替换尚未保存为档案的登录凭据前，需要你选择另存为档案或替换，两种情况都会先备份。凭据与 `CODEX_HOME` 的限制见 [Codex 指南](https://github.com/Right202209/ccset/blob/master/docs/zh-CN/user-guide.zh-CN.md#codex-cli)。
 
 ### 支持哪些平台？
 

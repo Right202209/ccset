@@ -57,6 +57,7 @@ npm 脚本使用 POSIX shell 语法。PTY fixture 需要 `python3` 及其 POSIX 
 | `npm run verify:first-run-locale` | 首次使用的语言选择、持久化、覆盖、取消，以及 help/version/non-TTY 边界 |
 | `npm run verify:status-terminal` | Status 刷新/滚动、窄布局、version 与 non-TTY 行为 |
 | `npm run verify:i18n-zh` | 英文/中文的键与占位符对齐、语言规范化与 CLI 语言选择 |
+| `npm run verify:short-commands` | 位置参数／环境选择、仅 TTY 自动选择、全部预设组合、统一 use、Codex 模型回退、无 shell 的 Claude run，以及隐藏密钥 PTY 保存／取消。 |
 | `npm run verify:commands` | 解析器与 operation 边界、退出码、补丁的保留/删除、dry-run、无操作、恢复与输出 |
 | `npm run verify:commands-parser` | 解析器自身的规范化契约：整数字段在没有字段校验器时拒绝 NaN，且后续标志绝不会被当作选项值 |
 | `npm run verify:commands-status` | 无密钥的 status 载荷、发现项、部分可读的解析失败与状态创建 |

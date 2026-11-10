@@ -57,6 +57,12 @@ Read these guides for the corresponding work:
 - Keep Agent-specific paths, defaults, validation rules, and strings inside its
   module. An Agent produces `ActionResult` data; Ink Views render it. New Agents
   reuse the shared core and register in `src/registry.ts`.
+- Agent detection is local, read-only, and lightweight; never execute the Agent
+  or contact a Provider to detect it. The TUI offers only detected Agents and
+  selects a sole match automatically. Explicit `--agent` bypasses discovery for
+  first-time configuration. Scripts require an explicit Agent via a positional
+  selector, `--agent`, or `CCSET_AGENT`; only a TTY may infer a sole local match
+  for commands (ADR 0020).
 - Non-interactive commands use `executeOperation` with structured requests,
   results, and typed errors. Keep Screens and translated text out of that
   contract; command mode must not load Ink. Both surfaces share the commit core.
@@ -76,8 +82,9 @@ Read these guides for the corresponding work:
   replacing it.
 - `~/.claude.json` is create-only. Codex's live `auth.json` is backed up and
   replaced as a whole on an explicit switch; never merge into it.
-- Mask secrets in entry, Status, review, errors, and command output. Commands
-  accept secrets only through `CCSET_TOKEN` or explicit `--token-stdin`; usage
+- Mask secrets in entry, Status, review, errors, and command output. Scripts
+  accept secrets only through `CCSET_TOKEN` or explicit `--token-stdin`; terminal
+  `add --preset` may ask for hidden input (ADR 0020). Usage
   errors never echo raw values. Test connection requires confirmation naming
   the destination host, refuses redirects rather than contacting an unconfirmed
   host, and never prints the response body.

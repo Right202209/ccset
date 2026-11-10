@@ -26,6 +26,35 @@ The durable trade-offs behind this contract are recorded in ADRs
 [0013](adr/0013-treat-codex-keyring-as-a-use-precondition.md), and
 [0014](adr/0014-stabilize-non-interactive-output-and-exit-codes.md).
 
+## P0 extension after Milestone 3
+
+[ADR 0020](adr/0020-add-short-commands-presets-and-session-launch.md) supersedes
+M3's selector and launcher restrictions. The remaining sections preserve the
+original M3 design; use this extension and the [user guide](user-guide.md#cli)
+for current behavior:
+
+- `ccset <agent> use <id>` aliases `--agent <agent> provider use <id>` for all
+  five Agents. Claude Code validates and prints a session command without
+  writing; opencode, Codex, pi and Grok Build save next-start defaults.
+- A positional/flag Agent selector overrides `CCSET_AGENT`; conflicting CLI
+  selectors fail. Only stdin+stdout TTY commands may infer a sole detected
+  Agent; scripts missing an explicit selector exit 64 with candidates.
+- `ccset <agent> run <id> -- <arguments>` starts Claude Code only. It inherits
+  child I/O and exit status, uses no shell, and never writes global settings.
+  Dry-run does not launch; live `--json` is refused.
+- `ccset presets list [search] [--json]` is Agent-independent; an optional
+  selector filters it. `add [id] --preset <id>` expands reviewed, bundled data
+  into declared provider-set options. Explicit fields and unsets override
+  defaults; reapplying is an explicit patch, not a create-only operation.
+- Terminal `add` can ask for a hidden key; non-TTY, JSON, and dry-run invocations
+  require the original explicit secret sources. Invalid options fail before
+  input or writes. Presets do not authorize live requests.
+- opencode `use --model` selects a declared model or defaults to its first
+  listed model, refusing missing/disabled targets. Codex `use --model` changes
+  the global model in the routing plan and restores it if auth activation fails.
+- JSON adds `activation` (`next-start` or `session`) and preset `nextCommand`;
+  existing `schemaVersion: 1`, dry-run, backup and typed-error guarantees remain.
+
 ## Purpose and boundary
 
 Milestone 3 adds local deployment and inspection commands whose state-changing

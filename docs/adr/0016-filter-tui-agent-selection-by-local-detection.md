@@ -1,5 +1,7 @@
 # Filter TUI Agent selection by local detection
 
+Selector restrictions superseded by [ADR 0020](0020-add-short-commands-presets-and-session-launch.md); the remaining boundaries still apply.
+
 Status: accepted
 
 The interactive Agent selector must show only registered Agents whose

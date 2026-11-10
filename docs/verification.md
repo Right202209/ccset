@@ -73,6 +73,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:first-run-locale` | First-use language choice, persistence, overrides, cancellation, help/version/non-TTY boundaries |
 | `npm run verify:status-terminal` | Status refresh/scrolling, narrow layout, version and non-TTY behavior |
 | `npm run verify:i18n-zh` | English/Chinese key and placeholder parity, locale normalization and CLI language selection |
+| `npm run verify:short-commands` | Positional/environment selectors, TTY-only inference, every bundled preset/Agent combination, unified use, Codex model rollback, shell-free Claude run, and hidden-key PTY save/cancel. |
 | `npm run verify:commands` | Parser and operation boundary, exit codes, patch preservation/deletion, dry-run, no-op, recovery and output |
 | `npm run verify:commands-parser` | The parser's own normalization contract: int fields refuse NaN without a field validator, and a following flag is never an option value |
 | `npm run verify:commands-status` | Secret-free status payloads, findings, partial-readable parse failures and state creation |

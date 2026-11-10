@@ -2,16 +2,16 @@ import { refuseHomeMismatch, refuseKeyring, profileRoute } from './preconditions
 import { configFile, readConfigFile, type LoadedConfig } from '../../core/config-file.js'
 import { CcsetError, EXIT_USAGE, PartialCommitError, toCcsetError, ValidationError } from '../../core/errors.js'
 import { fileExists, readMode } from '../../core/json-file.js'
-import { getPath } from '../../core/merge.js'
+import { getPath, type ManagedWrite } from '../../core/merge.js'
 import { jsonToText } from '../../core/values.js'
 import { applyPlan, MODE_AFTER_WRITE, planTargets, type WriteTarget } from '../../operations/commit.js'
 import type { OperationRequest, OperationResult, TargetRecord } from '../../operations/types.js'
 import type { Ctx, ConfigFile } from '../../types.js'
 import { makeKeyNameValidator } from '../../core/validate.js'
 import { activateAuthProfile, adoptLiveAuth, planAdoptedRouting, loadAuthState, type AuthState } from './auth.js'
-import { MODEL_PROVIDER_PATH } from './manifest.js'
+import { MODEL_PATH, MODEL_PROVIDER_PATH } from './manifest.js'
 import { authProfilePath, backupsDir, codexAuthPath, launchCommand } from './paths.js'
-import { codexConfigFile, restoreModelProvider } from './global.js'
+import { codexConfigFile } from './global.js'
 
 /**
  * Codex's provider use over the Non-interactive seam: routing first, then the
@@ -19,6 +19,7 @@ import { codexConfigFile, restoreModelProvider } from './global.js'
  */
 
 const USE_COMMAND_FIELDS = [
+  { id: 'model', option: '--model', type: 'text' as const },
   { id: 'adoptCurrentAs', option: '--adopt-current-as', type: 'text' as const },
   { id: 'replaceCurrentAuth', option: '--replace-current-auth', type: 'flag' as const },
 ]
@@ -48,6 +49,7 @@ interface UsePreflight {
   configBase: LoadedConfig
   adoptAs: string | null
   conflicted: boolean
+  switchModel: boolean
 }
 
 function refuseInvalidAdoptName(auth: AuthState, adoptAs: string): void {
@@ -94,7 +96,22 @@ async function preflightProviderUse(
   if (adoptAs !== null) refuseInvalidAdoptName(auth, adoptAs)
   const previous = previousRoute(configBase)
   const adoption = adoptAs === null ? [] : planTargets([await planAdoptedRouting(ctx, adoptAs, previous)])
-  return { id, routeTo, adoption, auth, file, configBase, adoptAs, conflicted }
+  return { id, routeTo, adoption, auth, file, configBase, adoptAs, conflicted, switchModel: request.patch['model'] !== undefined }
+}
+
+/** Restore only the leaves this switch changed, preserving concurrent siblings. */
+async function restoreRouting(ctx: Ctx, pre: UsePreflight): Promise<void> {
+  const base = await readConfigFile(pre.file)
+  const writes: ManagedWrite[] = [{ path: MODEL_PROVIDER_PATH, value: getPath(pre.configBase.data, MODEL_PROVIDER_PATH) }]
+  if (pre.switchModel) writes.push({ path: MODEL_PATH, value: getPath(pre.configBase.data, MODEL_PATH) })
+  await applyPlan(planTargets([{ file: pre.file, base, writes, backupsDir: backupsDir(ctx.home) }]), { dryRun: false, skipUnchanged: true })
+}
+
+function routingWrites(pre: UsePreflight, request: OperationRequest): ManagedWrite[] {
+  const writes: ManagedWrite[] = [{ path: MODEL_PROVIDER_PATH, value: pre.routeTo }]
+  const model = request.patch['model']
+  if (typeof model === 'string') writes.push({ path: MODEL_PATH, value: model })
+  return writes
 }
 
 /** The record every committed-but-never-backed-up path in a switch shares:
@@ -134,7 +151,7 @@ async function throwAuthMoveFailure(
   let rollback: CcsetError | undefined
   if (!replaced) {
     try {
-      await restoreModelProvider(ctx, previousRoute(pre.configBase) ?? '')
+      await restoreRouting(ctx, pre)
       routingRestored = true
     } catch (rollbackErr) {
       rollback = toCcsetError(rollbackErr)
@@ -204,7 +221,7 @@ export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promi
       {
         file: pre.file,
         base: pre.configBase,
-        writes: [{ path: MODEL_PROVIDER_PATH, value: pre.routeTo }],
+        writes: routingWrites(pre, request),
         backupsDir: backupsDir(ctx.home),
       },
     ]),
@@ -222,6 +239,7 @@ export async function runProviderUse(ctx: Ctx, request: OperationRequest): Promi
   return {
     agent: 'codex',
     operation: 'provider.use',
+    activation: 'next-start',
     providerId: id,
     changed: outcome.changed || authChanged,
     dryRun: request.dryRun,

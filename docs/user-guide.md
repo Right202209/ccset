@@ -9,8 +9,9 @@
 When the interactive app starts, it checks the registered Agents' local files
 in parallel and lists only the Agents detected in the current home. One detected
 Agent is selected automatically. If no Agent is detected, use an explicit
-`--agent <id>` to deliberately open a first-time configuration; Non-interactive
-commands always require that explicit selector. Choose **Change agent** or press
+`--agent <id>` to deliberately open a first-time configuration. Commands also
+accept a leading Agent ID or `CCSET_AGENT`; scripts require one of these explicit
+selectors. Only a terminal may infer a sole detected Agent. Choose **Change agent** or press
 Esc in an Agent's main menu to return to Agent selection. After a launch with
 `--agent`, the first return runs local detection; only detected Agents are
 offered, just as on a normal launch.
@@ -315,7 +316,7 @@ place in a script that configures an Agent.
   the file is created; ccset re-asserts it best-effort, so a filesystem that
   refuses the mode change (some WSL, FUSE and SMB mounts) still receives the
   write.
-- A token leaves your machine only through **Test connection**, which names the
+- Within ccset, a token leaves your machine only through **Test connection**, which names the
   destination host and asks before sending. Redirects are refused, so the probe
   never contacts an unconfirmed host. The response body is discarded unread,
   because it can echo the token back.
@@ -354,7 +355,8 @@ you.
 
 ```
 ccset [--agent <id>]             # the interactive interface
-ccset --agent <id> <command> …   # one operation, no interface
+ccset <agent> <command> …        # short explicit selector
+ccset --agent <id> <command> …   # compatible long selector
 ccset -v | --version | -h | --help
 ```
 
@@ -365,12 +367,81 @@ sequences into a log. With a command, ccset runs it headlessly: a
 line-oriented report by default, or one JSON envelope on stdout with
 `--json`.
 
+### Select, add, and use a provider
+
+The short commands in this section target the next release. For this checkout,
+run `npm ci` and `npm run build`, then use `node dist/cli.js` in place of `ccset`.
+
+```bash
+ccset presets list
+ccset presets list openrouter --json
+ccset claude-code add relay --preset openrouter
+ccset claude-code run relay -- --help
+ccset codex add relay --preset openrouter
+ccset codex use relay --model openai/gpt-5.4
+CCSET_AGENT=pi ccset use relay
+```
+
+`add [id] --preset <id>` supplies public endpoints, protocol settings, and model
+suggestions from bundled JSON. It asks only for a hidden key when both stdin and
+stdout are terminals; Enter saves and Ctrl+C cancels without writing. Scripts,
+`--json`, and `--dry-run` require `CCSET_TOKEN` or `--token-stdin`. Both secret
+sources together are refused. Saving sends no request to the Provider.
+
+The default Provider ID is the preset ID. If that name is reserved by the Agent,
+it is suffixed with `-ccset` (for example, opencode uses `openrouter-ccset`). Give
+an explicit ID such as `relay` to choose another name. `add` applies defaults to
+an existing Provider too; explicit field options and `--unset` override those
+defaults, and all other managed fields retain their disk values. Review a
+`--dry-run` before reapplying a preset to a customized Provider.
+
+OpenRouter has entries for all five Agents; DeepSeek has no Codex entry because
+its documented APIs do not include Responses. Entries are configuration starting
+points, not live compatibility claims. Model availability changes; override the
+suggestion using the Agent's model option. Codex stores its model globally, so
+`add` prints a `use --model` command instead of changing the current model while
+saving a new Provider. Preset data and contribution checks live in
+[`presets/README.md`](../presets/README.md).
+
+`use <id>` aliases `provider use <id>` for every Agent:
+
+| Agent | Result of `use` | Timing |
+| --- | --- | --- |
+| Claude Code | Validate its Provider file and print `claude --settings <path>`; write nothing | Only the session started with that command |
+| opencode | Save `model = "provider/model"`; `--model` selects a listed model, otherwise use the first listed model | Next start |
+| Codex | Switch routing and Auth profile; optional `--model` changes the model in the same plan, including rollback on credential failure | Next start |
+| pi | Save default Provider and model; keep existing `--model` behavior | Next start |
+| Grok Build | Save the default model | Next start |
+
+opencode refuses an absent Provider, a missing model, or a Provider excluded by
+`disabled_providers` or `enabled_providers`; it does not change those lists.
+Project configuration and Agent command-line options can override startup
+settings. Existing sessions are not reconfigured. The JSON envelope adds
+`activation: "next-start" | "session"` to a successful `use` result; preset saves
+also add a copyable `nextCommand`.
+
+`run <id> -- <arguments>` is available only for Claude Code. It validates the
+Provider file, starts the installed `claude` executable from PATH with an
+argument array, and inherits stdin/stdout/stderr. Arguments after `--`, including
+`--help`, belong to Claude; ccset does not evaluate them through a shell. The
+child owns its output and requests, and its exit code becomes ccset's exit code
+(a signal exits with 128 plus the signal number). No global settings are changed.
+`run --dry-run --json` previews without starting a child; live `run --json` is
+refused because child output is not a ccset JSON envelope.
+
+A CLI Agent selector overrides `CCSET_AGENT`; conflicting CLI selectors are a
+usage error. With neither, commands may select one detected Agent only when both
+stdin and stdout are terminals. Scripts always fail with 64 and candidate IDs
+until a selector is explicit, even when only one Agent is installed. Detection
+is local, read-only, and never runs an Agent. `presets list` needs no Agent;
+an optional selector filters its catalog.
+
 ### Commands
 
 | Agent | Commands |
 | --- | --- |
-| `claude-code` | `status` · `global set` · `provider set <id>` · `state init` |
-| `opencode` | `status` · `global set` · `provider set <id>` |
+| `claude-code` | `status` · `global set` · `provider set <id>` · `provider use <id>` · `run <id>` · `state init` |
+| `opencode` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 | `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 | `pi` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 | `grok-build` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
@@ -379,10 +450,8 @@ line-oriented report by default, or one JSON envelope on stdout with
 fields you name: omitted fields keep their disk values, `--unset <field>`
 deletes one explicitly, including a managed leaf in a TOML inline table, and
 unmanaged siblings survive. TOML and JSONC edits also preserve the formatting
-around those keys. Saving a provider does not switch
-to it: Claude Code waits for
-`claude --settings`, Codex, pi and Grok Build wait for `provider use`, and
-opencode reads its config on start. `state init` creates Claude Code's
+around those keys. Saving a provider does not switch to it: select it with
+`use`, or start a Claude Code session directly with `run`. `state init` creates Claude Code's
 `~/.claude.json` when it is absent and otherwise leaves the file alone.
 
 Options the commands share:
@@ -392,10 +461,10 @@ Options the commands share:
 | `--json` | One JSON envelope on stdout instead of human lines |
 | `--dry-run` | Read, validate and plan; no backup, no write. State-changing commands only — `status` refuses it |
 | `--unset <field>` | Remove an optional field using its field ID, such as `model`, `smallModel`, or `modelProvider` |
-| `--replace-invalid` | Allow replacement of an invalid target on supported commands; the unreadable original is backed up first. `status`, `state init`, and Codex's `provider use` refuse this option |
+| `--replace-invalid` | Allow replacement of an invalid target on supported commands; the unreadable original is backed up first. `status`, `state init`, `run`, and Claude Code/opencode/Codex `provider use` refuse this option |
 | `--token-stdin` | Read the API key from stdin |
 
-A key reaches ccset only through `CCSET_TOKEN` or `--token-stdin` — never an
+In scripts, a key reaches ccset only through `CCSET_TOKEN` or `--token-stdin` — never an
 option, a positional or a file, all of which are usage refusals — and is then
 written only to that provider's own target: the provider file for Claude Code,
 `options.apiKey` in the named block for opencode, the `auth.<id>.json` sidecar
@@ -439,6 +508,7 @@ tree itself crashes.
 | --- | --- |
 | `CCSET_LOCALE` | Per-run language override: `zh-Hans` selects Simplified Chinese; any other set value selects English. It suppresses the first-use prompt and is never persisted. When unset, the UI uses the saved choice or asks once; commands default to English. ccset never infers the language from the environment's locale. |
 | `CCSET_ASCII=1` | Use a seven-bit interface: decorative glyphs, help punctuation, prose punctuation, and masked values are folded to printable ASCII. Leave it unset for the Unicode glyphs. Chinese text is not transliterated; a seven-bit terminal cannot draw it. |
+| `CCSET_AGENT` | Default explicit Agent selector for commands and TUI; a CLI selector takes precedence. Empty/unknown values are errors. |
 | `CCSET_HOME` | Overrides the home directory ccset reads and writes under. Intended for isolated test runs, not daily use. |
 | `CCSET_TOKEN` | Provider API key for a `provider set` command. Supply it through a secret store or an already-exported environment, and do not combine it with `--token-stdin`. |
 

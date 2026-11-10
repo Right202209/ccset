@@ -9,6 +9,9 @@
  */
 export const claudeCodeMessages: Record<string, Record<string, string>> = {
   en: {
+    'claudeCode.write.sessionReady': 'Provider ready for a Claude Code session',
+    'claudeCode.validate.sessionProvider': 'The Provider file must exist and contain a valid API base URL.',
+    'claudeCode.validate.sessionToken': 'The Provider file has no auth token. Set its key before starting a session.',
     /* --------------------------------------------------------- action detail */
     'claudeCode.action.globalDetail': '~/.claude/settings.json',
     'claudeCode.action.providersDetail': 'Add, edit or delete settings.<name>.json',
@@ -77,6 +80,9 @@ export const claudeCodeMessages: Record<string, Record<string, string>> = {
   },
 
   'zh-Hans': {
+    'claudeCode.write.sessionReady': '供应商已就绪，可用于 Claude Code 会话',
+    'claudeCode.validate.sessionProvider': '供应商文件必须存在，并包含有效的 API 基础 URL。',
+    'claudeCode.validate.sessionToken': '供应商文件没有认证令牌，请先设置密钥再启动会话。',
     /* --------------------------------------------------------- action detail */
     'claudeCode.action.globalDetail': '~/.claude/settings.json',
     'claudeCode.action.providersDetail': '添加、编辑或删除 settings.<name>.json',

@@ -20,6 +20,7 @@ export function grokOperationResult(input: {
   return {
     agent: 'grok-build',
     operation: input.operation,
+    activation: input.operation === 'provider.use' ? 'next-start' : undefined,
     ...(input.providerId === undefined ? {} : { providerId: input.providerId }),
     changed: input.outcome.changed,
     dryRun: input.request.dryRun,
