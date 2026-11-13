@@ -171,7 +171,9 @@ assumed guarantees.
 `src/ui/useScreens.ts` owns a stack of `Frame`s. Only `list` and `status` Frames
 retain their producing task for reload on back, because rerunning those is a
 read. Returning from a success message must never rerun the write that produced
-it.
+it. A message marked `closesOrigin` also closes the Screen its confirm was
+opened from: a delete's outcome is marked, because that Screen was about the
+provider that is now gone, so leaving the message returns to the provider list.
 
 A confirmation returned by `replace()` stacks over the form, and `App` parks
 submitted values as a separate draft on the form's Frame before submitting. Declining malformed-file

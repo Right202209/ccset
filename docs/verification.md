@@ -58,7 +58,7 @@ is shared between a TUI save and a Non-interactive command.
 | --- | --- |
 | `npm run verify:global-settings` | Claude Code managed writes, unmanaged-key preservation, proxy deletion, no-op re-save, backup bytes and modes |
 | `npm run verify:provider-safety` | Claude Code provider preservation, activation command quoting, rotation, masking, secret-free failures |
-| `npm run verify:provider-management` | Provider deletion per Agent (file or shared block, siblings and comments preserved, backup taken, no-op when absent, Codex routing refusal and credential sidecar), the ignore list in ccset's settings file, and the list and probe Screens that honor it |
+| `npm run verify:provider-management` | Provider deletion per Agent (file or shared block, siblings and comments preserved, backup taken, no-op when absent, Codex routing refusal and credential sidecar), the ignore list in ccset's settings file, the list and probe Screens that honor it, the ignore note cleared by a delete, the Rendered paint after a delete landing on the provider list, and Claude Code's Edit form reading the file again after a save or an outside delete |
 | `npm run verify:write-safety` | Create-only state and adoption publication races, atomic writes under SIGKILL, backup integrity, permission failures |
 | `npm run verify:opencode` | Global/provider semantics, per-key models merging, JSONC corpus and target selection, masking and backups |
 | `npm run verify:codex` | TOML corpus, provider invariants, Auth profiles, switching/adoption, recovery failures, screen string resolution |
@@ -122,8 +122,9 @@ package's first version cannot be published by the workflow.
 Not every `scripts/verify-*.ts` file is independently runnable. Codec corpora and
 Codex recovery helpers run inside the Agent fixtures; `verify-viewport.ts` and
 `verify-agent-discovery.ts` run inside `verify:ui-render`, `layout-rules.ts`
-runs inside `verify:layout`, and `verify-release-state.ts` runs inside
-`verify:release-artifact`. `verify-side-info.ts` can print scratch visual
+runs inside `verify:layout`, `verify-release-state.ts` runs inside
+`verify:release-artifact`, and `verify-provider-screens.ts` runs inside
+`verify:provider-management`. `verify-side-info.ts` can print scratch visual
 previews at 130, 100, 90, and 79 columns with `CCSET_VISUAL=1 npm run
 verify:side-info`. `ui-session.ts` and
 `ui-assertions.ts` drive component tests; `pty-session.ts` drives a real terminal; `cli-harness.ts` runs commands with

@@ -87,7 +87,9 @@ export function providerListScreen(input: ProviderListInput): ActionResult {
  * The message a removal ends on. Only the paths that changed are named -- a
  * removal of something already gone is not a write, and claiming a backup for
  * it would be a lie -- and the backups note stays on every one of them, because
- * deleting a provider does not delete the credentials in its backups.
+ * deleting a provider does not delete the credentials in its backups. Removed or
+ * already gone, the provider's own Screen has nothing left to act on, so the
+ * message closes it.
  */
 export function removedMessage(title: string, report: RemovalReport): ActionResult {
   const changed = report.targets.filter((target) => target.changed)
@@ -100,7 +102,13 @@ export function removedMessage(title: string, report: RemovalReport): ActionResu
             ? t('write.noBackup')
             : t('write.backup', { path: target.backupPath }),
         ])
-  return { kind: 'message', title, lines: [...lines, '', t('status.backupsNote')], tone: 'success' }
+  return {
+    kind: 'message',
+    title,
+    lines: [...lines, '', t('status.backupsNote')],
+    tone: 'success',
+    closesOrigin: true,
+  }
 }
 
 export interface ProviderManageInput {
@@ -116,6 +124,17 @@ export interface ProviderManageInput {
   extra?: ListItem[]
 }
 
+/**
+ * The ignore note goes with the provider it was about: kept, it would hide the
+ * next provider saved under the same name. It is cleared after the removal, so
+ * a refused delete leaves the provider as hidden as it was.
+ */
+async function runDelete(input: ProviderManageInput): Promise<ActionResult> {
+  const report = await input.remove()
+  if (input.ignored) await input.setIgnored(false)
+  return removedMessage(t('write.providerDeleted'), report)
+}
+
 function deleteItem(input: ProviderManageInput): ListItem {
   return {
     id: 'delete',
@@ -127,7 +146,7 @@ function deleteItem(input: ProviderManageInput): ListItem {
       lines: [t('confirm.deleteProvider', { name: input.id, path: input.targetPath })],
       confirmLabel: t('confirm.delete'),
       busyLabel: t('app.busyDeleting', { path: input.targetPath }),
-      confirm: async () => removedMessage(t('write.providerDeleted'), await input.remove()),
+      confirm: () => runDelete(input),
     }),
   }
 }

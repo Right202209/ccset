@@ -109,7 +109,7 @@ function describeRecord(name: string, filePath: string, data: JsonObject): Provi
  * A single broken file must never stop the screen rendering, so a parse error
  * becomes an entry rather than an exception.
  */
-async function loadProvider(name: string, filePath: string): Promise<ProviderRecord> {
+async function readProvider(name: string, filePath: string): Promise<ProviderRecord> {
   try {
     const file = await readJsonFile(filePath)
     return describeRecord(name, filePath, file.data)
@@ -123,7 +123,12 @@ async function loadProvider(name: string, filePath: string): Promise<ProviderRec
 
 export async function loadProviders(ctx: Ctx): Promise<ProviderRecord[]> {
   const refs = await listProviderFiles(ctx.home)
-  return Promise.all(refs.map((ref) => loadProvider(ref.name, ref.path)))
+  return Promise.all(refs.map((ref) => readProvider(ref.name, ref.path)))
+}
+
+/** One provider as it is on disk now. A file that is gone reads as an empty provider. */
+export async function loadProvider(ctx: Ctx, name: string): Promise<ProviderRecord> {
+  return readProvider(name, providerSettingsPath(ctx.home, name))
 }
 
 /**

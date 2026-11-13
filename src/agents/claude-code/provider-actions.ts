@@ -7,6 +7,7 @@ import { t } from '../../i18n/index.js'
 import { PROVIDER_FIELDS } from './manifest.js'
 import { providerSettingsPath } from './paths.js'
 import {
+  loadProvider,
   loadProviders,
   removeProvider,
   saveProvider,
@@ -86,20 +87,31 @@ function providerPreview(record: ProviderRecord): StatusLine[] {
   ]
 }
 
-async function openProvider(ctx: Ctx, record: ProviderRecord): Promise<ActionResult> {
-  const ignored = (await readIgnoredProviders(ctx.home, AGENT_ID)).includes(record.name)
+/**
+ * Read when Edit is chosen, never carried over from the list. The provider's
+ * own Screen outlives the saves made from it, and a form seeded from an earlier
+ * read writes every managed field back as it was then -- a token rotated since
+ * included.
+ */
+async function openProviderForm(ctx: Ctx, name: string): Promise<ActionResult> {
+  const record = await loadProvider(ctx, name)
+  return record.parsed ? providerForm(ctx, record) : unreadableMessage(record)
+}
+
+async function openProvider(ctx: Ctx, name: string): Promise<ActionResult> {
+  const ignored = (await readIgnoredProviders(ctx.home, AGENT_ID)).includes(name)
   return providerManageScreen({
-    id: record.name,
+    id: name,
     edit: {
       id: 'edit',
-      label: t('action.providerEdit', { name: record.name }),
+      label: t('action.providerEdit', { name }),
       detail: t('action.providerEditDetail'),
-      run: async () => (record.parsed ? providerForm(ctx, record) : unreadableMessage(record)),
+      run: async () => openProviderForm(ctx, name),
     },
-    targetPath: record.path,
-    remove: () => removeProvider(ctx, record.name),
+    targetPath: providerSettingsPath(ctx.home, name),
+    remove: () => removeProvider(ctx, name),
     ignored,
-    setIgnored: (value) => setProviderIgnored(ctx.home, AGENT_ID, record.name, value),
+    setIgnored: (value) => setProviderIgnored(ctx.home, AGENT_ID, name, value),
   })
 }
 
@@ -125,7 +137,7 @@ export async function openProviders(ctx: Ctx, showIgnored = false): Promise<Acti
       detail: providerDetail(record),
       preview: providerPreview(record),
       tone: record.parsed ? undefined : ('error' as const),
-      run: async () => openProvider(ctx, record),
+      run: async () => openProvider(ctx, record.name),
     })),
     ignored,
     showIgnored,

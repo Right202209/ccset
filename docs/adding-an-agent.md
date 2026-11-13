@@ -82,6 +82,12 @@ Agents rewrite their own config while ccset is open. `save*` re-reads the target
 inside the save, not at launch. A parse from when the screen opened will clobber
 whatever the agent wrote in between.
 
+The re-read protects keys the form does not carry. The form's own fields are
+written as the form holds them, so a form is seeded from a read made when it
+opens. A provider's own screen stays open across the saves made from it; its
+Edit entry reads the provider again each time, never from the record the list
+loaded.
+
 ### Never write a subtree wholesale
 
 Write the leaf, not its parent. opencode's provider options look like a natural

@@ -39,7 +39,9 @@ configuration: the Agent's behaviour is the Agent's, and ccset has no business
 editing a config file to express a preference about its own interface. An
 ignored provider leaves the offered list and stops being a Test-connection
 target, is still read by its Agent exactly as before, and is reachable again
-through a row on the same list that reveals it and un-ignores it.
+through a row on the same list that reveals it and un-ignores it. Deleting a
+provider clears its note: the note is about that provider, and kept, it would
+hide a later provider saved under the same name.
 
 The settings document stays at schema version 1 and additive: an unknown shape
 reads as empty, and both writers re-read the document first and carry the other
