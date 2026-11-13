@@ -17,7 +17,8 @@ linked guides when the change reaches their area. `CLAUDE.md` points here too.
 4. Run the checks selected by [docs/verification.md](docs/verification.md).
    Review the final diff and run `git diff --check`. Update the affected docs and
    report the actual commands, results, and any checks still pending. Record new
-   runtime evidence in `Important Documentation.md` §9, which is append-only.
+   runtime evidence in `Important Documentation.md` §9, which is append-only;
+   routine documentation checks belong in the handoff or PR description.
 
 ## Where to work
 
@@ -25,7 +26,7 @@ This is an ESM TypeScript CLI/TUI built with Ink and React.
 
 | Area | Responsibility |
 | --- | --- |
-| `src/core/` | Agent-independent file I/O, validation, merging, masking, backups, paths, and errors |
+| `src/core/` | Agent-independent file I/O, Codecs, validation, merging, masking, backups, paths, settings, errors, and shared provider Screens |
 | `src/operations/` | Normalized operation requests/results and the shared plan/apply commit core |
 | `src/commands/` | CLI parsing, secret sources, human and JSON presentation |
 | `src/agents/<id>/` | Each Agent's paths, constants, manifests, actions, commands, and messages |
@@ -34,9 +35,10 @@ This is an ESM TypeScript CLI/TUI built with Ink and React.
 | `src/types.ts`, `src/ctx.ts` | Shared interfaces and runtime context |
 | `src/cli.tsx`, `src/registry.ts` | Process boundary and static Agent registration |
 | `scripts/` | Executable verification fixtures and their harnesses |
-| `pages/` | Website source; own `package.json` and Node 22+ toolchain; checks run from `pages/` |
+| `pages/` | React/Vite website; separate package, lockfile, Node requirements, and checks |
 
-`dist/` and `.verify/` are generated output; edit their sources instead.
+`dist/`, `.verify/`, and `pages/dist/` are generated output; edit their sources
+instead.
 
 Read these guides for the corresponding work:
 
@@ -44,6 +46,7 @@ Read these guides for the corresponding work:
 | --- | --- |
 | Runtime behavior or module boundaries | [Architecture](docs/architecture.md), [PRD.md](PRD.md), relevant ADRs |
 | Non-interactive commands | [Command specification](docs/milestone-3-non-interactive.md), [implemented CLI behavior](docs/user-guide.md#cli) |
+| Provider deletion or ignored providers | [User guide](docs/user-guide.md#deleting-and-ignoring-providers), [ADR 0019](docs/adr/0019-delete-and-ignore-providers-in-the-interface.md) |
 | New Agent | [Coding-assistant workflow (中文)](docs/agents/add-agent-workflow.md), [Adding an Agent](docs/adding-an-agent.md), [contribution requirements](CONTRIBUTING.md#new-agents) |
 | Tests, build, CI, or release evidence | [Verification guide](docs/verification.md), [verification register](<Important Documentation.md>) |
 | Website (`pages/`) | [Site dev guide](pages/README.md), [ADR 0015](docs/adr/0015-render-the-website-from-the-repository-markdown.md), [verification guide](docs/verification.md) |
@@ -56,7 +59,8 @@ Read these guides for the corresponding work:
 
 - Keep Agent-specific paths, defaults, validation rules, and strings inside its
   module. An Agent produces `ActionResult` data; Ink Views render it. New Agents
-  reuse the shared core and register in `src/registry.ts`.
+  reuse the shared core and register statically in `src/registry.ts`; Agent
+  modules do not import from `src/ui/`.
 - Agent detection is local, read-only, and lightweight; never execute the Agent
   or contact a Provider to detect it. The TUI offers only detected Agents and
   selects a sole match automatically. Explicit `--agent` bypasses discovery for
@@ -66,10 +70,12 @@ Read these guides for the corresponding work:
 - Non-interactive commands use `executeOperation` with structured requests,
   results, and typed errors. Keep Screens and translated text out of that
   contract; command mode must not load Ink. Both surfaces share the commit core.
-- Preserve unmanaged keys at every nesting level. Write managed leaves rather
-  than replacing parent objects. TOML and JSONC edits preserve unrelated text,
-  comments, and formatting; a managed leaf inside a TOML inline table may
-  expand that table to dotted assignments while preserving its siblings.
+- Preserve unmanaged keys at every nesting level during configuration edits.
+  Write managed leaves rather than replacing parent objects. TOML and JSONC
+  edits preserve unrelated text, comments, and formatting; a managed leaf inside
+  a TOML inline table may expand that table to dotted assignments while
+  preserving its siblings. Explicit Provider deletion removes its whole file or
+  block, including that Provider's unmanaged keys.
 - Keep deletion semantics explicit: blank TUI fields omit their managed keys,
   including leaves inside inline tables; omitted command options preserve disk
   values and `--unset` removes the named leaf while preserving its siblings. A
@@ -77,11 +83,23 @@ Read these guides for the corresponding work:
 - Re-read targets at save time. Preflight all command targets before the first
   write. Back up originals and use atomic writes with `0600` on POSIX.
   Non-interactive no-ops and dry-runs must not write or create backups.
-- A malformed target requires a TUI confirmation or the command's explicit
-  `--replace-invalid` choice. Preserve the malformed original in a backup when
-  replacing it.
+- Replacing a malformed target requires a TUI confirmation or the command's
+  explicit `--replace-invalid` choice. Preserve the malformed original in a
+  backup when replacing it.
+- Provider deletion and ignore changes are confirmed TUI Actions (ADR 0019).
+  Reuse `src/core/provider-actions.ts` and `src/core/remove.ts`. Back up before
+  deleting; an absent target is a no-op. Whole-file deletion can remove a
+  malformed Claude Code Provider, while deleting a block requires a parseable
+  shared document and preserves sibling Providers, comments, and formatting.
+- Ignored providers live under `ignoredProviders` in
+  `<home>/.ccset/settings.json`, keyed by Agent id. Exclude them from normal
+  provider lists and Test-connection targets; the list must offer a way to reveal
+  them and stop ignoring them. Settings writers re-read and preserve both the
+  locale preference and other Agents' ignored providers.
 - `~/.claude.json` is create-only. Codex's live `auth.json` is backed up and
-  replaced as a whole on an explicit switch; never merge into it.
+  replaced as a whole on an explicit switch; never merge into it. Codex Provider
+  deletion refuses the currently routed Provider and backs up and deletes its
+  saved Auth profile before removing the table. Backups can retain credentials.
 - Mask secrets in entry, Status, review, errors, and command output. Scripts
   accept secrets only through `CCSET_TOKEN` or explicit `--token-stdin`; terminal
   `add --preset` may ask for hidden input (ADR 0020). Usage
@@ -92,6 +110,19 @@ Read these guides for the corresponding work:
   `CCSET_HOME` for manual runs and fixtures; never test writes in a real Agent home.
 - Ship user-facing string changes in both `en` and `zh-Hans`. Agent strings live
   in the Agent's `messages.ts`; the registry merges them and rejects duplicates.
+  Fixtures resolving Agent message keys must import the registry first.
+- Keep the TUI frame as tall as its content and preserve terminal scrollback.
+  Views use the main Panel's interior Viewport and the shared terminal/text-fit
+  helpers. Side-panel Glance data comes from the read-only status operation;
+  focused Previews reuse loaded list records. Credential Previews show presence
+  only, and base-URL Previews show only a valid origin, omitting paths, queries,
+  and fragments.
+
+Update English docs and the corresponding Chinese docs when they cover changed
+behavior. Chinese translations live under `docs/zh-CN/` as `<name>.zh-CN.md`;
+`README.zh-CN.md` stays at the root. The website renders repository Markdown:
+edit those sources and register new viewer documents in
+`pages/src/content/registry.ts` with labels in both site catalogs.
 
 ## Style and quality
 
@@ -109,13 +140,21 @@ module that owns them; only shared constants belong in `src/core/constants.ts`.
 
 ## Verification and handoff
 
-Use Node.js 18+ and `npm ci` for a locked install. There is no separate lint or
-unit-test framework; the `verify:*` fixtures are the test suite. Use them for
-regressions now. The [verification guide](docs/verification.md) maps changes to
-checks and distinguishes documentation-only work from runtime changes.
+Use Node.js 18+ and root `npm ci` for the CLI's locked install. The CLI has no
+separate lint command or unit-test framework; its `verify:*` fixtures are the
+test suite. The [verification guide](docs/verification.md) maps changes to checks.
+For documentation-only changes, check links, anchors, examples, and claims and
+run `git diff --check`; run runtime checks when changed instructions need execution.
+
+The website uses its own lockfile and the Node engine range in
+[pages/package.json](pages/package.json). Run `npm ci`, `npm run typecheck`,
+`npm test` (Vitest with coverage), `npm run build`, and `npm run smoke` from
+`pages/`. Visible website changes also need desktop and mobile checks and PR
+screenshots; see [pages/README.md](pages/README.md).
 
 Run fixtures sequentially: they share and clean `.verify/`, and several rebuild
-`dist/`. `npm test` runs the complete fixture suite in sequence. CI definitions in
+`dist/`. Root `npm test` runs the complete fixture suite in sequence; the POSIX
+PTY fixtures require Linux or macOS and `python3`. CI definitions in
 [ci.yml](.github/workflows/ci.yml) describe the platform matrix; local success is
 not evidence for another platform or for a live Provider request.
 
