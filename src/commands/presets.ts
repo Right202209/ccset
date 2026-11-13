@@ -20,8 +20,8 @@ export function listPresets(argv: string[]): boolean {
     (scan.agentId === null || Object.hasOwn(preset.agents, scan.agentId)))
   const result = scan.json
     ? escapeJsonControlCharacters(JSON.stringify({ schemaVersion: 1, agent: scan.agentId, operation: 'presets.list', ok: true, exitCode: 0, data: { presets } }))
-    : presets.map((preset) => `${preset.id} — ${preset.name} (${Object.keys(preset.agents).join(', ')})`).join('\n') || t('cli.preset.noMatches')
-  process.stdout.write(`${sanitizeForTerminal(result)}\n`)
+    : presets.map((preset) => sanitizeForTerminal(`${preset.id} — ${preset.name} (${Object.keys(preset.agents).join(', ')})`)).join('\n') || t('cli.preset.noMatches')
+  process.stdout.write(`${result}\n`)
   return true
 }
 

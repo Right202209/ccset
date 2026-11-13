@@ -48,6 +48,10 @@ async function checkErrors(home: string): Promise<void> {
   const listed = await runCli(['presets', 'list', 'OPENROUTER', '--json'], env)
   const entries = asRecord(asRecord(JSON.parse(listed.stdout))['data'])['presets'] as { id: string }[]
   assert.deepEqual(entries.map((entry) => entry.id), ['openrouter'])
+  const human = await runCli(['presets', 'list'], env)
+  assert.equal(human.code, 0, human.stdout + human.stderr)
+  assert.deepEqual(human.stdout.trimEnd().split('\n').map((row) => row.split(' — ')[0]),
+    PRESETS.map((preset) => preset.id), 'presets list did not print one preset per line')
   const piped = await runCli(['opencode', 'add', '--preset', 'openrouter', '--model', 'my-model', '--token-stdin', '--json'], env, `${PRESET_TOKEN}\n`)
   assert.equal(piped.code, 0, piped.stdout + piped.stderr)
   assert.match(piped.stdout, /openrouter-ccset/)

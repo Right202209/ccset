@@ -3383,3 +3383,56 @@ configures a publisher in an existing package's settings and does not describe
 a name with no published version, while the guard refuses a local
 `npm publish`. How the first `ccset` version is created is a maintainer
 decision.
+
+### 9.75 Release-candidate smoke, the preset list fix, and PR #76 CI (2026-11-13)
+
+**CI.** At `2fb09fe`, all nine jobs in
+[CI run 43392907458](https://github.com/Right202209/ccset/actions/runs/43392907458)
+passed: Linux, macOS, and Windows with Node.js 18, 20, and 22. Linux and macOS
+ran the full suite, including the forwarder's install from the npm registry;
+Windows ran typecheck, build, runtime smoke, and package contents checks. The
+Pages check in [run 43392907608](https://github.com/Right202209/ccset/actions/runs/43392907608)
+passed.
+
+**Installed-tarball smoke.** Linux x64 (WSL2), Node.js 26.13.0, npm 12.2.1.
+`npm pack` listed `LICENSE`, both READMEs, `dist/cli.js`, and `package.json`.
+The tarball was installed into a temporary project and run under `env -i` with
+a scratch `HOME` and `CCSET_HOME` and a placeholder key:
+
+- `--version` printed 0.11.0. The no-argument non-TTY refusal exited 2 without
+  ANSI escapes.
+- `claude-code add relay --preset openrouter --dry-run` created no file. The
+  real `add` created one `0600` file, a repeat reported `Changed: no`, and
+  `use` and `status` exited 0 with the token shown as present only.
+- **Defect.** `presets list` printed both presets on one line, joined by a
+  literal `\x0a`. `listPresets` joined its rows with a newline and then passed
+  the whole text through `sanitizeForTerminal`, which escapes C0 controls. The
+  fixture asserted only `presets list OPENROUTER --json`, a single JSON match.
+
+**Fix.** Each row is sanitized before the rows are joined.
+`verify:short-commands` now asserts one preset id per line of human output. On
+the unfixed tree that assertion failed with `actual: ['openrouter']` against
+`expected: ['openrouter', 'deepseek']`; it passed after the change.
+
+**After the fix.** Root `npm run typecheck`, `npm run build`,
+`npm run verify:code-gates` (293 files, nine baseline exceptions), and the full
+`npm test` passed (exit 0). The rebuilt tarball was installed and run again:
+
+- `presets list` unfiltered, filtered, with no match, with `--agent codex`, and
+  with `--json` printed one preset per line or the JSON envelope.
+- `add relay --preset` followed by `use relay` exited 0 for all nine
+  preset/Agent pairs, each in its own scratch home.
+- `claude-code run relay -- --print 'a b'` against a stub `claude` passed
+  `--settings <path> --print` and `a b` as separate literal arguments and
+  returned the stub's exit status 23.
+- The captured output held no escaped control sequence and never the whole
+  placeholder. All 18 files under the scratch homes were mode `0600`.
+
+**Forwarder, global install.** With npm 12.2.1 and a scratch `--prefix`,
+`npm install -g` of the packed forwarder into a prefix that already held
+`@droite/ccset@0.10.0` failed with `EEXIST` on the `ccset` executable and left
+the existing link in place. Into an empty prefix it succeeded, and
+`ccset --version` printed 0.10.0.
+
+Not performed: manual macOS or Windows checks, a live Provider request, and a
+launch of a real Agent. The npm version is still 0.10.0.
