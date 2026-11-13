@@ -161,9 +161,6 @@ ccset -v | --version | -h | --help
 
 ### 选择、添加和使用供应商
 
-本节简写命令面向下一版本。体验当前源码时，运行 `npm ci`、`npm run build`，
-再将示例中的 `ccset` 替换为 `node dist/cli.js`。
-
 ```bash
 ccset presets list
 ccset presets list openrouter --json

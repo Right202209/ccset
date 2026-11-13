@@ -261,48 +261,39 @@ recipe（2.5）有两个用途：它们是 R2 要求的场景文档，也是检�
 | Agent 自己提供了切换功能，需求变小 | 即使改动很小，diff、拒绝情形和写入契约仍然值得拥有 |
 | 远程和 CI 受众比 R2 假设的小 | 阶段 4 的门槛让大投入排在证据之后 |
 
-## 8. 阶段 0 实现交接（2026-11-12）
+## 8. 阶段 0 进展（2026-11-13）
 
-实现分支为 `feat/project-plan-implementation`，基于 `docs/project-plan` 的
-`af63e17`。第 1 节仍保留 2026-11-10 的快照。当前准备发布的版本是
-`@droite/ccset` **0.11.0**；修改 package 和 lockfile 的版本不等于已经发布。
+第 1 节仍保留 2026-11-10 的快照。0.1 和 0.2 已完成，0.11.0 已发布（0.3）；
+0.4 还差一步，只有登录了 npm 的维护者才能完成。
 
-转发包位于 `packages/ccset/`，在同一进程中导入已安装的 CLI。它暂时固定依赖
-已发布的 **0.10.0**，因此在 0.11.0 上 npm 之前也能验证产物。主包发布成功后，
-更新该依赖和两份转发包 README，重新验证，再发布转发包。主包的标签是
+| 条目 | 状态 | 证据或剩余事项 |
+| --- | --- | --- |
+| 0.1 | 完成 | 计划、评审、`AGENTS.md` 修改和实现均已提交；提 PR 之前 `git status` 是干净的 |
+| 0.2 | 完成 | [PR #76](https://github.com/Right202209/ccset/pull/76) 已合并为 `0e475e7`。该提交的 [CI 运行 43402359001](https://github.com/Right202209/ccset/actions/runs/43402359001) 九个任务全部通过：Linux、macOS 和 Windows，Node.js 18、20 和 22 |
+| 0.3 | 已发布 | [v0.11.0](https://github.com/Right202209/ccset/releases/tag/v0.11.0) 由 `publish.yml` 发布，带来源证明。在开发机上用全新的 npm 缓存、全局前缀和 home 运行了 `npx @droite/ccset claude-code add relay --preset openrouter`；没有使用第二台机器。两份 README 和两份用户指南里的“下一版本”提示已删除 |
+| 0.4 | 未完成 | 转发包已固定依赖已发布的 0.11.0，检查通过。`npm view ccset` 仍返回 404 |
+
+**0.4 还差什么。** npm 只能给已经存在的包配置可信发布者（`npm help trust`，
+npm 12.2.1，2026-11-13 查阅），所以 `publish.yml` 无法创建 `ccset`。需要由登录了
+npm 的维护者从 `packages/ccset/` 发布第一个版本，再允许本仓库的 `publish.yml`
+和 `npm-publish` 环境为该包运行 `npm publish`。之后的版本通过
+`ccset-v<version>` 标签发布。手动发布哪个版本由维护者决定：先发布一个临时
+版本，0.1.0 就能带来源证明，转发包的发布任务也能第一次实际运行；直接发布
+0.1.0 则少一步。
+
+在名称注册之前，`packages/ccset/README.md` 里写着一条任何人都可以抢注的
+`npx ccset` 命令。这正是 D3 要消除的风险，而且现在已经在公开仓库里可见。
+
+转发包在同一进程中导入已安装的 CLI，并固定依赖一个已发布的确切版本。主包每次
+发布后，更新该依赖和两份转发包 README，重新验证，再发布转发包。主包的标签是
 `v<version>`，转发包是 `ccset-v<version>`。两者都通过 `publish.yml`，使用
 `npm-publish` 环境、可信发布和来源证明。发布检查拒绝属于另一个包的标签、
 版本不符的标签、本地发布，以及不干净的工作区。
 
-| 条目 | 本地实现 | 尚待满足的退出条件 |
-| --- | --- | --- |
-| 0.1 | 基础提交已包含计划和评审；已有本地修改已保留 | 审查并提交实现及原有的 `AGENTS.md` 修改，使工作区干净 |
-| 0.2 | 现有完整 CI 矩阵仍是必需的门槛 | 通过 PR 推送审查后的提交，取得 Linux、macOS 和 Windows 的 CI 证据 |
-| 0.3 | 已准备 0.11.0 的版本文件及下方的发布说明草稿 | 维护者通过 `publish.yml` 发布，核对全新 npm 安装，再删除两份主 README 的下一版本提示 |
-| 0.4 | 已实现薄包、双语文档、发布路由、检查和安装产物断言 | 确认 `ccset` 的发布权限，更新已发布依赖，发布 `ccset-v0.1.0`，核对注册表归属 |
+0.11.0 已在 npm 上，阶段 1 要写进文档的命令现在都可以安装，阶段 1 不再等待
+阶段 0。在 0.4 注册无作用域名称之前，安装命令仍用 `npx @droite/ccset`。
 
-0.4 的待决问题：npm 的可信发布文档（2026-11-12 查阅）在已有包的设置页里配置
-发布者，没有说明尚无已发布版本的名称如何配置。`ccset` 目前没有任何版本，而发布
-检查拒绝本地 `npm publish`。打 `ccset-v0.1.0` 标签前，由维护者决定第一个版本
-如何创建；这里不引入备用 token。
-
-验证结果记录在只追加的
-[Important Documentation.md §9](<../../Important Documentation.md#9-implementation-register-code-complete>)。
-阶段 0 的远端发布和 CI 条件满足前，本阶段仍未完成；阶段 1 和 2 保留对发布的依赖。
-
-### v0.11.0 发布说明草稿
-
-- Agent 选择支持位置参数和 `CCSET_AGENT`。脚本仍需显式指定；终端可以自动选择
-  唯一检测到的 Agent。
-- `presets list` 和 `add --preset` 提供两个内置预设，覆盖九个 Agent 条目。
-  终端可通过隐藏提示输入密钥；脚本使用 `CCSET_TOKEN` 或 `--token-stdin`。
-- 五个 Agent 都支持 `use <id>`。opencode、Codex、pi 和 Grok Build 保存下次
-  启动的默认选择。Claude Code 打印会话命令；显式的 `run <id>` 不经过 shell，
-  启动已安装的 Agent 并传递其退出码。Dry-run 不会启动 Agent。
-- 写入行为：预设 `add` 显式应用默认值，传入的选项优先。Codex 的 `use --model`
-  同时改变路由和模型，凭据启用失败时恢复两者。现有命令仍可用；保留不受管键、
-  备份及密钥来源规则。
-- 主 CLI 和转发包使用不同的发布标签。转发包单独发布，显示它固定依赖的 CLI 版本。
-- 正式发布这些说明前，需要附上实际 CI 和本地验证结果。当前候选版本尚未进行
-  原生 macOS、Windows 交互检查或真实提供商请求；Linux fixture 在隔离目录中
-  使用 Agent 替身进行启动测试。
+发布说明已随 v0.11.0 Release 公布，取代原先放在这里的草稿。验证结果记录在
+只追加的
+[Important Documentation.md §9](<../../Important Documentation.md#9-implementation-register-code-complete>)
+的 9.74 到 9.76 条目中。

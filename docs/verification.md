@@ -99,10 +99,14 @@ exercise `dist/cli.js`; some also assert directly against the operation seam.
 `verify:malformed-dirty`, `verify:first-run-locale`, `verify:status-terminal`, and
 `verify:i18n-zh` also build first. The release-artifact fixture builds internally,
 packs and installs the tarball into a temporary project; it does not publish.
-The forwarding package in `packages/ccset/` is packed and installed there too;
-its CLI is compared with the dependency it resolves for version, help, non-TTY
-refusal, and invalid-option behavior. Its dependency pins a published version
-of `@droite/ccset`, independently of the version being built in this checkout.
+The forwarding package in `packages/ccset/` is packed and installed into a
+second temporary project. Its dependency pins a published version of
+`@droite/ccset`, and the fixture asserts from npm's install record that this
+version was not taken from a local tarball: installed beside the tarball
+packed above, a pin equal to this checkout's version would be satisfied by
+that build. The forwarded CLI is then compared with the dependency it resolves
+for version, help, non-TTY refusal, and invalid-option behavior. This needs
+network access to the npm registry.
 Other fixtures import source modules and are bundled for execution by tsup.
 
 The release guard checks each package against its own GitHub Release tag:
@@ -112,6 +116,8 @@ mismatched tags, local publishing, and dirty checkouts. `publish.yml` routes
 those tags to separate jobs in the same `npm-publish` environment, with
 provenance enabled. Each npm package needs its own trusted publisher and
 publishing permissions; passing a local fixture does not prove either is set.
+npm attaches a trusted publisher only to a package that already exists, so a
+package's first version cannot be published by the workflow.
 
 Not every `scripts/verify-*.ts` file is independently runnable. Codec corpora and
 Codex recovery helpers run inside the Agent fixtures; `verify-viewport.ts` and
