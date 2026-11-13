@@ -1,5 +1,4 @@
-import { EXIT_INVALID_CONFIG, EXIT_OK, toCcsetError, type CcsetError } from '../core/errors.js'
-import { resolveHome } from '../core/paths.js'
+import { CcsetError, EXIT_INVALID_CONFIG, EXIT_OK, EXIT_USAGE, toCcsetError } from '../core/errors.js'
 import { executeOperation } from '../operations/index.js'
 import type { OperationRequest } from '../operations/types.js'
 import type { Agent, Ctx } from '../types.js'
@@ -9,6 +8,10 @@ import { scanGlobals } from './globals.js'
 import { humanError, humanMutation, humanStatus } from './present.js'
 import { secretFromEnv, secretFromStdin } from './secret.js'
 import { sanitizeForTerminal } from '../core/terminal-text.js'
+import { explicitSelection, selectCommandAgent } from './selection.js'
+import { expandPreset, listPresets, presetNextCommand } from './presets.js'
+import { promptSecret } from './prompt-secret.js'
+import { launchSession } from './launch.js'
 
 /**
  * Command-mode execution: parse, read the secret if one applies, run the
@@ -52,16 +55,18 @@ function presentSuccess(parsed: ParsedCommand, result: Awaited<ReturnType<typeof
  * Best-effort context for the failure envelope when parsing never completed,
  * so `--json` can honor its contract even on a usage error.
  */
-function globalsOf(argv: string[]): { agentId: string | null; json: boolean } {
+function globalsOf(argv: string[], agents: Agent[]): { agentId: string | null; json: boolean } {
   const scan = scanGlobals(argv)
-  return { agentId: scan.agentId, json: scan.json }
+  const known = agents.find((agent) => agent.id === scan.agentId)
+  const agentId = scan.agentId === null ? null : known?.id ?? '[redacted]'
+  return { agentId, json: scan.json }
 }
 
-function presentFailure(parsed: ParsedCommand | undefined, err: CcsetError, argv: string[]): number {
+function presentFailure(parsed: ParsedCommand | undefined, err: CcsetError, context: { argv: string[]; agents: Agent[] }): number {
   // --json owes its envelope on ordinary failure too, and a parse-stage
   // failure never built a ParsedCommand; the parser tags the declaration it
   // had already matched, and the raw flags cover the earlier stages.
-  const fallback = parsed === undefined ? globalsOf(argv) : null
+  const fallback = parsed === undefined ? globalsOf(context.argv, context.agents) : null
   if (parsed?.json === true || fallback?.json === true) {
     const fallbackAgent = err.messageKey === 'error.unknownAgent' ? '[redacted]' : fallback?.agentId ?? null
     printEnvelope(
@@ -85,18 +90,42 @@ function presentFailure(parsed: ParsedCommand | undefined, err: CcsetError, argv
 export async function runCommand(
   argv: string[],
   agents: Agent[],
-  tokenEnv: string | undefined,
+  options: RunCommandOptions,
 ): Promise<number> {
   let parsed: ParsedCommand | undefined
   try {
-    parsed = parseCommand(argv, agents, tokenEnv)
-    const secret = await readSecret(parsed.secretSource, tokenEnv)
+    argv = explicitSelection(argv, agents, options.agentEnv)
+    if (listPresets(argv)) return EXIT_OK
+    const ctx: Ctx = { home: options.home }
+    argv = await selectCommandAgent(argv, agents, { ctx, interactive: options.interactive })
+    const expansion = expandPreset(argv, agents)
+    parsed = parseCommand(expansion.argv, agents, options.tokenEnv)
+    const secret = await commandSecret(parsed, options, expansion.target !== undefined)
     const request: OperationRequest =
       secret === undefined ? parsed.request : { ...parsed.request, secret }
-    const ctx: Ctx = { home: resolveHome() }
     const result = await executeOperation(parsed.agent, ctx, request)
+    result.nextCommand = presetNextCommand(parsed.agent.id, expansion)
+    if (request.operation === 'provider.run' && !request.dryRun) {
+      return await launchSession(result, parsed.launchArgs)
+    }
     return presentSuccess(parsed, result)
   } catch (err) {
-    return presentFailure(parsed, toCcsetError(err), argv)
+    return presentFailure(parsed, toCcsetError(err), { argv, agents })
   }
+}
+
+interface RunCommandOptions {
+  tokenEnv?: string
+  agentEnv?: string
+  home: string
+  interactive: boolean
+}
+
+async function commandSecret(parsed: ParsedCommand, options: RunCommandOptions, preset: boolean) {
+  const secret = await readSecret(parsed.secretSource, options.tokenEnv)
+  if (!preset || secret !== undefined) return secret
+  if (!options.interactive || parsed.json || parsed.request.dryRun) {
+    throw new CcsetError('cli.preset.secretRequired', EXIT_USAGE)
+  }
+  return promptSecret()
 }

@@ -1,0 +1,23 @@
+{
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "sources": ["https://api-docs.deepseek.com/", "https://api-docs.deepseek.com/guides/anthropic_api"],
+  "agents": {
+    "claude-code": {
+      "protocol": "messages",
+      "options": { "--base-url": "https://api.deepseek.com/anthropic", "--model": "deepseek-flash" }
+    },
+    "opencode": {
+      "protocol": "chat_completions",
+      "options": { "--base-url": "https://api.deepseek.com", "--npm": "@ai-sdk/openai-compatible", "--model": ["deepseek-flash"] }
+    },
+    "pi": {
+      "protocol": "chat_completions",
+      "options": { "--base-url": "https://api.deepseek.com", "--api": "openai-completions", "--model": ["deepseek-flash"] }
+    },
+    "grok-build": {
+      "protocol": "chat_completions",
+      "options": { "--base-url": "https://api.deepseek.com", "--api-backend": "chat_completions", "--model": "deepseek-flash" }
+    }
+  }
+}

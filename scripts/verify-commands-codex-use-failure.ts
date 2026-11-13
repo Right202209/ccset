@@ -10,6 +10,7 @@ const LIVE_AUTH = '{"OPENAI_API_KEY":"old-secret","auth_mode":"apikey"}\n'
 const ROUTER_AUTH = '{"OPENAI_API_KEY":"new-secret","auth_mode":"apikey"}\n'
 const UNKNOWN_AUTH = '{"OPENAI_API_KEY":"unknown-secret","auth_mode":"chatgpt"}\n'
 const CONFIG = `model_provider = "old"
+model = "old-model"
 
 [model_providers.old]
 name = "Old"
@@ -78,7 +79,7 @@ interface FailureOptions {
 }
 
 function runFailedSwitch(home: string, preload: string, options: FailureOptions = {}) {
-  const args = ['--agent', 'codex', 'provider', 'use', 'router']
+  const args = ['--agent', 'codex', 'provider', 'use', 'router', '--model', 'new-model']
   if (options.adopt === true) args.push('--adopt-current-as', 'kept')
   args.push('--json')
   return runCliWithPreload(args, preload, {
@@ -103,6 +104,15 @@ async function verifyOrdinaryFailure(home: string, preload: string): Promise<voi
   assert.equal(envelope.ok, false)
   assert.equal(await fs.readFile(codexConfigPath(home), 'utf8'), CONFIG, 'routing was not restored')
   assert.equal(await fs.readFile(codexAuthPath(home), 'utf8'), LIVE_AUTH, 'the live credential was replaced')
+  withoutSecrets(result)
+}
+
+async function verifyAbsentModelFailure(home: string, preload: string): Promise<void> {
+  const original = CONFIG.replace('model = "old-model"\n', '')
+  await fs.writeFile(codexConfigPath(home), original)
+  const result = await runFailedSwitch(home, preload)
+  assert.equal(result.code, EXIT_RUNTIME)
+  assert.equal(await fs.readFile(codexConfigPath(home), 'utf8'), original, 'rollback left a newly introduced model')
   withoutSecrets(result)
 }
 
@@ -191,6 +201,7 @@ async function withFailureHome(
 
 export async function verifyFailedAuthMoveRestoresRouting(): Promise<void> {
   await withFailureHome('ordinary', verifyOrdinaryFailure)
+  await withFailureHome('absent-model', verifyAbsentModelFailure)
   await withFailureHome('adopt', verifyAdoptionFailure)
   await withFailureHome('post-rename', verifyPostRenameFailure)
   await withFailureHome('rollback', verifyRollbackFailure)

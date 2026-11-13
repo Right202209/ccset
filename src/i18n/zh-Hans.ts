@@ -4,7 +4,10 @@
  * catalog through untouched (ui/terminal.ts), so CJK text reaches a Unicode
  * terminal as written and is never transliterated for a seven-bit one.
  */
+import { commandMessages } from './command-messages.js'
+
 export const zhHans: Record<string, string> = {
+  ...commandMessages['zh-Hans'],
   /* ------------------------------------------------------------- app shell */
   'app.title': 'ccset',
   'app.tagline': '写入编码 Agent 的设置文件。是否启用由你决定。',

@@ -23,6 +23,7 @@ import { runProviderSet, PROVIDER_COMMAND_FIELDS } from './provider-commands.js'
 import { createStateIfMissing } from './state.js'
 import { claudeStatusFindings, readClaudeStatus, type ClaudeStatusDto } from './status-dto.js'
 import { presentClaudeGlance, presentClaudeStatus } from './status-present.js'
+import { claudeSessionCommands } from './use.js'
 
 /**
  * The agent's Non-interactive declarations. Field ids here are stable script
@@ -225,6 +226,7 @@ async function createState(
 }
 
 export const claudeCodeCommands: CommandDeclaration[] = [
+  ...claudeSessionCommands,
   {
     id: 'global.set',
     fields: GLOBAL_COMMAND_FIELDS,

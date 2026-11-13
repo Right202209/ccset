@@ -28,6 +28,7 @@ import {
   validateProviderTimeoutMs,
 } from './manifest.js'
 import { autoupdateValue } from './global.js'
+import { opencodeUse } from './use.js'
 import { backupsDir, launchCommand, opencodeTarget } from './paths.js'
 import {
   opencodeStatusFindings,
@@ -236,6 +237,7 @@ async function runProviderSet(ctx: Ctx, request: OperationRequest): Promise<Oper
 }
 
 export const opencodeCommands: CommandDeclaration[] = [
+  opencodeUse,
   {
     id: 'global.set',
     fields: GLOBAL_COMMAND_FIELDS,

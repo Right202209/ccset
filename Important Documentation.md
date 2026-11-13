@@ -3274,3 +3274,165 @@ the permitted rerun passed all routes, assets, and gzip-budget checks.
 No runtime source changed. The full root fixture suite, fresh npm install,
 desktop/mobile browser checks, other platforms, and live Provider requests
 were not run for this documentation change.
+
+
+### 9.73 P0 command shortcuts, presets, and activation (2026-11-10)
+
+**Scope.** ADR 0020 records positional/flag/environment Agent selection,
+terminal-only inference, static preset expansion, all-Agent `use`, and the
+explicit Claude Code `run` launcher. Claude Code `use` only validates and
+prints its session command, as requested in the product review follow-up.
+Other Agents report next-start activation. Codex `use --model` changes the
+model with routing and restores both managed leaves on a failed auth move.
+
+**Environment and executed checks.** Linux x64, Node.js 26.13.0, zsh, Python
+POSIX PTY bridge, isolated temporary homes with placeholder credentials:
+
+- Root `npm run typecheck`, `npm run build`, and `npm run verify:code-gates`
+  passed. The final gate covered 292 TypeScript files with the existing nine
+  baseline exceptions; no exception was added.
+- Root `npm test` passed on the final runtime tree (exit 0; local transcript
+  `/tmp/ccset-p0-suite-final.log`), including the full sequential fixture suite
+  and release-artifact verification.
+- `npm run verify:short-commands` passed for all nine preset/Agent entries,
+  selector precedence and redacted errors, TTY-only automatic selection,
+  explicit overrides/unsets, dry-run and repeated-save no-ops, POSIX modes,
+  secret-source conflict, all five `use` results, and opencode sibling/comment
+  preservation. Real PTY cases verified hidden key entry, cancellation without
+  a write, and redaction of an invalid TUI `CCSET_AGENT` value.
+- The launcher fixture used a local fake `claude` executable in a scratch path
+  containing spaces. It verified literal argument forwarding (including shell
+  metacharacters and `--help` after `--`), inherited output, child exit 23,
+  no launch on dry-run, live JSON refusal, and missing-executable failure.
+- `npm run verify:commands-codex-use` passed with auth-move fault injection:
+  model and routing restore after failure, including deletion when the old
+  model was absent, plus the existing post-rename/rollback-failure scenarios.
+- A deliberate mutation made opencode `use` replace the Provider map with an
+  empty object. `checkOpencodeSafety` failed on preservation of the existing
+  model's unmanaged `limit` value. The mutation was restored immediately;
+  the focused fixture and final full suite passed afterward.
+
+Initial sandbox runs could not capture child stdout/stderr, including from a
+minimal Node child that only wrote two strings. The approved runs outside that
+sandbox passed; the empty-output failure was not evidence of a ccset defect.
+
+**Preset sources.** Read the public OpenRouter Claude Code and Responses docs,
+DeepSeek's Anthropic compatibility docs (including Bearer-token support), and
+OpenRouter's unauthenticated model catalog. The catalog listed
+`anthropic/claude-sonnet-4.5` and `openai/gpt-5.4`; the Responses documentation's
+`openai/o4-mini` example was no longer listed, so it was not kept as a preset
+suggestion. These reads establish configuration references, not live inference
+compatibility. Existing credential precedence can still need user resolution,
+as documented in `presets/README.md`.
+
+**Website.** From `pages/`, `npm run typecheck`, `npm test` (76 tests),
+`npm run build`, and `npm run smoke` passed. Smoke checked routes, three assets,
+and gzip budgets. This checked the rendered repository content; no site layout
+or styling changed.
+
+No real Agent home was written and no credential-bearing Provider request was
+made. Actual Claude execution used a stub, not a live Agent. Fresh dependency
+installs, native macOS/Windows interactive checks, live Agent/Provider checks,
+and desktop/mobile browser screenshots were not performed. The npm version
+remains 0.10.0; these commands have not been published. Earlier compatibility
+unknowns, including opencode merge-order runtime verification, remain open.
+
+### 9.74 Phase 0: forwarding package, release routing, and the 0.11.0 candidate (2026-11-13)
+
+**Scope.** Project-plan items 0.3 and 0.4. `packages/ccset/` is a thin unscoped
+`ccset` package that imports the installed `@droite/ccset/dist/cli.js` in the
+same process and pins the published 0.10.0. `publish.yml` routes
+`v<version>` Releases to the main package and `ccset-v<version>` Releases to
+the forwarder; `scripts/check-release-state.mjs` chooses the tag prefix from
+the package name. The manifest and lockfile versions are 0.11.0. This change
+publishes nothing.
+
+**Environment and executed checks.** Linux x64 (WSL2), Node.js 26.13.0, npm
+12.2.1, zsh, isolated temporary directories; run on 2026-11-12 unless noted:
+
+- Root `npm run typecheck`, `npm run build`, and `npm run verify:code-gates`
+  passed. The gate covered 293 TypeScript files with the existing nine baseline
+  exceptions; no exception was added.
+- Root `npm test` passed on the final tree (exit 0), including
+  `verify:release-artifact`. The local transcript was not kept.
+- `verify:release-artifact` packed and installed both packages into one
+  temporary project. The forwarder's tarball held `LICENSE`, both READMEs,
+  `cli.js`, and `package.json`. For `--version`, `--help`, no arguments with
+  empty non-TTY stdin, and an unknown option, the forwarded exit status, stdout,
+  and stderr equalled those of the dependency it resolved. Its `--version`
+  printed the pinned 0.10.0, resolved from the npm registry while the locally
+  packed 0.11.0 was installed in the same project.
+- The release-state cases covered a clean matching tag for each package, a
+  mismatched version, the other package's tag, a local run, a modified tracked
+  file, and an untracked file, each asserting the exact stderr line.
+- A deliberate mutation fixed the guard's tag prefix to `v`. The fixture failed
+  at the forwarder's clean `ccset-v4.5.6` case (expected 0, actual 1). The guard
+  was restored and the fixture passed afterward.
+- From `pages/`, `npm run typecheck` and `npm test` (14 files, 76 tests) passed.
+  `npm run build` and `npm run smoke` passed on 2026-11-13; smoke checked the
+  routes, three assets, and the gzip budget. No site source changed.
+
+**Not performed.** No independent review was completed before this commit. No
+CI run is recorded in this entry; macOS and Windows have no evidence for this
+tree. No interactive session was run through the forwarder, so its parity is
+asserted for non-TTY invocations only. No live Provider request was made.
+
+**Open.** `npm view ccset` returned 404 on 2026-11-12, and the local npm client
+was not logged in. npm's trusted-publishing documentation, read the same day,
+configures a publisher in an existing package's settings and does not describe
+a name with no published version, while the guard refuses a local
+`npm publish`. How the first `ccset` version is created is a maintainer
+decision.
+
+### 9.75 Release-candidate smoke, the preset list fix, and PR #76 CI (2026-11-13)
+
+**CI.** At `2fb09fe`, all nine jobs in
+[CI run 43392907458](https://github.com/Right202209/ccset/actions/runs/43392907458)
+passed: Linux, macOS, and Windows with Node.js 18, 20, and 22. Linux and macOS
+ran the full suite, including the forwarder's install from the npm registry;
+Windows ran typecheck, build, runtime smoke, and package contents checks. The
+Pages check in [run 43392907608](https://github.com/Right202209/ccset/actions/runs/43392907608)
+passed.
+
+**Installed-tarball smoke.** Linux x64 (WSL2), Node.js 26.13.0, npm 12.2.1.
+`npm pack` listed `LICENSE`, both READMEs, `dist/cli.js`, and `package.json`.
+The tarball was installed into a temporary project and run under `env -i` with
+a scratch `HOME` and `CCSET_HOME` and a placeholder key:
+
+- `--version` printed 0.11.0. The no-argument non-TTY refusal exited 2 without
+  ANSI escapes.
+- `claude-code add relay --preset openrouter --dry-run` created no file. The
+  real `add` created one `0600` file, a repeat reported `Changed: no`, and
+  `use` and `status` exited 0 with the token shown as present only.
+- **Defect.** `presets list` printed both presets on one line, joined by a
+  literal `\x0a`. `listPresets` joined its rows with a newline and then passed
+  the whole text through `sanitizeForTerminal`, which escapes C0 controls. The
+  fixture asserted only `presets list OPENROUTER --json`, a single JSON match.
+
+**Fix.** Each row is sanitized before the rows are joined.
+`verify:short-commands` now asserts one preset id per line of human output. On
+the unfixed tree that assertion failed with `actual: ['openrouter']` against
+`expected: ['openrouter', 'deepseek']`; it passed after the change.
+
+**After the fix.** Root `npm run typecheck`, `npm run build`,
+`npm run verify:code-gates` (293 files, nine baseline exceptions), and the full
+`npm test` passed (exit 0). The rebuilt tarball was installed and run again:
+
+- `presets list` unfiltered, filtered, with no match, with `--agent codex`, and
+  with `--json` printed one preset per line or the JSON envelope.
+- `add relay --preset` followed by `use relay` exited 0 for all nine
+  preset/Agent pairs, each in its own scratch home.
+- `claude-code run relay -- --print 'a b'` against a stub `claude` passed
+  `--settings <path> --print` and `a b` as separate literal arguments and
+  returned the stub's exit status 23.
+- The captured output held no escaped control sequence and never the whole
+  placeholder. All 18 files under the scratch homes were mode `0600`.
+
+**Forwarder, global install.** With npm 12.2.1 and a scratch `--prefix`,
+`npm install -g` of the packed forwarder into a prefix that already held
+`@droite/ccset@0.10.0` failed with `EEXIST` on the `ccset` executable and left
+the existing link in place. Into an empty prefix it succeeded, and
+`ccset --version` printed 0.10.0.
+
+Not performed: manual macOS or Windows checks, a live Provider request, and a
+launch of a real Agent. The npm version is still 0.10.0.

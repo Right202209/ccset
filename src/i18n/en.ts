@@ -3,7 +3,10 @@
  * here (PRD 5.5); a second locale is a new file plus one line in index.ts.
  * No locale detection in v1.
  */
+import { commandMessages } from './command-messages.js'
+
 export const en: Record<string, string> = {
+  ...commandMessages.en,
   /* ------------------------------------------------------------- app shell */
   'app.title': 'ccset',
   'app.tagline': 'Writes coding-agent settings files. Activation stays yours.',

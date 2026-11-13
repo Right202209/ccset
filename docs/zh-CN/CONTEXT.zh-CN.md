@@ -24,6 +24,16 @@ _避免_: Agent, model
 profile（如果该 Agent 支持）。
 _避免_: Provider name, profile name
 
+**Preset（预设）**：
+经过评审的具名公共 Provider 端点、协议及模型建议，为 Agent 提供初始值。
+不包含凭据，也不表示已验证真实请求。
+_避免_：Provider 账号、已验证服务
+
+**Activation timing（生效时机）**：
+所选 Provider 在 Agent 下次启动时生效，或仅用于指定配置启动的会话。
+不表示改变已经运行中的会话。
+_避免_：热切换、立即生效
+
 **Auth profile（凭据配置）**:
 ccset 为某个 Provider 保存的凭据，放在 ccset 自己拥有的文件里，与 Agent 的活跃凭据相互
 独立。需要这个术语的是 Codex：它的密钥不在配置文档里，所以 Auth profile 保存在

@@ -48,7 +48,8 @@ TUI 表单映射与命令补丁映射保持分离。TUI 中留空的字段可以
 交互式 App 会在渲染 Agent 选择界面前并行运行每个已注册 Agent 的纯文件
 `detect(ctx)` 检查，并只把检查为真的 Agent 交给选择列表。只有一个本地
 Agent 时自动进入；显式 `--agent` 会跳过这次发现流程，让用户可以有意创建
-首次配置。非交互命令仍要求显式提供 `--agent`，不会根据检测结果推断目标。
+首次配置。脚本通过位置参数、`--agent` 或 `CCSET_AGENT` 显式指定目标；仅交互
+终端中的命令可以自动选择唯一检测结果，规则见下方 ADR 0020 扩展。
 
 PRD 的扩展边界允许 Agent 模块内部包含多个文件。fixture、npm 脚本接入和文档是额外的预期改动。新的共享能力需要一次显式的核心/接口改动，并带有自己的验证范围；见[添加 Agent](../adding-an-agent.md)。
 
@@ -86,3 +87,16 @@ Shell 文案目录位于 `src/i18n/en.ts` 与 `src/i18n/zh-Hans.ts`；Agent 特�
 CLI 在挂载主 App 之前解析界面语言（ADR 0005）。显式的 `CCSET_LOCALE` 覆盖已保存的选择且不持久化；否则 TUI 使用已保存的语言，或在首次使用时询问。最初的询问是双语的，并且绕过文案目录，因为此时还没有选定语言。帮助、版本以及非 TTY 时对交互模式的拒绝既不询问，也不持久化选择。
 
 为上述任一边界选择 fixture 时，请使用[验证指南](../verification.md)。把发布状态和带日期的证据保存在登记册中，而不要在编码助手指引中复制里程碑快照。
+
+## P0 命令扩展（ADR 0020）
+
+[ADR 0020](../adr/0020-add-short-commands-presets-and-session-launch.md) 替代 ADR 0006、0016
+中强制 `--agent` 的限制。脚本可用 Agent 位置参数、`--agent` 或 `CCSET_AGENT`
+显式指定目标；只有 stdin 与 stdout 均为 TTY 时才可自动选择唯一检测结果。
+缺少选择时返回 64 并列出候选。
+
+命令适配层将内置预设展开为 Agent 已声明的选项，经相同校验进入 plan/apply。
+只有交互终端中的 `add` 可以隐藏输入密钥。`use` 由各 Agent 生成结构化生效时机：
+opencode、Codex、pi、Grok Build 保存启动默认值；Claude Code 校验文件并打印命令。
+显式 `run` 在操作校验完成后，用参数数组、不经过 shell 启动 Claude Code，并转发
+子进程退出码；dry-run 不启动。子进程自行发起请求，ccset 自身网络探测契约不变。

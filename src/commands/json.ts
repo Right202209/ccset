@@ -22,6 +22,8 @@ export interface CommandEnvelope {
   data?: unknown
   partial?: string[]
   launchCommand?: string
+  activation?: OperationResult['activation']
+  nextCommand?: string
   error?: {
     code: string
     params: Record<string, string>
@@ -44,6 +46,8 @@ export function successEnvelope(result: OperationResult, exitCode: number): Comm
     data: result.data,
     partial: result.partial,
     launchCommand: result.launchCommand,
+    activation: result.activation,
+    nextCommand: result.nextCommand,
   }
 }
 

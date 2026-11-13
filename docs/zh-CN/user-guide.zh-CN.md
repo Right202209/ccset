@@ -8,8 +8,8 @@
 
 交互式程序启动时，会并行检查已注册 Agent 的本地文件，只把当前 home 中
 检测到的 Agent 列入选项。只检测到一个 Agent 时会自动进入。如果尚未检测到
-任何 Agent，可以显式使用 `--agent <id>` 有意打开首次配置；非交互命令始终
-要求显式提供这个选择器。在 Agent 主菜单中选择“切换 Agent”或按 Esc，即可返回
+任何 Agent，可以显式使用 `--agent <id>` 有意打开首次配置。命令还接受 Agent
+位置参数和 `CCSET_AGENT`；脚本必须使用其中一种显式选择，仅交互终端可自动选择唯一检测结果。在 Agent 主菜单中选择“切换 Agent”或按 Esc，即可返回
 Agent 选择流程。通过 `--agent` 启动后首次返回时，会执行本地检测；与常规启动
 一样，只提供已检测到的 Agent。
 
@@ -159,17 +159,74 @@ ccset -v | --version | -h | --help
 
 `--agent` 可取 `claude-code`、`opencode`、`codex`、`pi` 或 `grok-build`。不带命令时启动交互式界面；通过管道或在 CI 中运行时会提示并以退出码 `2` 退出，不会向日志输出控制序列。带命令时以无界面方式执行：默认输出面向人的行式报告，加 `--json` 则在 stdout 输出一份 JSON 信封。
 
+### 选择、添加和使用供应商
+
+本节简写命令面向下一版本。体验当前源码时，运行 `npm ci`、`npm run build`，
+再将示例中的 `ccset` 替换为 `node dist/cli.js`。
+
+```bash
+ccset presets list
+ccset presets list openrouter --json
+ccset claude-code add relay --preset openrouter
+ccset claude-code run relay -- --help
+ccset codex add relay --preset openrouter
+ccset codex use relay --model openai/gpt-5.4
+CCSET_AGENT=pi ccset use relay
+```
+
+`add [id] --preset <id>` 从内置 JSON 读取公共端点、协议和模型建议。只有 stdin、
+stdout 均为终端时，才隐藏输入密钥；Enter 保存，Ctrl+C 取消且不写入。
+脚本、`--json`、`--dry-run` 必须使用 `CCSET_TOKEN` 或 `--token-stdin`，二者同时
+提供会被拒绝。保存不向供应商发送请求。
+
+默认 Provider ID 是预设 ID；若 Agent 保留了这个名称，则添加 `-ccset` 后缀，
+例如 opencode 使用 `openrouter-ccset`。可显式给出 `relay` 等其他 ID。
+`add` 也会将预设默认值应用到已有供应商；显式选项和 `--unset` 优先，其余未涉及
+字段保留磁盘值。重新应用到自定义供应商前，建议用 `--dry-run` 检查。
+
+OpenRouter 覆盖五个 Agent；DeepSeek 文档没有 Responses 接口，因此不提供 Codex
+组合。预设只是配置起点，不代表已验证真实兼容性；模型可用性会变化，可用 Agent
+的模型选项覆盖。Codex 的模型属于全局设置，因此 `add` 打印带 `--model` 的 `use`
+命令，保存供应商时不提前更改当前模型。贡献说明见
+[`presets/README.md`](../../presets/README.md)。
+
+五个 Agent 的 `use <id>` 都是 `provider use <id>` 的简写：
+
+| Agent | `use` 的结果 | 生效时机 |
+| --- | --- | --- |
+| Claude Code | 校验供应商文件并打印 `claude --settings <path>`，不写文件 | 仅用该命令启动的会话 |
+| opencode | 保存 `model = "provider/model"`；可用 `--model` 选择列表中的模型，否则取第一个 | 下次启动 |
+| Codex | 切换路由和 Auth profile；`--model` 可在同一计划中修改模型，凭据移动失败时一同回退 | 下次启动 |
+| pi | 保存默认供应商和模型，保留现有 `--model` 规则 | 下次启动 |
+| Grok Build | 保存默认模型 | 下次启动 |
+
+opencode 会拒绝不存在的供应商、缺失模型，以及被 `disabled_providers` 或
+`enabled_providers` 排除的供应商，不修改这些列表。项目配置及 Agent 启动参数可能
+覆盖启动默认值；已有会话不会被重新配置。成功的 `use` JSON 增加
+`activation: "next-start" | "session"`；预设保存还增加可复制的 `nextCommand`。
+
+`run <id> -- <参数>` 仅支持 Claude Code：先校验供应商文件，再通过参数数组调用
+PATH 中已安装的 `claude`，继承 stdin/stdout/stderr，不经过 shell。`--` 后的参数
+（包括 `--help`）属于 Claude。子进程负责自己的输出及网络请求，ccset 返回其退出码；
+信号退出码为 128 加信号编号。全局设置不变。`run --dry-run --json` 只预览；
+实际启动的 `run --json` 会被拒绝，因为子进程输出不是 ccset JSON 信封。
+
+CLI 中的 Agent 选择优先于 `CCSET_AGENT`，互相冲突的 CLI 选择是用法错误。
+两者都没有时，仅 stdin/stdout 均为 TTY 且只检测到一个 Agent 才自动选中。
+脚本即使只有一个已安装的 Agent，也返回 64 和候选 ID，直到显式指定。
+检测只读取本地文件，不执行 Agent。`presets list` 不要求指定 Agent；指定时筛选目录。
+
 ### 命令
 
 | Agent | 命令 |
 | --- | --- |
-| `claude-code` | `status` · `global set` · `provider set <id>` · `state init` |
-| `opencode` | `status` · `global set` · `provider set <id>` |
+| `claude-code` | `status` · `global set` · `provider set <id>` · `provider use <id>` · `run <id>` · `state init` |
+| `opencode` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 | `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 | `pi` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 | `grok-build` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
 
-`status` 只读取，不写入。各 `set` 命令只修补你给出的字段：省略的字段保留磁盘值，`--unset <field>` 显式删除一项，非受管键原样保留。TOML 和 JSONC 编辑还会保留这些键周围的格式。保存某个 provider 并不会切换到它：Claude Code 等你运行 `claude --settings`，Codex、pi 和 Grok Build 等你执行 `provider use`，opencode 在启动时自行读取配置。`state init` 在 Claude Code 的 `~/.claude.json` 不存在时创建它，否则原样保留。
+`status` 只读取，不写入。各 `set` 命令只修补你给出的字段：省略的字段保留磁盘值，`--unset <field>` 显式删除一项，非受管键原样保留。TOML 和 JSONC 编辑还会保留这些键周围的格式。保存不会自动切换供应商；用 `use` 选择，或用 `run` 直接启动 Claude Code 会话。`state init` 在 Claude Code 的 `~/.claude.json` 不存在时创建它，否则原样保留。
 
 各命令共享的选项：
 
@@ -178,10 +235,10 @@ ccset -v | --version | -h | --help
 | `--json` | 在 stdout 输出一份 JSON 信封，代替面向人的行式输出 |
 | `--dry-run` | 读取、校验并计划；不备份，不写入。仅限会更改状态的命令——`status` 会拒绝它 |
 | `--unset <field>` | 用字段 ID 删除一个可选字段，例如 `model`、`smallModel` 或 `modelProvider` |
-| `--replace-invalid` | 在支持的命令上允许替换无效目标；无法读取的原文件会先被备份。`status`、`state init` 与 Codex 的 `provider use` 拒绝该选项 |
+| `--replace-invalid` | 在支持的命令上允许替换无效目标；无法读取的原文件会先被备份。`status`、`state init`、`run` 及 Claude Code／opencode／Codex 的 `provider use` 拒绝该选项 |
 | `--token-stdin` | 从 stdin 读取 API 密钥 |
 
-密钥只能通过 `CCSET_TOKEN` 或 `--token-stdin` 进入 ccset——绝不允许作为选项、位置参数或文件，这些都会被拒绝为用法错误——并且只会写进该 provider 自己的目标：Claude Code 的 provider 文件、opencode 对应配置块的 `options.apiKey`、Codex 的 `auth.<id>.json` 旁路文件、pi 对应 `providers` 配置块的 `apiKey`、Grok Build 对应 `[model.<id>]` 表的 `api_key`。它绝不会被打印在面向人的输出、JSON、错误或警告中。备份文件仍会包含以前的凭据。
+脚本中的密钥只能通过 `CCSET_TOKEN` 或 `--token-stdin` 进入 ccset——绝不允许作为选项、位置参数或文件，这些都会被拒绝为用法错误——并且只会写进该 provider 自己的目标：Claude Code 的 provider 文件、opencode 对应配置块的 `options.apiKey`、Codex 的 `auth.<id>.json` 旁路文件、pi 对应 `providers` 配置块的 `apiKey`、Grok Build 对应 `[model.<id>]` 表的 `api_key`。它绝不会被打印在面向人的输出、JSON、错误或警告中。备份文件仍会包含以前的凭据。
 
 关于 Codex 的细节：`provider set` 每次保存都会重新断言 `wire_api = "responses"` 与 `requires_openai_auth = true`，并把密钥写入 `auth.<id>.json`——绝不写入 `config.toml`，也绝不碰在用的 `auth.json`。`provider use` 会把指定的 Auth profile 复制为 `auth.json` 并在同一操作中移动 `model_provider`，先提交路由。如果 `auth.json` 中已有不属于任何已保存 Auth profile 的内容，切换会被拒绝，直到你传且只传 `--adopt-current-as <name>`（把它保存为新的可切换 Auth profile）或 `--replace-current-auth`（丢弃——无论如何都会先备份）。这个选择只在需要时才会被询问：对一个已与某个已保存 Auth profile 一致的在用 `auth.json` 传 `--adopt-current-as` 会被拒绝——因为没有任何内容被替换，也就没有可采纳的对象。
 
@@ -204,6 +261,7 @@ ccset -v | --version | -h | --help
 | --- | --- |
 | `CCSET_LOCALE` | 单次运行的语言覆盖：设为 `zh-Hans` 选择简体中文；任何其他已设置的值都选择英文。它会抑制首次使用提示，且绝不持久化。未设置时，UI 使用已保存的选择或询问一次；命令默认使用英文。ccset 绝不会从系统语言环境推断语言。 |
 | `CCSET_ASCII=1` | 使用七位界面：装饰字形、帮助标点、正文标点和遮罩值都会折叠为可打印 ASCII。不设置时使用 Unicode 字形。中文不做转写，七位终端无法显示。 |
+| `CCSET_AGENT` | 命令和 TUI 的默认显式 Agent 选择；CLI 选择优先，空值或未知值会报错。 |
 | `CCSET_HOME` | 覆盖 ccset 读写的主目录，供隔离测试使用，不建议日常使用。 |
 | `CCSET_TOKEN` | `provider set` 命令所用的 provider API 密钥。请通过密钥存储或已导出的环境提供，不要与 `--token-stdin` 同时使用。 |
 

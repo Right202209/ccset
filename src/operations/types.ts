@@ -16,6 +16,7 @@ export type OperationId =
   | 'global.set'
   | 'provider.set'
   | 'provider.use'
+  | 'provider.run'
   | 'state.init'
 
 /**
@@ -88,6 +89,11 @@ export interface OperationResult {
   launchCommand?: string
   /** The catalog key that introduces the launch command in the human report. */
   launchKey?: string
+  /** When the selected configuration takes effect; never promises hot reload. */
+  activation?: 'next-start' | 'session'
+  nextCommand?: string
+  /** A shell-free process specification prepared by the Agent for the CLI adapter. */
+  launch?: { executable: string; args: string[] }
 }
 
 /* ------------------------------------------------------- declarations */

@@ -109,7 +109,8 @@ be batched.
 
 ## Secrets
 
-- **Two sources only.** A Non-interactive command accepts a secret through
+- **Two script sources only.** Terminal `add --preset` may read a hidden key
+  (ADR 0020); scripts never prompt. A Non-interactive command accepts a secret through
   `CCSET_TOKEN` or explicitly selected stdin. A flag, a positional, or a file
   path carrying a token is High, and the refusal must assert the stderr text
   it declares.

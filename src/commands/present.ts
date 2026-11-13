@@ -37,10 +37,12 @@ export function humanMutation(result: OperationResult, titleKey: string | undefi
     t('cli.changed', {
       changed: t(result.changed ? 'status.yes' : 'status.no'),
     }),
+    ...(result.activation === undefined ? [] : [t(`cli.activation.${result.activation}`)]),
     ...(result.launchCommand === undefined
       ? []
       : [t(result.launchKey ?? 'write.activate'), result.launchCommand]),
     ...warningLines(result.warnings),
+    ...(result.nextCommand === undefined ? [] : [t('cli.preset.next'), result.nextCommand]),
   ]
   return lines
 }

@@ -27,6 +27,18 @@ A user-chosen, Agent-local identifier that distinguishes one Provider
 configuration and its saved Auth profile where applicable.
 _Avoid_: Provider name, profile name
 
+**Preset**:
+A reviewed, named set of public Provider endpoints, protocols, and model suggestions
+that supplies starting values for an Agent. It contains no credentials and makes
+no claim that a live request has been verified.
+_Avoid_: Provider account, verified service
+
+**Activation timing**:
+When a selected Provider takes effect: at the Agent's next start, or only in a
+session launched with the selected configuration. It does not imply changing an
+already running session.
+_Avoid_: Hot switch, immediate activation
+
 **Auth profile**:
 A credential ccset has saved for one Provider, in a file ccset owns, separate
 from the Agent's live credential. Codex is the case that needs the term: its key

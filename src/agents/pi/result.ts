@@ -20,6 +20,7 @@ export function piOperationResult(input: {
   return {
     agent: 'pi',
     operation: input.operation,
+    activation: input.operation === 'provider.use' ? 'next-start' : undefined,
     ...(input.providerId === undefined ? {} : { providerId: input.providerId }),
     changed: input.outcome.changed,
     dryRun: input.request.dryRun,

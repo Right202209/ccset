@@ -10,6 +10,28 @@
 
 本契约背后的持久权衡记录在 ADR [0006](../adr/0006-keep-non-interactive-commands-independent-of-tui-screens.md)、[0007](../adr/0007-limit-m3-non-interactive-capabilities.md)、[0008](../adr/0008-use-patch-semantics-for-non-interactive-writes.md)、[0009](../adr/0009-restrict-non-interactive-secret-sources.md)、[0010](../adr/0010-preflight-non-interactive-writes.md)、[0011](../adr/0011-require-explicit-codex-credential-conflict-choice.md)、[0012](../adr/0012-fail-non-interactive-writes-on-codex-home-mismatch.md)、[0013](../adr/0013-treat-codex-keyring-as-a-use-precondition.md) 和 [0014](../adr/0014-stabilize-non-interactive-output-and-exit-codes.md) 中。
 
+## Milestone 3 之后的 P0 扩展
+
+[ADR 0020](../adr/0020-add-short-commands-presets-and-session-launch.md) 替代 M3 的
+选择器及禁止启动器限制。下文保留原始设计；当前行为以本扩展和
+[用户指南](user-guide.zh-CN.md#cli) 为准。
+
+- 五个 Agent 都支持 `ccset <agent> use <id>`，兼容原来的 `--agent ... provider use`。
+  Claude Code 校验并打印会话命令；opencode、Codex、pi、Grok Build 保存下次启动默认值。
+- 位置参数／标志选择优先于 `CCSET_AGENT`；互相冲突的 CLI 选择会失败。
+  只有 stdin/stdout 均为 TTY 才可自动选择唯一检测结果；脚本缺少显式选择时返回 64 和候选。
+- `run <id> -- <参数>` 只启动 Claude Code，不经过 shell，不改全局，继承子进程 I/O
+  和退出码。dry-run 不启动；实际启动不能同时使用 `--json`。
+- `presets list [搜索词] [--json]` 不要求 Agent，可用选择器筛选。
+  `add [id] --preset <id>` 将内置数据展开为已有选项；显式选项及 unset 优先。
+  重复应用是显式 patch，而非只允许新建。
+- 交互终端的 `add` 可以隐藏输入密钥；脚本、JSON、dry-run 仍要求原有两个密钥来源。
+  无效选项在读取密钥或写入前失败；预设不授权真实请求。
+- opencode `use --model` 选已有模型，否则取首个，拒绝缺失或被禁用的目标。
+  Codex `use --model` 将模型与路由一同计划，认证启用失败时一同恢复。
+- JSON 新增 `activation`（`next-start` 或 `session`）以及预设的 `nextCommand`。
+  继续使用 `schemaVersion: 1` 和原有备份、dry-run、类型化错误保证。
+
 ## 目的与边界
 
 里程碑 3 添加本地部署与检查命令，其所有改变状态的选择都可以显式给出。它不承诺与每个 TUI 菜单操作对等。

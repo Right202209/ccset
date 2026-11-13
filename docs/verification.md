@@ -73,6 +73,7 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:first-run-locale` | First-use language choice, persistence, overrides, cancellation, help/version/non-TTY boundaries |
 | `npm run verify:status-terminal` | Status refresh/scrolling, narrow layout, version and non-TTY behavior |
 | `npm run verify:i18n-zh` | English/Chinese key and placeholder parity, locale normalization and CLI language selection |
+| `npm run verify:short-commands` | Positional/environment selectors, TTY-only inference, every bundled preset/Agent combination, unified use, Codex model rollback, shell-free Claude run, and hidden-key PTY save/cancel. |
 | `npm run verify:commands` | Parser and operation boundary, exit codes, patch preservation/deletion, dry-run, no-op, recovery and output |
 | `npm run verify:commands-parser` | The parser's own normalization contract: int fields refuse NaN without a field validator, and a following flag is never an option value |
 | `npm run verify:commands-status` | Secret-free status payloads, findings, partial-readable parse failures and state creation |
@@ -91,19 +92,32 @@ is shared between a TUI save and a Non-interactive command.
 | `npm run verify:commands-codex-provider` | Provider invariants, Auth profile preservation, credential-source refusals, untouched live auth |
 | `npm run verify:commands-codex-use` | Switch ordering, adoption/restoration across CLI and TUI, routing metadata, replacement choices, idempotence, environment preconditions, partial failures |
 | `npm run verify:code-gates` | TypeScript file/function size and complexity over `src/`, `scripts/`, and `pages/`, plus stale or new baseline violations |
-| `npm run verify:release-artifact` | Clean-tree and release-tag guard, pinned-action and least-privilege/provenance workflow contracts, build, pack, temporary install, allowed package contents, executable/shebang and CLI smoke |
+| `npm run verify:release-artifact` | Clean-tree and release-tag guard, pinned-action and least-privilege/provenance workflow contracts, build, pack, temporary install, allowed package contents, executable/shebang and CLI smoke, plus the unscoped forwarding package's contents and command/output/exit-code parity |
 
 All `verify:commands` / `verify:commands-*` scripts build before running and
 exercise `dist/cli.js`; some also assert directly against the operation seam.
 `verify:malformed-dirty`, `verify:first-run-locale`, `verify:status-terminal`, and
 `verify:i18n-zh` also build first. The release-artifact fixture builds internally,
 packs and installs the tarball into a temporary project; it does not publish.
+The forwarding package in `packages/ccset/` is packed and installed there too;
+its CLI is compared with the dependency it resolves for version, help, non-TTY
+refusal, and invalid-option behavior. Its dependency pins a published version
+of `@droite/ccset`, independently of the version being built in this checkout.
 Other fixtures import source modules and are bundled for execution by tsup.
+
+The release guard checks each package against its own GitHub Release tag:
+`v<version>` for `@droite/ccset`, `ccset-v<version>` for the forwarding `ccset`
+package. The fixture covers clean matching releases, cross-package and
+mismatched tags, local publishing, and dirty checkouts. `publish.yml` routes
+those tags to separate jobs in the same `npm-publish` environment, with
+provenance enabled. Each npm package needs its own trusted publisher and
+publishing permissions; passing a local fixture does not prove either is set.
 
 Not every `scripts/verify-*.ts` file is independently runnable. Codec corpora and
 Codex recovery helpers run inside the Agent fixtures; `verify-viewport.ts` and
-`verify-agent-discovery.ts` run inside `verify:ui-render`, and `layout-rules.ts`
-runs inside `verify:layout`. `verify-side-info.ts` can print scratch visual
+`verify-agent-discovery.ts` run inside `verify:ui-render`, `layout-rules.ts`
+runs inside `verify:layout`, and `verify-release-state.ts` runs inside
+`verify:release-artifact`. `verify-side-info.ts` can print scratch visual
 previews at 130, 100, 90, and 79 columns with `CCSET_VISUAL=1 npm run
 verify:side-info`. `ui-session.ts` and
 `ui-assertions.ts` drive component tests; `pty-session.ts` drives a real terminal; `cli-harness.ts` runs commands with

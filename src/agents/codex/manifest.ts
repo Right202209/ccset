@@ -69,6 +69,7 @@ export const VERBOSITY_CHOICES: FieldChoice[] = [
 /* --------------------------------------------------------------- global */
 
 export const MODEL_PROVIDER_PATH = ['model_provider']
+export const MODEL_PATH = ['model']
 
 export const GLOBAL_FIELDS: FieldSpec[] = [
   {
@@ -76,7 +77,7 @@ export const GLOBAL_FIELDS: FieldSpec[] = [
     labelKey: 'field.globalModel',
     helpKey: 'codex.help.globalModel',
     type: 'text',
-    path: ['model'],
+    path: MODEL_PATH,
   },
   {
     id: 'modelProvider',

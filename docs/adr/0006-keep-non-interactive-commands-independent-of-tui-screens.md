@@ -1,5 +1,7 @@
 # Keep non-interactive commands independent of TUI screens
 
+Selector restrictions superseded by [ADR 0020](0020-add-short-commands-presets-and-session-launch.md); the remaining boundaries still apply.
+
 Non-interactive mode exposes stable, domain-oriented commands rather than a
 protocol for driving `Action` and `Screen` objects. The TUI and command API are
 separate adapters over the same validation and write operations, because the

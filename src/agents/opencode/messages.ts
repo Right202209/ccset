@@ -6,6 +6,10 @@
  */
 export const opencodeMessages: Record<string, Record<string, string>> = {
   en: {
+    'opencode.write.switched': 'Default provider and model saved',
+    'opencode.validate.providerMissing': 'Provider {name} has no configuration block. Add it before selecting it.',
+    'opencode.validate.providerDisabled': 'Provider {name} is excluded by disabled_providers or enabled_providers.',
+    'opencode.validate.useModelRequired': 'Provider {name} needs a model in its models list. Select one with --model.',
     /* --------------------------------------------------------- action detail */
     'opencode.action.globalDetail':
       '~/.config/opencode/opencode.jsonc when it exists, else opencode.json',
@@ -70,6 +74,10 @@ export const opencodeMessages: Record<string, Record<string, string>> = {
   },
 
   'zh-Hans': {
+    'opencode.write.switched': '已保存默认供应商和模型',
+    'opencode.validate.providerMissing': '供应商 {name} 没有配置块，请先添加再选择。',
+    'opencode.validate.providerDisabled': '供应商 {name} 被 disabled_providers 或 enabled_providers 排除。',
+    'opencode.validate.useModelRequired': '供应商 {name} 需要 models 列表中的模型，可用 --model 指定。',
     /* --------------------------------------------------------- action detail */
     'opencode.action.globalDetail':
       '~/.config/opencode/opencode.jsonc（若存在），否则为 opencode.json',

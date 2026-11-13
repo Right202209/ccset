@@ -12,29 +12,35 @@ export interface GlobalScan {
   rest: string[]
   /** Set when --agent's value was absent or was another flag. */
   missingValueFor: string | null
+  agentConflict: boolean
+}
+
+function recordAgent(scan: GlobalScan, value: string | undefined): boolean {
+  if (!value || value.startsWith('-')) {
+    scan.missingValueFor ??= '--agent'
+    return false
+  }
+  if (scan.agentId !== null && scan.agentId !== value) scan.agentConflict = true
+  scan.agentId = value
+  return true
 }
 
 export function scanGlobals(tokens: string[]): GlobalScan {
-  const rest: string[] = []
-  let agentId: string | null = null
-  let json = false
-  let missingValueFor: string | null = null
+  const scan: GlobalScan = { agentId: null, json: false, rest: [], missingValueFor: null, agentConflict: false }
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index] ?? ''
-    if (token === '--json') {
-      json = true
+    if (token === '--') {
+      scan.rest.push(...tokens.slice(index))
+      break
+    } else if (token === '--json') {
+      scan.json = true
     } else if (token === '--agent') {
-      const value = tokens[index + 1]
-      if (value === undefined || value.startsWith('--')) missingValueFor ??= token
-      else {
-        agentId = value
-        index += 1
-      }
+      if (recordAgent(scan, tokens[index + 1])) index += 1
     } else if (token.startsWith('--agent=')) {
-      agentId = token.slice('--agent='.length)
+      recordAgent(scan, token.slice('--agent='.length))
     } else {
-      rest.push(token)
+      scan.rest.push(token)
     }
   }
-  return { agentId: agentId !== null && agentId.length > 0 ? agentId : null, json, rest, missingValueFor }
+  return scan
 }
