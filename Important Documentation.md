@@ -3336,3 +3336,50 @@ installs, native macOS/Windows interactive checks, live Agent/Provider checks,
 and desktop/mobile browser screenshots were not performed. The npm version
 remains 0.10.0; these commands have not been published. Earlier compatibility
 unknowns, including opencode merge-order runtime verification, remain open.
+
+### 9.74 Phase 0: forwarding package, release routing, and the 0.11.0 candidate (2026-11-13)
+
+**Scope.** Project-plan items 0.3 and 0.4. `packages/ccset/` is a thin unscoped
+`ccset` package that imports the installed `@droite/ccset/dist/cli.js` in the
+same process and pins the published 0.10.0. `publish.yml` routes
+`v<version>` Releases to the main package and `ccset-v<version>` Releases to
+the forwarder; `scripts/check-release-state.mjs` chooses the tag prefix from
+the package name. The manifest and lockfile versions are 0.11.0. This change
+publishes nothing.
+
+**Environment and executed checks.** Linux x64 (WSL2), Node.js 26.13.0, npm
+12.2.1, zsh, isolated temporary directories; run on 2026-11-12 unless noted:
+
+- Root `npm run typecheck`, `npm run build`, and `npm run verify:code-gates`
+  passed. The gate covered 293 TypeScript files with the existing nine baseline
+  exceptions; no exception was added.
+- Root `npm test` passed on the final tree (exit 0), including
+  `verify:release-artifact`. The local transcript was not kept.
+- `verify:release-artifact` packed and installed both packages into one
+  temporary project. The forwarder's tarball held `LICENSE`, both READMEs,
+  `cli.js`, and `package.json`. For `--version`, `--help`, no arguments with
+  empty non-TTY stdin, and an unknown option, the forwarded exit status, stdout,
+  and stderr equalled those of the dependency it resolved. Its `--version`
+  printed the pinned 0.10.0, resolved from the npm registry while the locally
+  packed 0.11.0 was installed in the same project.
+- The release-state cases covered a clean matching tag for each package, a
+  mismatched version, the other package's tag, a local run, a modified tracked
+  file, and an untracked file, each asserting the exact stderr line.
+- A deliberate mutation fixed the guard's tag prefix to `v`. The fixture failed
+  at the forwarder's clean `ccset-v4.5.6` case (expected 0, actual 1). The guard
+  was restored and the fixture passed afterward.
+- From `pages/`, `npm run typecheck` and `npm test` (14 files, 76 tests) passed.
+  `npm run build` and `npm run smoke` passed on 2026-11-13; smoke checked the
+  routes, three assets, and the gzip budget. No site source changed.
+
+**Not performed.** No independent review was completed before this commit. No
+CI run is recorded in this entry; macOS and Windows have no evidence for this
+tree. No interactive session was run through the forwarder, so its parity is
+asserted for non-TTY invocations only. No live Provider request was made.
+
+**Open.** `npm view ccset` returned 404 on 2026-11-12, and the local npm client
+was not logged in. npm's trusted-publishing documentation, read the same day,
+configures a publisher in an existing package's settings and does not describe
+a name with no published version, while the guard refuses a local
+`npm publish`. How the first `ccset` version is created is a maintainer
+decision.

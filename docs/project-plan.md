@@ -293,3 +293,60 @@ No telemetry. These are observable from outside.
 | Presets draw commercial pressure | D2 is decided; item 1.7 publishes it where contributors will read it |
 | Agents add native switching and reduce the need | The diff, refusals, and write contract are worth having even when the edit is small |
 | The remote and CI audience is smaller than R2 assumes | Phase 4 gates keep the large investment behind evidence |
+
+## 8. Phase 0 implementation handoff (2026-11-12)
+
+Implementation starts on `feat/project-plan-implementation`, based on
+`docs/project-plan` at `af63e17`. Section 1 remains the 2026-11-10 snapshot.
+The current release candidate is `@droite/ccset` **0.11.0**; changing the package
+and lockfile versions does not publish it.
+
+The forwarding package lives in `packages/ccset/`. It imports the installed
+CLI in the same process and pins the published **0.10.0** dependency so its
+artifact can be tested before 0.11.0 is on npm. After the main release succeeds,
+update that pin and both forwarding READMEs, rerun verification, then release
+the forwarder. Main releases use `v<version>`; forwarding releases use
+`ccset-v<version>`. Both use `publish.yml`, the `npm-publish` environment,
+trusted publishing, and provenance. The guard rejects the other package's
+tag, a mismatched version, local publishing, and a dirty checkout.
+
+| Item | Local implementation | Remaining exit condition |
+| --- | --- | --- |
+| 0.1 | Plan and reviews are in the base commit; existing local edits are preserved | Review and commit the implementation and the pre-existing `AGENTS.md` edit; clean worktree |
+| 0.2 | Existing full matrix remains the required gate | Push reviewed commits through a PR; obtain Linux, macOS, and Windows CI evidence |
+| 0.3 | 0.11.0 manifests and the draft notes below are prepared | Maintainer release through `publish.yml`, fresh npm installation check, then remove the next-release warning from both main READMEs |
+| 0.4 | Thin package, bilingual docs, release routing, guard, and installed-artifact assertions are implemented | Confirm publishing permissions for `ccset`, update its published dependency, release `ccset-v0.1.0`, and verify registry ownership |
+
+Open question for 0.4. npm's trusted-publishing page (read 2026-11-12)
+configures a publisher under an existing package's settings and does not
+describe a name with no published version. `ccset` has none, and the guard
+refuses a local `npm publish`. The maintainer decides how the first version is
+created before the `ccset-v0.1.0` tag; no fallback token is introduced here.
+
+Verification results belong in the append-only implementation register,
+[Important Documentation.md §9](<../Important Documentation.md#9-implementation-register-code-complete>).
+Phase 0 is still open until its remote release and CI conditions are met;
+Phases 1 and 2 retain their release dependency.
+
+### Draft notes for v0.11.0
+
+- Agent selection accepts a positional selector and `CCSET_AGENT`. Scripts
+  retain an explicit selector; a terminal may infer a sole detected Agent.
+- `presets list` and `add --preset` provide two bundled presets covering nine
+  Agent entries. A terminal can ask for a hidden key; scripts use `CCSET_TOKEN`
+  or `--token-stdin`.
+- All five Agents accept `use <id>`. opencode, Codex, pi, and Grok Build save
+  next-start defaults. Claude Code prints a session command; its explicit
+  `run <id>` starts the installed Agent without a shell and forwards its exit
+  status. Dry-run does not launch it.
+- Write behavior: preset `add` explicitly applies its defaults, with supplied
+  options taking precedence. Codex `use --model` changes routing and model
+  together and restores both if credential activation fails. Existing commands
+  remain available; unmanaged keys, backups, and secret-source rules are retained.
+- Publication uses separate tags for the main CLI and forwarding package.
+  The forwarding package is released separately and reports its pinned CLI's
+  version.
+- Before publishing these notes, attach the actual CI and local verification
+  results. Native macOS and Windows interactive checks and live Provider
+  requests have not been performed for this candidate; Linux fixture launches
+  use a stub Agent and isolated homes.
