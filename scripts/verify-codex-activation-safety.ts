@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import { openActivate, openRestore } from '../src/agents/codex/activate.js'
 import { authProfilePath, codexAuthPath, codexConfigPath, backupsDir } from '../src/agents/codex/paths.js'
+import '../src/registry.js'
+import { t } from '../src/i18n/index.js'
 
 const ROUTING = 'model_provider = "legacy"\n[model_providers.legacy]\nname = "Legacy"\n[model_providers.router]\nname = "Router"\n'
 const LIVE = '{"OPENAI_API_KEY":"UNKNOWN"}\n'
@@ -41,4 +43,17 @@ export async function verifyKeyringActivationRefusal(home: string): Promise<void
   assert.equal(await fs.readFile(target, 'utf8'), keyed)
   assert.equal(await fs.readFile(codexAuthPath(home), 'utf8'), '{"OPENAI_API_KEY":"OLD"}\n')
   assert.deepEqual(await fs.readdir(backupsDir(home)).catch(() => []), before)
+}
+
+/** A message Screen's title names its subject: a key resolved without its parameter prints `{id}`. */
+export async function verifyMissingProfileTitles(home: string): Promise<void> {
+  await fs.writeFile(codexConfigPath(home), ROUTING)
+  for (const name of ['router', 'old']) await fs.rm(authProfilePath(home, name), { force: true })
+  const activate = await openActivate({ home }, 'router')
+  const restore = await openRestore({ home }, 'old')
+  assert.equal(activate.kind, 'message', 'a provider with no saved credential offered a switch')
+  assert.equal(restore.kind, 'message', 'a login that is not saved offered a restore')
+  assert.equal(activate.title, t('codex.action.use', { id: 'router' }))
+  assert.equal(restore.title, t('codex.action.restore', { name: 'old' }))
+  for (const screen of [activate, restore]) assert.doesNotMatch(screen.title, /[{}]/, 'a title kept its placeholder')
 }
