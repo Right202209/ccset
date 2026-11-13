@@ -17,7 +17,7 @@ ccset --agent claude-code
 ```
 
 本包在同一进程中运行 `@droite/ccset`，保留命令参数、标准输入、终端交互和退出码。
-转发包 `0.1.0` 固定使用已经发布的 `@droite/ccset` `0.11.0`；
+转发包 `0.1.0` 固定使用已经发布的 `@droite/ccset` `0.11.1`；
 `ccset --version` 显示的是底层 CLI 的版本。
 
 配置方法见[项目 README](https://github.com/Right202209/ccset/blob/master/README.zh-CN.md)
