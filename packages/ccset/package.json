@@ -1,0 +1,46 @@
+{
+  "name": "ccset",
+  "version": "0.1.0",
+  "description": "Official forwarding package for @droite/ccset, the coding-agent configuration CLI and terminal UI.",
+  "type": "module",
+  "bin": {
+    "ccset": "./cli.js"
+  },
+  "files": [
+    "cli.js",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "prepublishOnly": "node ../../scripts/check-release-state.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Right202209/ccset.git",
+    "directory": "packages/ccset"
+  },
+  "homepage": "https://github.com/Right202209/ccset#readme",
+  "bugs": {
+    "url": "https://github.com/Right202209/ccset/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "ccset",
+    "claude-code",
+    "opencode",
+    "codex",
+    "cli",
+    "tui"
+  ],
+  "dependencies": {
+    "@droite/ccset": "0.10.0"
+  }
+}

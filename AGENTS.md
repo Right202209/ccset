@@ -36,6 +36,7 @@ This is an ESM TypeScript CLI/TUI built with Ink and React.
 | `src/cli.tsx`, `src/registry.ts` | Process boundary and static Agent registration |
 | `scripts/` | Executable verification fixtures and their harnesses |
 | `pages/` | React/Vite website; separate package, lockfile, Node requirements, and checks |
+| `packages/ccset/` | Unscoped forwarding npm package; pins a published `@droite/ccset` and is released by its own `ccset-v<version>` tag |
 
 `dist/`, `.verify/`, and `pages/dist/` are generated output; edit their sources
 instead.

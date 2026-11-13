@@ -76,11 +76,22 @@ npm 脚本使用 POSIX shell 语法。PTY fixture 需要 `python3` 及其 POSIX 
 | `npm run verify:commands-codex-provider` | provider 不变量、Auth profile 保留、凭据来源拒绝、活跃 auth 不被触碰 |
 | `npm run verify:commands-codex-use` | 切换的先后顺序、采纳/替换选择、幂等性、环境前置条件、部分失败 |
 | `npm run verify:code-gates` | `src/`、`scripts/` 与 `pages/` 上 TypeScript 文件/函数的规模与复杂度，以及基线中过时或新增的违规项 |
-| `npm run verify:release-artifact` | 干净工作树与发布标签检查、SHA 固定 action 及最小权限/provenance 工作流契约、构建、打包、临时安装、允许的包内容、可执行位/shebang 与 CLI 冒烟 |
+| `npm run verify:release-artifact` | 干净工作树与发布标签检查、SHA 固定 action 及最小权限/provenance 工作流契约、构建、打包、临时安装、允许的包内容、可执行位/shebang 与 CLI 冒烟，以及无作用域转发包的内容和命令、输出、退出码一致性 |
 
 所有 `verify:commands` / `verify:commands-*` 脚本先构建再运行，演练的是 `dist/cli.js`；其中一些还会直接对 operation 接缝做断言。`verify:malformed-dirty`、`verify:first-run-locale`、`verify:status-terminal` 和 `verify:i18n-zh` 也先构建。release-artifact fixture 在内部完成构建，把 tarball 打包并安装到一个临时项目中；它不执行发布。其他 fixture 导入源码模块，由 tsup 打包后执行。
 
-并非每个 `scripts/verify-*.ts` 文件都能独立运行。Codec 语料与 Codex 恢复辅助模块运行在 Agent fixture 内部；`verify-viewport.ts` 与 `verify-agent-discovery.ts` 运行在 `verify:ui-render` 内部，`layout-rules.ts` 运行在 `verify:layout` 内部。设置 `CCSET_VISUAL=1` 运行 `verify:side-info`，可在 130、100、90 和 79 列输出临时视觉预览。`ui-session.ts` 与 `ui-assertions.ts` 驱动组件测试；`pty-session.ts` 驱动真实终端；`cli-harness.ts` 以隔离 home 运行命令；`kill-harness.ts` 支撑 `verify:write-safety`。
+`packages/ccset/` 中的转发包也会在该临时项目中打包和安装；对照它实际解析到的
+依赖 CLI，核对版本、帮助、非 TTY 拒绝和无效选项的行为。它固定依赖已经发布的
+`@droite/ccset` 版本，与当前检出中正在构建的版本独立。
+
+发布检查分别核对两个包自己的 GitHub Release 标签：`@droite/ccset` 使用
+`v<version>`，转发包 `ccset` 使用 `ccset-v<version>`。fixture 覆盖干净且
+版本相符的发布、属于另一个包或版本不符的标签、本地发布，以及不干净的工作区。
+`publish.yml` 根据标签选择不同任务，两者都使用 `npm-publish` 环境并启用来源证明。
+每个 npm 包都需要单独配置可信发布者和发布权限；本地 fixture 通过不能证明它们
+已经配置。
+
+并非每个 `scripts/verify-*.ts` 文件都能独立运行。Codec 语料与 Codex 恢复辅助模块运行在 Agent fixture 内部；`verify-viewport.ts` 与 `verify-agent-discovery.ts` 运行在 `verify:ui-render` 内部，`layout-rules.ts` 运行在 `verify:layout` 内部，`verify-release-state.ts` 运行在 `verify:release-artifact` 内部。设置 `CCSET_VISUAL=1` 运行 `verify:side-info`，可在 130、100、90 和 79 列输出临时视觉预览。`ui-session.ts` 与 `ui-assertions.ts` 驱动组件测试；`pty-session.ts` 驱动真实终端；`cli-harness.ts` 以隔离 home 运行命令；`kill-harness.ts` 支撑 `verify:write-safety`。
 
 ## 新增或扩展验证
 

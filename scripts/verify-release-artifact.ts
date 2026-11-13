@@ -3,7 +3,9 @@ import { spawnSync } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import packageJson from '../package.json'
+import { verifyReleaseState } from './verify-release-state.js'
 
 interface PackResult {
   filename: string
@@ -82,6 +84,61 @@ async function verifyPackedArtifact(temp: string): Promise<void> {
   run('npm', ['init', '-y'], install)
   run('npm', ['install', path.join(temp, artifact.filename)], install)
   await verifyInstalledArtifact(install)
+  await verifyForwardingPackage(temp, install)
+}
+
+async function verifyForwardingPackage(temp: string, install: string): Promise<void> {
+  const source = path.join(process.cwd(), 'packages', 'ccset')
+  const manifest = JSON.parse(await fs.readFile(path.join(source, 'package.json'), 'utf8')) as {
+    name: string
+    bin: Record<string, string>
+    dependencies: Record<string, string>
+    scripts: Record<string, string>
+    repository: { url: string; directory: string }
+  }
+  assert.equal(manifest.name, 'ccset')
+  assert.deepEqual(manifest.bin, { ccset: './cli.js' })
+  assert.deepEqual(manifest.scripts, { prepublishOnly: 'node ../../scripts/check-release-state.mjs' })
+  assert.equal(manifest.repository.url, packageJson.repository.url)
+  assert.equal(manifest.repository.directory, 'packages/ccset')
+  const targetVersion = manifest.dependencies['@droite/ccset']
+  assert.ok(targetVersion)
+  assert.match(targetVersion, /^\d+\.\d+\.\d+$/)
+  const packed = parsePack(run('npm', ['pack', '--json', '--pack-destination', temp], source))
+  assert.equal(packed.length, 1)
+  const artifact = packed[0]
+  assert.ok(artifact)
+  assert.deepEqual(artifact.files.map((file) => file.path).sort(), [
+    'LICENSE', 'README.md', 'README.zh-CN.md', 'cli.js', 'package.json',
+  ])
+  run('npm', ['install', path.join(temp, artifact.filename)], install)
+  const cli = path.join(install, 'node_modules', 'ccset', 'cli.js')
+  assert.equal((await fs.readFile(cli, 'utf8')).startsWith('#!/usr/bin/env node\n'), true)
+  if (process.platform !== 'win32') assert.notEqual((await fs.stat(cli)).mode & 0o111, 0)
+  verifyForwardedCommands({ cli, install, home: path.join(temp, 'forwarder-home'), version: targetVersion })
+}
+
+function verifyForwardedCommands(options: {
+  cli: string
+  install: string
+  home: string
+  version: string
+}): void {
+  const env = { ...localeFreeEnv(), CCSET_HOME: options.home, CCSET_LOCALE: 'en' }
+  const targetPath = createRequire(options.cli).resolve('@droite/ccset/dist/cli.js')
+  for (const args of [['--version'], ['--help'], [], ['--unknown-forwarder-option']]) {
+    const forwarded = spawnSync(process.execPath, [options.cli, ...args], {
+      cwd: options.install, input: '', encoding: 'utf8', env,
+    })
+    const direct = spawnSync(process.execPath, [targetPath, ...args], {
+      cwd: options.install, input: '', encoding: 'utf8', env,
+    })
+    assert.notEqual(forwarded.status, null)
+    assert.equal(forwarded.status, direct.status)
+    assert.equal(forwarded.stdout, direct.stdout)
+    assert.equal(forwarded.stderr, direct.stderr)
+    if (args[0] === '--version') assert.equal(forwarded.stdout.trim(), options.version)
+  }
 }
 
 async function verifyInstalledArtifact(install: string): Promise<void> {
@@ -131,41 +188,34 @@ async function verifyWorkflowSecurity(): Promise<void> {
   assert.match(deploy, /pages: write/)
   assert.match(deploy, /id-token: write/)
   const publish = await fs.readFile('.github/workflows/publish.yml', 'utf8')
-  assert.match(publish, /id-token: write/)
-  assert.match(publish, /npm publish --provenance --access public/)
+  verifyPublishWorkflow(publish)
 }
 
-async function verifyReleaseState(temp: string): Promise<void> {
-  const checkout = path.join(temp, 'release-state')
-  const checkScript = path.join(process.cwd(), 'scripts/check-release-state.mjs')
-  await fs.mkdir(checkout)
-  await fs.writeFile(path.join(checkout, 'package.json'), '{"version":"1.2.3"}\n')
-  await fs.writeFile(path.join(checkout, 'tracked.txt'), 'clean\n')
-  run('git', ['init', '--quiet'], checkout)
-  run('git', ['config', 'user.name', 'ccset verification'], checkout)
-  run('git', ['config', 'user.email', 'verification@example.invalid'], checkout)
-  run('git', ['add', 'package.json', 'tracked.txt'], checkout)
-  run('git', ['commit', '--quiet', '-m', 'fixture'], checkout)
+function verifyPublishWorkflow(publish: string): void {
+  assert.match(publish, /^permissions: \{\}/m)
+  assert.doesNotMatch(publish, /NODE_AUTH_TOKEN|NPM_TOKEN/)
+  const jobs = publish.split(/^  publish-forwarder:\n/m)
+  assert.equal(jobs.length, 2, 'forwarding publish job missing or duplicated')
+  const root = jobs[0]
+  const forwarder = jobs[1]
+  assert.ok(root)
+  assert.ok(forwarder)
+  verifyPublishJob(root, 'v')
+  verifyPublishJob(forwarder, 'ccset-v')
+  assert.doesNotMatch(root, /working-directory:/)
+  assert.match(root, /run: node scripts\/check-release-state\.mjs/)
+  assert.match(forwarder, /run: node \.\.\/\.\.\/scripts\/check-release-state\.mjs\n        working-directory: packages\/ccset/)
+  assert.match(forwarder, /run: npm publish --provenance --access public\n        working-directory: packages\/ccset/)
+}
 
-  const runGuard = (tag: string, actions = true): number | null =>
-    spawnSync(process.execPath, [checkScript], {
-      cwd: checkout,
-      encoding: 'utf8',
-      env: {
-        ...installerEnv(),
-        GITHUB_ACTIONS: actions ? 'true' : 'false',
-        GITHUB_REF_NAME: tag,
-      },
-    }).status
-
-  assert.equal(runGuard('v1.2.3'), 0, 'a clean version-matched checkout was rejected')
-  assert.equal(runGuard('v1.2.4'), 1, 'a mismatched release tag was accepted')
-  assert.equal(runGuard('v1.2.3', false), 1, 'a local publish was accepted')
-  await fs.writeFile(path.join(checkout, 'tracked.txt'), 'changed\n')
-  assert.equal(runGuard('v1.2.3'), 1, 'a modified checkout was accepted')
-  await fs.writeFile(path.join(checkout, 'tracked.txt'), 'clean\n')
-  await fs.writeFile(path.join(checkout, 'untracked.txt'), 'untracked\n')
-  assert.equal(runGuard('v1.2.3'), 1, 'an untracked file was accepted')
+function verifyPublishJob(job: string, prefix: string): void {
+  assert.ok(job.includes(`if: github.repository == 'Right202209/ccset' && startsWith(github.event.release.tag_name, '${prefix}')`))
+  assert.match(job, /environment: npm-publish/)
+  assert.match(job, /permissions:\n      contents: read\n      id-token: write/)
+  assert.match(job, /persist-credentials: false/)
+  assert.match(job, /node-version: 24/)
+  assert.match(job, /registry-url: https:\/\/registry\.npmjs\.org/)
+  assert.match(job, /npm ci[\s\S]*npm run typecheck[\s\S]*npm test[\s\S]*npm publish --provenance --access public/)
 }
 
 await main()
