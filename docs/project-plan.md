@@ -294,59 +294,47 @@ No telemetry. These are observable from outside.
 | Agents add native switching and reduce the need | The diff, refusals, and write contract are worth having even when the edit is small |
 | The remote and CI audience is smaller than R2 assumes | Phase 4 gates keep the large investment behind evidence |
 
-## 8. Phase 0 implementation handoff (2026-11-12)
+## 8. Phase 0 status (2026-11-13)
 
-Implementation starts on `feat/project-plan-implementation`, based on
-`docs/project-plan` at `af63e17`. Section 1 remains the 2026-11-10 snapshot.
-The current release candidate is `@droite/ccset` **0.11.0**; changing the package
-and lockfile versions does not publish it.
+Section 1 remains the 2026-11-10 snapshot. Items 0.1 and 0.2 are complete and
+0.11.0 is published (0.3). Item 0.4 waits on one step that only a maintainer
+signed in to npm can perform.
 
-The forwarding package lives in `packages/ccset/`. It imports the installed
-CLI in the same process and pins the published **0.10.0** dependency so its
-artifact can be tested before 0.11.0 is on npm. After the main release succeeds,
-update that pin and both forwarding READMEs, rerun verification, then release
-the forwarder. Main releases use `v<version>`; forwarding releases use
-`ccset-v<version>`. Both use `publish.yml`, the `npm-publish` environment,
-trusted publishing, and provenance. The guard rejects the other package's
-tag, a mismatched version, local publishing, and a dirty checkout.
-
-| Item | Local implementation | Remaining exit condition |
+| Item | State | Evidence, or what remains |
 | --- | --- | --- |
-| 0.1 | Plan and reviews are in the base commit; existing local edits are preserved | Review and commit the implementation and the pre-existing `AGENTS.md` edit; clean worktree |
-| 0.2 | Existing full matrix remains the required gate | Push reviewed commits through a PR; obtain Linux, macOS, and Windows CI evidence |
-| 0.3 | 0.11.0 manifests and the draft notes below are prepared | Maintainer release through `publish.yml`, fresh npm installation check, then remove the next-release warning from both main READMEs |
-| 0.4 | Thin package, bilingual docs, release routing, guard, and installed-artifact assertions are implemented | Confirm publishing permissions for `ccset`, update its published dependency, release `ccset-v0.1.0`, and verify registry ownership |
+| 0.1 | Done | The plan, the reviews, the `AGENTS.md` edit, and the implementation are committed; `git status` was clean before the pull request |
+| 0.2 | Done | [PR #76](https://github.com/Right202209/ccset/pull/76) merged as `0e475e7`. All nine jobs of [CI run 43402359001](https://github.com/Right202209/ccset/actions/runs/43402359001) passed on that commit: Linux, macOS, and Windows with Node.js 18, 20, and 22 |
+| 0.3 | Released | [v0.11.0](https://github.com/Right202209/ccset/releases/tag/v0.11.0) was published by `publish.yml` with provenance. `npx @droite/ccset claude-code add relay --preset openrouter` ran from an empty npm cache, global prefix, and home on the development machine; no second machine was used. The next-release paragraph is gone from both READMEs and both user guides |
+| 0.4 | Open | The forwarder pins the published 0.11.0 and its checks pass. `npm view ccset` still returns 404 |
 
-Open question for 0.4. npm's trusted-publishing page (read 2026-11-12)
-configures a publisher under an existing package's settings and does not
-describe a name with no published version. `ccset` has none, and the guard
-refuses a local `npm publish`. The maintainer decides how the first version is
-created before the `ccset-v0.1.0` tag; no fallback token is introduced here.
+**What 0.4 still needs.** npm attaches a trusted publisher only to a package
+that already exists (`npm help trust`, npm 12.2.1, read 2026-11-13), so
+`publish.yml` cannot create `ccset`. A maintainer signed in to npm publishes a
+first version from `packages/ccset/`, then allows this repository's
+`publish.yml` and `npm-publish` environment to run `npm publish` for the
+package. Later versions are released by a `ccset-v<version>` tag. Which version
+is published by hand is the maintainer's choice: a throwaway version keeps
+provenance on 0.1.0 and runs the forwarder's publish job for the first time;
+publishing 0.1.0 directly is one step fewer.
 
-Verification results belong in the append-only implementation register,
-[Important Documentation.md §9](<../Important Documentation.md#9-implementation-register-code-complete>).
-Phase 0 is still open until its remote release and CI conditions are met;
-Phases 1 and 2 retain their release dependency.
+Until the name is registered, `packages/ccset/README.md` documents an
+`npx ccset` command that anyone could claim. That is the risk D3 exists to
+close, and it is now visible in the public repository.
 
-### Draft notes for v0.11.0
+The forwarding package imports the installed CLI in the same process and pins
+an exact published version. After each main release, update that pin and both
+forwarding READMEs, rerun verification, then release the forwarder. Main
+releases use `v<version>`; forwarding releases use `ccset-v<version>`. Both use
+`publish.yml`, the `npm-publish` environment, trusted publishing, and
+provenance. The guard rejects the other package's tag, a mismatched version,
+local publishing, and a dirty checkout.
 
-- Agent selection accepts a positional selector and `CCSET_AGENT`. Scripts
-  retain an explicit selector; a terminal may infer a sole detected Agent.
-- `presets list` and `add --preset` provide two bundled presets covering nine
-  Agent entries. A terminal can ask for a hidden key; scripts use `CCSET_TOKEN`
-  or `--token-stdin`.
-- All five Agents accept `use <id>`. opencode, Codex, pi, and Grok Build save
-  next-start defaults. Claude Code prints a session command; its explicit
-  `run <id>` starts the installed Agent without a shell and forwards its exit
-  status. Dry-run does not launch it.
-- Write behavior: preset `add` explicitly applies its defaults, with supplied
-  options taking precedence. Codex `use --model` changes routing and model
-  together and restores both if credential activation fails. Existing commands
-  remain available; unmanaged keys, backups, and secret-source rules are retained.
-- Publication uses separate tags for the main CLI and forwarding package.
-  The forwarding package is released separately and reports its pinned CLI's
-  version.
-- Before publishing these notes, attach the actual CI and local verification
-  results. Native macOS and Windows interactive checks and live Provider
-  requests have not been performed for this candidate; Linux fixture launches
-  use a stub Agent and isolated homes.
+With 0.11.0 on npm, the commands Phase 1 documents are installable, so Phase 1
+no longer waits on Phase 0. Its install command stays `npx @droite/ccset` until
+0.4 registers the unscoped name.
+
+The release notes are published with the v0.11.0 Release and replace the draft
+that stood here. Verification results are in the append-only implementation
+register,
+[Important Documentation.md §9](<../Important Documentation.md#9-implementation-register-code-complete>),
+entries 9.74 to 9.76.

@@ -3436,3 +3436,75 @@ the existing link in place. Into an empty prefix it succeeded, and
 
 Not performed: manual macOS or Windows checks, a live Provider request, and a
 launch of a real Agent. The npm version is still 0.10.0.
+
+### 9.76 v0.11.0 published; forwarder pinned to it; installed-TUI findings (2026-11-13)
+
+**Merge and release.** [PR #76](https://github.com/Right202209/ccset/pull/76)
+merged as `0e475e7`. Its head `b37f94f` passed
+[CI run 43396954792](https://github.com/Right202209/ccset/actions/runs/43396954792),
+and the merge commit passed all nine jobs of
+[CI run 43402359001](https://github.com/Right202209/ccset/actions/runs/43402359001):
+Linux, macOS, and Windows with Node.js 18, 20, and 22, with the full suite on
+Linux and macOS. The v0.11.0 Release was created on `0e475e7`.
+[Publishing run 43404089969](https://github.com/Right202209/ccset/actions/runs/43404089969)
+ran the guard, `npm ci`, typecheck, and the full suite, then published
+`@droite/ccset@0.11.0` with a signed provenance statement (transparency log
+index 3851309052). Its `publish-forwarder` job was skipped, as the tag routing
+intends.
+
+**Registry.** `npm view` reports `latest` as 0.11.0, published by
+`GitHub Actions` from `gitHead` `0e475e72ae7b82e49f41c61837251a0976231982`, with
+a SLSA v1 provenance attestation and five files. In a project that installed
+0.11.0 from the registry, `npm audit signatures` verified 44 registry
+signatures and 3 attestations, with none invalid or missing. The published
+tarball's SHA-1 matched the registry's `shasum`, and its five files were
+byte-identical to a local build of the same tree.
+
+**Fresh install.** Linux x64 (WSL2), Node.js 26.13.0, npm 12.2.1, under `env -i`
+with an empty npm cache, an empty global prefix, and a scratch `HOME` and
+`CCSET_HOME`. `npx --yes @droite/ccset --version` printed 0.11.0, and npx's own
+lockfile recorded the registry tarball. `claude-code add relay --preset
+openrouter` with a placeholder `CCSET_TOKEN` created one `0600` file;
+`use relay` and `presets list` exited 0. The same `add` in a pseudo-terminal
+without `CCSET_TOKEN` showed the hidden prompt, did not echo the typed
+placeholder, and saved the file. A first attempt that kept this machine's
+global prefix resolved `@droite/ccset` to a link to this checkout and is not
+counted. This is the development machine with isolated npm state, not a second
+machine.
+
+**Forwarder.** Its pin moved from 0.10.0 to 0.11.0. With the pin equal to this
+checkout's version, installing the forwarder beside the locally packed tarball
+let npm satisfy the pin with that tarball (`resolved:
+file:../droite-ccset-0.11.0.tgz`), so the parity loop compared the local build
+with itself. A new assertion on npm's install record failed on that
+arrangement. The forwarder is now installed into a project of its own, where
+the pin resolved to the registry tarball, and the fixture passed. Putting the
+forwarder back beside the local build failed the assertion again; that mutation
+was reverted. Root typecheck, build, `verify:code-gates` (293 files, nine
+baseline exceptions), and the full `npm test` passed on the final tree (exit 0).
+From `pages/`, typecheck, `npm test` (76 tests), build, and smoke passed.
+
+**Installed TUI, agent-driven pseudo-terminal, scratch homes.** The session ran
+the build of `b37f94f`, whose files equal the published ones. For Claude Code:
+the provider's own screen offered Edit, Ignore, and Delete; an edited model
+saved with ctrl+s wrote the file at `0600` after a backup; the token appeared
+only as `sk-T••••••••6789`; Ignore wrote `ignoredProviders` to
+`<home>/.ccset/settings.json`; Delete removed the provider file after a backup
+that still holds the placeholder. Three defects were found and are not fixed in
+this change:
+
+- Deleting a provider that is ignored keeps its ignore note. A provider saved
+  later under the same name is hidden until it is revealed and un-ignored.
+- After the "Provider deleted" message, the interface returns to the deleted
+  provider's own screen. For Claude Code its Edit form still shows the values
+  read before the delete, and saving it recreated the provider file with the
+  credential. For Codex the form opens empty under "Edit provider: relay".
+- Codex's "Use relay", chosen for a provider with no saved credential, ends in
+  an error message titled with a literal `Use {id}`.
+  `src/agents/codex/activate.ts` passes that title key without its parameter;
+  the same line is in v0.10.0.
+
+**Not performed.** No independent review. No manual macOS or Windows terminal
+check. No live Provider request, and no real Agent was launched. The unscoped
+`ccset` name is still unregistered: `npm view ccset` returned 404, and the
+local npm client is not logged in.
