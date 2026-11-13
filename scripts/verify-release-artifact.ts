@@ -84,10 +84,10 @@ async function verifyPackedArtifact(temp: string): Promise<void> {
   run('npm', ['init', '-y'], install)
   run('npm', ['install', path.join(temp, artifact.filename)], install)
   await verifyInstalledArtifact(install)
-  await verifyForwardingPackage(temp, install)
+  await verifyForwardingPackage(temp)
 }
 
-async function verifyForwardingPackage(temp: string, install: string): Promise<void> {
+async function verifyForwardingPackage(temp: string): Promise<void> {
   const source = path.join(process.cwd(), 'packages', 'ccset')
   const manifest = JSON.parse(await fs.readFile(path.join(source, 'package.json'), 'utf8')) as {
     name: string
@@ -111,11 +111,29 @@ async function verifyForwardingPackage(temp: string, install: string): Promise<v
   assert.deepEqual(artifact.files.map((file) => file.path).sort(), [
     'LICENSE', 'README.md', 'README.zh-CN.md', 'cli.js', 'package.json',
   ])
+  // Its own project: beside the tarball packed above, a pin equal to this
+  // checkout's version is satisfied by that build and never reaches the registry.
+  const install = path.join(temp, 'forwarder-install')
+  await fs.mkdir(install)
+  run('npm', ['init', '-y'], install)
   run('npm', ['install', path.join(temp, artifact.filename)], install)
+  await verifyRegistryDependency(install, targetVersion)
   const cli = path.join(install, 'node_modules', 'ccset', 'cli.js')
   assert.equal((await fs.readFile(cli, 'utf8')).startsWith('#!/usr/bin/env node\n'), true)
   if (process.platform !== 'win32') assert.notEqual((await fs.stat(cli)).mode & 0o111, 0)
   verifyForwardedCommands({ cli, install, home: path.join(temp, 'forwarder-home'), version: targetVersion })
+}
+
+/** npm's own record of the install: a `file:` source would be this checkout's build. */
+async function verifyRegistryDependency(install: string, version: string): Promise<void> {
+  const lock = JSON.parse(
+    await fs.readFile(path.join(install, 'node_modules', '.package-lock.json'), 'utf8'),
+  ) as { packages: Record<string, { version?: string; resolved?: string }> }
+  const dependency = Object.entries(lock.packages)
+    .find(([location]) => location.endsWith('node_modules/@droite/ccset'))?.[1]
+  assert.ok(dependency, 'the forwarder installed no @droite/ccset')
+  assert.equal(dependency.version, version)
+  assert.doesNotMatch(dependency.resolved ?? '', /^file:/, 'the pinned CLI is a local tarball, not a published version')
 }
 
 function verifyForwardedCommands(options: {
