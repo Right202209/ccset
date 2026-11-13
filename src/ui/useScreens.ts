@@ -63,6 +63,14 @@ function isError(screen: ActionResult): boolean {
   return screen.kind === 'message' && screen.tone === 'error'
 }
 
+/**
+ * How many Frames an outcome supersedes: the confirm or form that produced it,
+ * and the Screen beneath that one when the outcome removed what it was about.
+ */
+function supersededBy(screen: ActionResult): number {
+  return screen.kind === 'message' && screen.closesOrigin === true ? 2 : 1
+}
+
 /** A confirmed save may leave its form below the success message. */
 function acceptSavedDraft(frames: Frame[], result: ActionResult): Frame[] {
   if (result.kind !== 'message' || result.tone !== 'success') return frames
@@ -117,7 +125,7 @@ export function useScreens(): Screens {
         setFrames((prev) =>
           screen.kind === 'confirm' || isError(screen)
             ? [...prev, { screen }]
-            : [...acceptSavedDraft(prev, screen).slice(0, -1), { screen }],
+            : [...acceptSavedDraft(prev, screen).slice(0, -supersededBy(screen)), { screen }],
         )
       })
     },

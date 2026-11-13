@@ -124,8 +124,9 @@ async function runActivate(ctx: Ctx, id: string, adoptAs: string | null): Promis
   }
 }
 
-function messageScreen(titleKey: string, lines: string[]): ActionResult {
-  return { kind: 'message', title: t(titleKey), lines, tone: 'error' }
+/** The title arrives translated: the keys used here take a parameter, and a bare key would print its placeholder. */
+function messageScreen(title: string, lines: string[]): ActionResult {
+  return { kind: 'message', title, lines, tone: 'error' }
 }
 
 /** The plain case: nothing would be lost, so one confirmation is enough. */
@@ -190,11 +191,11 @@ export async function openActivate(ctx: Ctx, id: string): Promise<ActionResult> 
     await checkActivation(ctx)
   } catch (err) {
     const error = toCcsetError(err)
-    return messageScreen('error.screenTitle', [t(error.messageKey, error.params)])
+    return messageScreen(t('error.screenTitle'), [t(error.messageKey, error.params)])
   }
   const [auth, providers] = await Promise.all([loadAuthState(ctx), loadProviders(ctx)])
   if (!providers.parsed) {
-    return messageScreen('codex.action.use', [
+    return messageScreen(t('codex.action.use', { id }), [
       providers.path,
       t(providers.problemKey ?? 'status.readError', { detail: providers.problemDetail ?? '' }),
       t('note.fixByHand'),
@@ -202,12 +203,12 @@ export async function openActivate(ctx: Ctx, id: string): Promise<ActionResult> 
   }
   const profile = auth.profiles.find((candidate) => candidate.name === id)
   if (profile === undefined) {
-    return messageScreen('codex.action.use', [t('codex.status.noProfileFor', { id })])
+    return messageScreen(t('codex.action.use', { id }), [t('codex.status.noProfileFor', { id })])
   }
   // A sidecar that does not parse would copy its invalid JSON over a working
   // auth.json; refusing costs nothing, overwriting breaks Codex's startup.
   if (!profile.readable) {
-    return messageScreen('codex.action.use', [
+    return messageScreen(t('codex.action.use', { id }), [
       profile.path,
       t('codex.error.unreadableProfile', { path: profile.path }),
     ])
@@ -267,15 +268,15 @@ export async function openRestore(ctx: Ctx, name: string): Promise<ActionResult>
     await checkActivation(ctx)
   } catch (err) {
     const error = toCcsetError(err)
-    return messageScreen('error.screenTitle', [t(error.messageKey, error.params)])
+    return messageScreen(t('error.screenTitle'), [t(error.messageKey, error.params)])
   }
   const [auth, routing] = await Promise.all([loadAuthState(ctx), loadAdoptedRouting(ctx)])
   const profile = auth.profiles.find((candidate) => candidate.name === name)
   if (profile === undefined) {
-    return messageScreen('codex.action.restore', [t('codex.status.noProfileFor', { id: name })])
+    return messageScreen(t('codex.action.restore', { name }), [t('codex.status.noProfileFor', { id: name })])
   }
   if (!profile.readable) {
-    return messageScreen('codex.action.restore', [
+    return messageScreen(t('codex.action.restore', { name }), [
       profile.path,
       t('codex.error.unreadableProfile', { path: profile.path }),
     ])

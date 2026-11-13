@@ -137,6 +137,12 @@ export interface MessageScreen {
   title: string
   lines: string[]
   tone: MessageTone
+  /**
+   * The outcome removed what the Screen that asked was about, so that Screen's
+   * Frame closes with the confirm: leaving the message returns to the Screen
+   * before it, not to something that is no longer there.
+   */
+  closesOrigin?: boolean
 }
 
 export type ActionResult =

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
-import path from 'node:path'
-import type { Action, ActionResult, Ctx, ListItem } from '../src/types.js'
+import type { Ctx } from '../src/types.js'
 import '../src/registry.js'
 import { t } from '../src/i18n/index.js'
 import { settingsFilePath } from '../src/core/paths.js'
@@ -11,18 +10,26 @@ import { loadProviders as loadClaudeProviders, removeProvider as removeClaude } 
 import { openProviders as openClaudeList, openTest } from '../src/agents/claude-code/provider-actions.js'
 import { opencodeJsoncPath, opencodeTarget } from '../src/agents/opencode/paths.js'
 import { removeProvider as removeOpencode } from '../src/agents/opencode/providers.js'
-import { opencodeActions } from '../src/agents/opencode/actions.js'
 import { modelsFile } from '../src/agents/pi/paths.js'
 import { removeProvider as removePi } from '../src/agents/pi/providers.js'
-import { piActions } from '../src/agents/pi/actions.js'
 import { configFile as grokConfigFile } from '../src/agents/grok-build/paths.js'
 import { removeProvider as removeGrok } from '../src/agents/grok-build/providers.js'
-import { grokBuildActions } from '../src/agents/grok-build/actions.js'
-import { authProfilePath, codexConfigPath } from '../src/agents/codex/paths.js'
+import { authProfilePath } from '../src/agents/codex/paths.js'
 import { codexConfigFile } from '../src/agents/codex/global.js'
 import { removeProvider as removeCodex } from '../src/agents/codex/providers.js'
-import { codexActions } from '../src/agents/codex/actions.js'
 import { withHome } from './cli-harness.js'
+import {
+  ACME,
+  OTHER,
+  confirmDelete,
+  itemById,
+  listOf,
+  verifyClaudeEditReadsTheFileAgain,
+  verifyDeleteReturnsToTheList,
+  verifyOtherAgentsEditReadsAgain,
+  verifyOtherAgentsIgnoreAndDelete,
+  write,
+} from './verify-provider-screens.js'
 
 /**
  * Deleting and ignoring providers (ADR 0019): a delete removes exactly the named
@@ -31,38 +38,12 @@ import { withHome } from './cli-harness.js'
  * is ccset's own note, so it writes nothing into any Agent's configuration.
  */
 
-const ACME = 'acme'
-const OTHER = 'other'
-
-async function write(filePath: string, contents: string): Promise<void> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
-  await fs.writeFile(filePath, contents, { mode: 0o600 })
-}
-
 const read = (filePath: string): Promise<string> => fs.readFile(filePath, 'utf8')
 const exists = (filePath: string): Promise<boolean> => fs.access(filePath).then(() => true, () => false)
 
 async function assertBackupHolds(backupPath: string | null, original: string): Promise<void> {
   assert.ok(backupPath !== null, 'the removal kept no backup')
   assert.equal(await read(backupPath), original, 'the backup does not hold what was removed')
-}
-
-function listOf(screen: ActionResult, where: string): ListItem[] {
-  assert.equal(screen.kind, 'list', `${where} is not a list screen`)
-  return screen.kind === 'list' ? screen.items : []
-}
-
-function itemById(items: ListItem[], id: string): ListItem {
-  const found = items.find((item) => item.id === id)
-  assert.ok(found !== undefined, `no item ${id} among ${items.map((item) => item.id).join(', ')}`)
-  return found
-}
-
-/** The providers entry of an Agent's menu, exactly as the interface reaches it. */
-async function providersAction(actions: Action[], ctx: Ctx): Promise<ActionResult> {
-  const action = actions.find((candidate) => candidate.id === 'providers')
-  assert.ok(action !== undefined, 'the agent has no providers action')
-  return action.run(ctx)
 }
 
 const acmeFile = (home: string): string => providerSettingsPath(home, ACME)
@@ -210,8 +191,9 @@ async function verifyClaudeDeleteScreen(ctx: Ctx): Promise<void> {
   assert.equal(confirm.kind, 'confirm', 'delete did not ask first')
   if (confirm.kind !== 'confirm') return
   assert.equal(confirm.lines.join('\n').includes(acmeFile(ctx.home)), true, 'the confirm does not name the file it deletes')
-  assert.equal((await confirm.confirm()).kind, 'message')
+  await confirmDelete(manage, 'claude-code')
   assert.equal(await exists(acmeFile(ctx.home)), false, 'the confirmed delete did not delete')
+  assert.deepEqual(await readIgnoredProviders(ctx.home, 'claude-code'), [], 'the deleted provider kept its ignore note')
 }
 
 /** Ignoring is ccset's own note: the Agent's files must not move for it. */
@@ -227,46 +209,6 @@ async function verifyTestListSkipsIgnored(ctx: Ctx): Promise<void> {
   await setProviderIgnored(ctx.home, 'claude-code', ACME, true)
   const items = listOf(await openTest(ctx), 'the probe list')
   assert.deepEqual(items.map((item) => item.id), [OTHER], 'the probe still offers the ignored provider')
-}
-
-/* ------------------------------------------------ the other Agents' lists */
-
-async function verifyOtherListsHideIgnored(home: string): Promise<void> {
-  const ctx: Ctx = { home }
-  const cases: { agent: string; seed: string; doc: string; actions: Action[] }[] = [
-    {
-      agent: 'opencode',
-      seed: (await opencodeTarget(home)).path,
-      doc: '{"provider":{"acme":{"options":{"baseURL":"https://acme.example"}}}}\n',
-      actions: opencodeActions(),
-    },
-    {
-      agent: 'pi',
-      seed: modelsFile(home).path,
-      doc: '{"providers":{"acme":{"baseUrl":"https://acme.example"}}}\n',
-      actions: piActions(),
-    },
-    {
-      agent: 'grok-build',
-      seed: grokConfigFile(home).path,
-      doc: '[model.acme]\nbase_url = "https://acme.example"\n',
-      actions: grokBuildActions(),
-    },
-    {
-      agent: 'codex',
-      seed: codexConfigPath(home),
-      doc: '[model_providers.acme]\nbase_url = "https://acme.example"\n',
-      actions: codexActions(),
-    },
-  ]
-  for (const entry of cases) {
-    await write(entry.seed, entry.doc)
-    await setProviderIgnored(home, entry.agent, ACME, true)
-    const ids = listOf(await providersAction(entry.actions, ctx), `${entry.agent}'s provider list`).map((item) => item.id)
-    assert.equal(ids.includes(ACME), false, `${entry.agent} still offers an ignored provider`)
-    assert.equal(ids.includes('__ignored__'), true, `${entry.agent} has no way back to an ignored provider`)
-    await setProviderIgnored(home, entry.agent, ACME, false)
-  }
 }
 
 async function main(): Promise<void> {
@@ -289,7 +231,10 @@ async function main(): Promise<void> {
     await verifyCodexRemoval(home)
     await verifyCodexRefusesWhileRouted(home)
   })
-  await withHome('provider-lists', verifyOtherListsHideIgnored)
+  await withHome('provider-lists', verifyOtherAgentsIgnoreAndDelete)
+  await withHome('provider-delete-landing', verifyDeleteReturnsToTheList)
+  await withHome('provider-edit-reread', (home) => verifyClaudeEditReadsTheFileAgain({ home }))
+  await withHome('provider-edit-others', verifyOtherAgentsEditReadsAgain)
   process.stdout.write('Provider deletion and ignoring verification passed.\n')
 }
 

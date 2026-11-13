@@ -255,6 +255,8 @@ hides the provider from the Providers list and from **Test connection**, and
 changes nothing on disk: the Agent keeps reading that configuration exactly as
 before. While any provider is ignored the list carries a row that reveals them,
 marked `ignored`, and a revealed provider's screen offers **Stop ignoring**.
+Deleting an ignored provider removes its note as well, so a provider saved
+later under the same name is listed as usual.
 
 Neither verb is on the command line. Deleting is destructive maintenance, which
 the non-interactive contract keeps out until it has a safety contract of its own

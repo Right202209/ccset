@@ -3508,3 +3508,95 @@ this change:
 check. No live Provider request, and no real Agent was launched. The unscoped
 `ccset` name is still unregistered: `npm view ccset` returned 404, and the
 local npm client is not logged in.
+
+### 9.77 Provider Screen fixes after the 0.11.0 smoke; the 0.11.1 candidate (2026-11-13)
+
+**A fourth defect, worse than the three in §9.76.** The provider's own Screen,
+added on 2026-10-28 and first released in 0.11.0, stays on the navigation stack
+across the saves made from it. Claude Code built that Screen from the record
+its list had loaded and handed the same record to every later Edit form. An
+installed 0.11.0 build, its five files identical to the ones on the registry,
+was driven in a pseudo-terminal with two placeholder keys: the key was rotated
+and saved, Edit was opened again from the same Screen, and the model was
+changed and saved. The reopened form showed the old key's mask, and the file
+then held the old key and not the new one. The other four Agents read their
+document each time Edit is chosen and were not affected. In 0.10.0 the list
+row opened the form directly and the list was read again on the way back; the
+published 0.10.0, driven through the same sequence, showed the new key's mask
+in the reopened form and kept the new key in the file.
+
+**The rotated key is in a backup.** A save backs up the bytes it replaces, so
+the save that put the old key back first backed up the file holding the new
+one. In the reproduction home the provider file held the old placeholder, the
+newest backup of it under `backups/ccset/` held the rotated one, and the backup
+before that held the old one.
+
+**Fixes.**
+
+- Claude Code reads the provider when Edit is chosen. A file that is gone
+  seeds an empty form, as for the other Agents.
+- A delete's outcome carries `closesOrigin`, and the navigation stack closes
+  the deleted provider's Screen with the confirm, so leaving the message lands
+  on the provider list.
+- A delete clears the provider's ignore note after the removal. A refused
+  delete leaves the note as it was.
+- Codex message Screens receive a translated title, so `Use {id}` and
+  `Restore the saved login "{name}"` name their subject.
+
+**Assertions, each seen failing before its fix.** Linux x64 (WSL2), Node.js
+26.13.0, npm 12.2.1, scratch homes, placeholder keys:
+
+- `verify:codex`: the title was `Use {id}` where `Use router` was expected.
+- `verify:provider-management`, in the order the fixes were made: the delete's
+  outcome left the provider's Screen open, for all five Agents; the deleted
+  provider kept its ignore note (`['acme']`, expected `[]`); the Rendered paint
+  after leaving the delete message focused `1. Edit provider: acme`.
+- The Edit form after a save held `sk-TEST-DO-NOT-USE-before` where the rotated
+  placeholder was expected. With that assertion removed for one run, the file
+  after the second save no longer held the rotated placeholder. With both
+  removed, the form opened after the file was deleted still held a credential.
+- The Edit assertions take the Edit entry of one open provider Screen and
+  choose it for every form, as the interface does. A further assertion covers
+  the other four Agents: their document is changed while the Screen is open,
+  and the next form has to show the change. It first opened the Screen again
+  for each form, and an opencode mutation that built the form when the Screen
+  opened passed it. With the entry held, that mutation fails with
+  `opencode's Edit form was seeded from an earlier read`, and Claude Code's
+  `provider-actions.ts` as released in 0.11.0 fails with
+  `sk-TEST-DO-NOT-USE-before` where `sk-TEST-DO-NOT-USE-rotated` was expected.
+  Both were reverted and the fixture passed again.
+- After the fixes, two mutations were tried and reverted: ignoring
+  `closesOrigin` in `useScreens` failed the Rendered-paint assertion, and
+  skipping the note clearing failed the ignore-note assertion.
+
+**After the fixes.** Root typecheck, build, `verify:code-gates` (294 files,
+nine baseline exceptions; `src/agents/codex/activate.ts` stays under the
+300-line gate), and the full `npm test` passed (exit 0) on the 0.11.1 tree.
+From `pages/`, typecheck, `npm test` (76 tests), build, and smoke passed.
+Those runs came before the last change, which made the Edit assertions hold
+one Screen's entry, extended them to the other four Agents, and updated the
+fixture-map row in both verification guides; it touched no file under `src/`.
+After it, root typecheck, build, `verify:code-gates`, and
+`verify:provider-management` passed again. The full suite and the `pages/`
+checks were not rerun, on the maintainer's instruction. A tarball built from
+the fixed source, before the version change, was installed and driven in a
+pseudo-terminal:
+
+- The rotate, reopen, edit, save sequence showed the new key's mask in the
+  reopened form and left the new key in the file.
+- Ignore, then Delete, then Enter landed on the provider list.
+  `settings.json` held only `version`, and a provider added again under the
+  same name was listed.
+- A Codex delete landed on the provider list, and "Use" on a provider with no
+  saved credential was titled `Use bare`.
+
+**Not changed.** If clearing the note fails after the removal succeeded, the
+error Screen reports the settings failure and not the backup that was taken;
+deleting again retries the clearing. A provider deleted outside ccset while
+its Screen is open still shows that Screen until it is left.
+
+**Not performed.** No independent review. No full `npm test` on the final
+tree before the pull request; CI is its first full run. No manual macOS or
+Windows terminal check. No live Provider request. The manifest and lockfile
+are at 0.11.1; 0.11.1 is not published, and npm's `latest` is still 0.11.0
+with the defects above.

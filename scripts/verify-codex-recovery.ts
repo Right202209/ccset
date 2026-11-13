@@ -1,4 +1,8 @@
-import { verifyAdoptionNameConflict, verifyKeyringActivationRefusal } from './verify-codex-activation-safety.js'
+import {
+  verifyAdoptionNameConflict,
+  verifyKeyringActivationRefusal,
+  verifyMissingProfileTitles,
+} from './verify-codex-activation-safety.js'
 import assert from 'node:assert/strict'
 import { promises as fs } from 'node:fs'
 import { activateAuthProfile, loadAuthState } from '../src/agents/codex/auth.js'
@@ -239,6 +243,7 @@ async function verifyRunSaveConfirmCompletes(home: string): Promise<void> {
 }
 
 export async function verifyCodexRecovery(home: string): Promise<void> {
+  await verifyMissingProfileTitles(home)
   await verifyAdoptionNameConflict(home)
   await verifyKeyringActivationRefusal(home)
   await verifyFreshRecoveryIsScoped(home)

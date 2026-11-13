@@ -16,6 +16,7 @@ import type { Agent, Viewport } from '../src/types.js'
 
 const ANSI = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))/g
 
+export const UP = '\x1b[A'
 export const DOWN = '\x1b[B'
 export const ENTER = '\r'
 export const ESC = '\x1b'

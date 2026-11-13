@@ -84,6 +84,9 @@ Read these guides for the corresponding work:
 - Re-read targets at save time. Preflight all command targets before the first
   write. Back up originals and use atomic writes with `0600` on POSIX.
   Non-interactive no-ops and dry-runs must not write or create backups.
+- Seed a form from a read made when it opens. A Screen that stays open across
+  a save, such as a Provider's own Screen, must not hand its form a record
+  loaded earlier: every managed field would be written back as it was.
 - Replacing a malformed target requires a TUI confirmation or the command's
   explicit `--replace-invalid` choice. Preserve the malformed original in a
   backup when replacing it.
@@ -92,6 +95,7 @@ Read these guides for the corresponding work:
   deleting; an absent target is a no-op. Whole-file deletion can remove a
   malformed Claude Code Provider, while deleting a block requires a parseable
   shared document and preserves sibling Providers, comments, and formatting.
+  A delete also clears the Provider's ignore note and closes its Screen.
 - Ignored providers live under `ignoredProviders` in
   `<home>/.ccset/settings.json`, keyed by Agent id. Exclude them from normal
   provider lists and Test-connection targets; the list must offer a way to reveal

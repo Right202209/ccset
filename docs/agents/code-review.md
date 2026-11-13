@@ -63,11 +63,14 @@ be batched.
   delete; `false` is a value and stays a boolean (D2, O2, O3, C4). Template
   defaults do not fill omitted patch fields (ADR 0008).
 - **Read at save time, preflight before the first write.** Values seeded when a
-  form opened are overlaid on the document read at commit. Every command target
-  is rendered and preflighted before any file changes. A multi-target failure
-  reports the paths already written as partial, in those words; if the rollback
-  triggered by that failure itself fails, its error is reported too rather than
-  discarded (M-2).
+  form opened are overlaid on the document read at commit, so the seed has to
+  be a read made when the form opens: a Screen that stays on the stack across a
+  save re-reads instead of reusing the record its list loaded, or the next save
+  writes every managed field back, a rotated token included (9.77). Every
+  command target is rendered and preflighted before any file changes. A
+  multi-target failure reports the paths already written as partial, in those
+  words; if the rollback triggered by that failure itself fails, its error is
+  reported too rather than discarded (M-2).
 - **Zero writes for no-ops and dry runs**, including zero backups and zero
   temp files. A dry run must plan every record the real commit would write,
   including sidecars (9.45 L-14).
