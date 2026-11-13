@@ -26,6 +26,7 @@ import {
   listOf,
   verifyClaudeEditReadsTheFileAgain,
   verifyDeleteReturnsToTheList,
+  verifyOtherAgentsEditReadsAgain,
   verifyOtherAgentsIgnoreAndDelete,
   write,
 } from './verify-provider-screens.js'
@@ -233,6 +234,7 @@ async function main(): Promise<void> {
   await withHome('provider-lists', verifyOtherAgentsIgnoreAndDelete)
   await withHome('provider-delete-landing', verifyDeleteReturnsToTheList)
   await withHome('provider-edit-reread', (home) => verifyClaudeEditReadsTheFileAgain({ home }))
+  await withHome('provider-edit-others', verifyOtherAgentsEditReadsAgain)
   process.stdout.write('Provider deletion and ignoring verification passed.\n')
 }
 

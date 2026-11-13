@@ -83,31 +83,34 @@ export async function confirmDelete(manage: ListItem[], where: string): Promise<
 const claudeDoc = (token: string): string =>
   `${JSON.stringify({ env: { ANTHROPIC_BASE_URL: 'https://acme.example', ANTHROPIC_AUTH_TOKEN: token }, model: 'first-model' }, null, 2)}\n`
 
-/** Opens a provider's own Screen from its list row and takes the Edit entry. */
-async function editForm(row: ListItem): Promise<FormScreen> {
-  const manage = listOf(await row.run(), 'the provider screen')
-  const form = await itemById(manage, 'edit').run()
+/** The Edit entry of a provider's own Screen, opened once from its list row. */
+async function editEntry(row: ListItem): Promise<ListItem> {
+  return itemById(listOf(await row.run(), 'the provider screen'), 'edit')
+}
+
+async function openForm(edit: ListItem): Promise<FormScreen> {
+  const form = await edit.run()
   if (form.kind !== 'form') assert.fail('Edit did not open a form')
   return form
 }
 
 /**
- * The provider's own Screen outlives the saves made from it, and the interface
- * re-runs its list row on the way back from each one. The Edit form has to be
- * seeded from the file as it is then. Seeded from the record the list was built
- * with, a second save wrote every managed field back as it was before the first
- * -- a rotated token included -- and a provider deleted meanwhile came back
- * with its credential.
+ * The provider's own Screen stays open across the saves made from it, so every
+ * form here comes from the Edit entry of one Screen. Each has to be seeded from
+ * the file as it is when Edit is chosen. Seeded from the record the list was
+ * built with, a second save wrote every managed field back as it was before the
+ * first -- a rotated token included -- and a provider deleted meanwhile came
+ * back with its credential.
  */
 export async function verifyClaudeEditReadsTheFileAgain(ctx: Ctx): Promise<void> {
   const file = providerSettingsPath(ctx.home, ACME)
   await write(file, claudeDoc(OLD_TOKEN))
-  const row = itemById(listOf(await openClaudeList(ctx), 'the provider list'), ACME)
-  const first = await editForm(row)
+  const edit = await editEntry(itemById(listOf(await openClaudeList(ctx), 'the provider list'), ACME))
+  const first = await openForm(edit)
   await first.submit({ ...first.values, token: NEW_TOKEN })
   assert.equal((await fs.readFile(file, 'utf8')).includes(NEW_TOKEN), true, 'the first save did not write the new token')
 
-  const second = await editForm(row)
+  const second = await openForm(edit)
   assert.equal(second.values['token'], NEW_TOKEN, 'the Edit form was seeded from before the last save')
   await second.submit({ ...second.values, model: 'second-model' })
   const saved = await fs.readFile(file, 'utf8')
@@ -115,7 +118,7 @@ export async function verifyClaudeEditReadsTheFileAgain(ctx: Ctx): Promise<void>
   assert.equal(saved.includes(OLD_TOKEN), false, 'a later edit restored the rotated token')
 
   await fs.rm(file)
-  const gone = await editForm(row)
+  const gone = await openForm(edit)
   const seeded = Object.values(gone.values)
   for (const token of [OLD_TOKEN, NEW_TOKEN]) {
     assert.equal(seeded.includes(token), false, 'a provider that is gone still seeds its Edit form with a credential')
@@ -182,6 +185,25 @@ export async function verifyOtherAgentsIgnoreAndDelete(home: string): Promise<vo
     assert.deepEqual(await readIgnoredProviders(home, entry.agent), [], `${entry.agent} kept the ignore note of a deleted provider`)
     const after = listOf(await providersAction(entry.actions, ctx), `${entry.agent}'s list after the delete`)
     assert.equal(after.some((item) => item.id === ACME || item.id === '__ignored__'), false, `${entry.agent} still shows a trace of the deleted provider`)
+  }
+}
+
+/**
+ * The same rule for the Agents whose providers share one document: a provider's
+ * own Screen stays open while the document changes underneath it, so its Edit
+ * entry has to read the document again each time it is chosen.
+ */
+export async function verifyOtherAgentsEditReadsAgain(home: string): Promise<void> {
+  const ctx: Ctx = { home }
+  for (const entry of await otherAgents(home)) {
+    await write(entry.seed, entry.doc)
+    const list = listOf(await providersAction(entry.actions, ctx), `${entry.agent}'s provider list`)
+    const edit = await editEntry(itemById(list, ACME))
+    const before = await openForm(edit)
+    assert.equal(Object.values(before.values).includes('https://acme.example'), true, `${entry.agent}'s Edit form does not show the provider`)
+    await write(entry.seed, entry.doc.replace('acme.example', 'moved.example'))
+    const after = await openForm(edit)
+    assert.equal(Object.values(after.values).includes('https://moved.example'), true, `${entry.agent}'s Edit form was seeded from an earlier read`)
   }
 }
 
