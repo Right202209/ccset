@@ -263,23 +263,24 @@ recipe（2.5）有两个用途：它们是 R2 要求的场景文档，也是检�
 
 ## 8. 阶段 0 进展（2026-11-13）
 
-第 1 节仍保留 2026-11-10 的快照。0.1 和 0.2 已完成，0.11.0 已发布（0.3）；
-0.4 还差一步，只有登录了 npm 的维护者才能完成。
+第 1 节仍保留 2026-11-10 的快照。0.1 和 0.2 已完成。0.11.0 已发布（0.3），
+当天又发布了 0.11.1，修复其中的一处回归。0.4 还差两条命令，只有登录了 npm 的
+维护者才能运行。
 
 | 条目 | 状态 | 证据或剩余事项 |
 | --- | --- | --- |
 | 0.1 | 完成 | 计划、评审、`AGENTS.md` 修改和实现均已提交；提 PR 之前 `git status` 是干净的 |
 | 0.2 | 完成 | [PR #76](https://github.com/Right202209/ccset/pull/76) 已合并为 `0e475e7`。该提交的 [CI 运行 43402359001](https://github.com/Right202209/ccset/actions/runs/43402359001) 九个任务全部通过：Linux、macOS 和 Windows，Node.js 18、20 和 22 |
-| 0.3 | 已发布 | [v0.11.0](https://github.com/Right202209/ccset/releases/tag/v0.11.0) 由 `publish.yml` 发布，带来源证明。在开发机上用全新的 npm 缓存、全局前缀和 home 运行了 `npx @droite/ccset claude-code add relay --preset openrouter`；没有使用第二台机器。两份 README 和两份用户指南里的“下一版本”提示已删除 |
-| 0.4 | 未完成 | 转发包已固定依赖已发布的 0.11.0，检查通过。`npm view ccset` 仍返回 404 |
+| 0.3 | 已发布 | [v0.11.0](https://github.com/Right202209/ccset/releases/tag/v0.11.0) 由 `publish.yml` 发布，带来源证明。在开发机上用全新的 npm 缓存、全局前缀和 home 运行了 `npx @droite/ccset claude-code add relay --preset openrouter`；没有使用第二台机器。两份 README 和两份用户指南里的“下一版本”提示已删除。[v0.11.1](https://github.com/Right202209/ccset/releases/tag/v0.11.1) 修复了 0.11.0 提供商界面的一处回归：在 Claude Code 提供商自己的界面上第二次编辑时，会把第一次保存之前的值写回去，包括刚轮换过的密钥 |
+| 0.4 | 未完成 | 转发包已固定依赖已发布的 0.11.1，检查通过。`npm view ccset` 仍返回 404 |
 
 **0.4 还差什么。** npm 只能给已经存在的包配置可信发布者（`npm help trust`，
 npm 12.2.1，2026-11-13 查阅），所以 `publish.yml` 无法创建 `ccset`。需要由登录了
-npm 的维护者从 `packages/ccset/` 发布第一个版本，再允许本仓库的 `publish.yml`
-和 `npm-publish` 环境为该包运行 `npm publish`。之后的版本通过
-`ccset-v<version>` 标签发布。手动发布哪个版本由维护者决定：先发布一个临时
-版本，0.1.0 就能带来源证明，转发包的发布任务也能第一次实际运行；直接发布
-0.1.0 则少一步。
+npm 的维护者发布第一个版本，再允许本仓库的 `publish.yml` 和 `npm-publish`
+环境为该包运行 `npm publish`。之后的版本通过 `ccset-v<version>` 标签发布。
+维护者于 2026-11-13 决定手动发布一个临时的 0.0.1：它不含代码，只用来注册名称，
+这样第一个转发版本 0.1.0 就由转发包的发布任务发布，并带来源证明。该账号的每次
+写操作都需要一次性验证码，所以这两条命令只能由维护者运行。
 
 在名称注册之前，`packages/ccset/README.md` 里写着一条任何人都可以抢注的
 `npx ccset` 命令。这正是 D3 要消除的风险，而且现在已经在公开仓库里可见。
@@ -293,7 +294,7 @@ npm 的维护者从 `packages/ccset/` 发布第一个版本，再允许本仓库
 0.11.0 已在 npm 上，阶段 1 要写进文档的命令现在都可以安装，阶段 1 不再等待
 阶段 0。在 0.4 注册无作用域名称之前，安装命令仍用 `npx @droite/ccset`。
 
-发布说明已随 v0.11.0 Release 公布，取代原先放在这里的草稿。验证结果记录在
+发布说明已随 v0.11.0 和 v0.11.1 Release 公布，取代原先放在这里的草稿。验证结果记录在
 只追加的
 [Important Documentation.md §9](<../../Important Documentation.md#9-implementation-register-code-complete>)
-的 9.74 到 9.76 条目中。
+的 9.74 到 9.78 条目中。

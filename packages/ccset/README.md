@@ -19,7 +19,7 @@ ccset --agent claude-code
 
 This package runs `@droite/ccset` in the same process, preserving arguments,
 standard input, terminal interaction, and exit codes. Version `0.1.0` pins
-`@droite/ccset` to its published version `0.11.0`; `ccset --version` reports the
+`@droite/ccset` to its published version `0.11.1`; `ccset --version` reports the
 underlying CLI's version.
 
 See the [project README](https://github.com/Right202209/ccset#readme) and

@@ -41,6 +41,6 @@
     "tui"
   ],
   "dependencies": {
-    "@droite/ccset": "0.11.0"
+    "@droite/ccset": "0.11.1"
   }
 }

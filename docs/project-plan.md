@@ -296,26 +296,28 @@ No telemetry. These are observable from outside.
 
 ## 8. Phase 0 status (2026-11-13)
 
-Section 1 remains the 2026-11-10 snapshot. Items 0.1 and 0.2 are complete and
-0.11.0 is published (0.3). Item 0.4 waits on one step that only a maintainer
-signed in to npm can perform.
+Section 1 remains the 2026-11-10 snapshot. Items 0.1 and 0.2 are complete.
+0.11.0 is published (0.3), and 0.11.1 followed the same day to fix a
+regression in it. Item 0.4 waits on two commands that only a maintainer signed
+in to npm can run.
 
 | Item | State | Evidence, or what remains |
 | --- | --- | --- |
 | 0.1 | Done | The plan, the reviews, the `AGENTS.md` edit, and the implementation are committed; `git status` was clean before the pull request |
 | 0.2 | Done | [PR #76](https://github.com/Right202209/ccset/pull/76) merged as `0e475e7`. All nine jobs of [CI run 43402359001](https://github.com/Right202209/ccset/actions/runs/43402359001) passed on that commit: Linux, macOS, and Windows with Node.js 18, 20, and 22 |
-| 0.3 | Released | [v0.11.0](https://github.com/Right202209/ccset/releases/tag/v0.11.0) was published by `publish.yml` with provenance. `npx @droite/ccset claude-code add relay --preset openrouter` ran from an empty npm cache, global prefix, and home on the development machine; no second machine was used. The next-release paragraph is gone from both READMEs and both user guides |
-| 0.4 | Open | The forwarder pins the published 0.11.0 and its checks pass. `npm view ccset` still returns 404 |
+| 0.3 | Released | [v0.11.0](https://github.com/Right202209/ccset/releases/tag/v0.11.0) was published by `publish.yml` with provenance. `npx @droite/ccset claude-code add relay --preset openrouter` ran from an empty npm cache, global prefix, and home on the development machine; no second machine was used. The next-release paragraph is gone from both READMEs and both user guides. [v0.11.1](https://github.com/Right202209/ccset/releases/tag/v0.11.1) fixes a regression in 0.11.0's provider screens: a second edit of a Claude Code provider from its own screen wrote back the values from before the first save, a rotated key included |
+| 0.4 | Open | The forwarder pins the published 0.11.1 and its checks pass. `npm view ccset` still returns 404 |
 
 **What 0.4 still needs.** npm attaches a trusted publisher only to a package
 that already exists (`npm help trust`, npm 12.2.1, read 2026-11-13), so
 `publish.yml` cannot create `ccset`. A maintainer signed in to npm publishes a
-first version from `packages/ccset/`, then allows this repository's
-`publish.yml` and `npm-publish` environment to run `npm publish` for the
-package. Later versions are released by a `ccset-v<version>` tag. Which version
-is published by hand is the maintainer's choice: a throwaway version keeps
-provenance on 0.1.0 and runs the forwarder's publish job for the first time;
-publishing 0.1.0 directly is one step fewer.
+first version, then allows this repository's `publish.yml` and `npm-publish`
+environment to run `npm publish` for the package. Later versions are released
+by a `ccset-v<version>` tag. The maintainer chose on 2026-11-13 to publish a
+throwaway 0.0.1 by hand: it holds no code and only reserves the name, so
+0.1.0, the first forwarding version, comes from the forwarder's publish job
+with provenance. The account requires a one-time code for every write, so both
+commands are the maintainer's to run.
 
 Until the name is registered, `packages/ccset/README.md` documents an
 `npx ccset` command that anyone could claim. That is the risk D3 exists to
@@ -333,8 +335,8 @@ With 0.11.0 on npm, the commands Phase 1 documents are installable, so Phase 1
 no longer waits on Phase 0. Its install command stays `npx @droite/ccset` until
 0.4 registers the unscoped name.
 
-The release notes are published with the v0.11.0 Release and replace the draft
-that stood here. Verification results are in the append-only implementation
-register,
+The release notes are published with the v0.11.0 and v0.11.1 Releases and
+replace the draft that stood here. Verification results are in the append-only
+implementation register,
 [Important Documentation.md §9](<../Important Documentation.md#9-implementation-register-code-complete>),
-entries 9.74 to 9.76.
+entries 9.74 to 9.78.

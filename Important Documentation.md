@@ -3600,3 +3600,61 @@ tree before the pull request; CI is its first full run. No manual macOS or
 Windows terminal check. No live Provider request. The manifest and lockfile
 are at 0.11.1; 0.11.1 is not published, and npm's `latest` is still 0.11.0
 with the defects above.
+
+### 9.78 v0.11.1 published; forwarder pinned to it; the route for the unscoped name (2026-11-13)
+
+**Merge.** [PR #78](https://github.com/Right202209/ccset/pull/78) merged as
+`3ea4ee5` on the maintainer's instruction, before its checks had finished and
+without a full local suite on the final tree (§9.77). Its head `c630f1c` then
+passed
+[CI run 43497657756](https://github.com/Right202209/ccset/actions/runs/43497657756),
+and the merge commit passed all nine jobs of
+[CI run 43497802004](https://github.com/Right202209/ccset/actions/runs/43497802004):
+Linux, macOS, and Windows with Node.js 18, 20, and 22, with the full suite on
+Linux and macOS. Those runs were the first full suite on the final tree. The
+Release was created after the second one passed.
+
+**Release candidate.** Linux x64 (WSL2), Node.js 26.13.0, npm 12.2.1. The tree
+of `3ea4ee5` was built and packed: `dist/cli.js`, both READMEs, `package.json`,
+and `LICENSE`, 132.3 kB. The tarball was installed under `env -i` with an empty
+npm cache, an empty global prefix, and a scratch `HOME`. `--version` printed
+0.11.1, `--help` exited 0, and the interactive entry without a terminal exited
+2. With a placeholder `CCSET_TOKEN` and a scratch `CCSET_HOME`,
+`claude-code add relay --preset openrouter` created one `0600` file and did not
+print the token, and `use relay` exited 0. The pseudo-terminal session of §9.77
+was not repeated on this tarball; it ran the same source before the version
+change.
+
+**Release.** The v0.11.1 Release was created on `3ea4ee5`.
+[Publishing run 43499968148](https://github.com/Right202209/ccset/actions/runs/43499968148)
+ran the guard, `npm ci`, typecheck, and the full suite, then published
+`@droite/ccset@0.11.1` with a signed provenance statement (transparency log
+index 3861689155). Its `publish-forwarder` job was skipped, as the tag routing
+intends.
+
+**Registry.** `npm view` reports `latest` as 0.11.1, published by
+`GitHub Actions` from `gitHead` `3ea4ee5d6c2be7a15df9c4ae23f895c8ba9a872a`, with
+a SLSA v1 provenance attestation and five files. A first query, made about
+twenty seconds before the registry's `modified` time, still answered 0.11.0
+and is not counted. In a project that installed 0.11.1 from the registry under
+the same isolation, `npm audit signatures` verified 44 registry signatures and
+3 attestations, and `npx --yes @droite/ccset@latest --version` printed 0.11.1.
+The published tarball's SHA-1 matched the registry's `shasum`, and its five
+files were byte-identical to the tarball packed before the Release.
+
+**Forwarder.** Its pin moved from 0.11.0 to 0.11.1, and both forwarder READMEs
+name that version. `verify:release-artifact` passed: the forwarder, installed
+into a project of its own, resolved the pin from the registry. No other
+fixture was run for this change, which touches no TypeScript.
+
+**The unscoped name.** The maintainer signed in to npm as `droite`. The account
+requires a one-time code for every write, so publishing under it stays with the
+maintainer. They chose to register the name with a 0.0.1 that holds no code and
+to release 0.1.0 through the forwarder's publish job. The 0.0.1 staged for them
+holds `package.json`, `README.md`, and `LICENSE`: three files, 1.4 kB, with no
+`bin`, dependencies, or scripts. It is not published at the time of this entry;
+`npm view ccset` returns 404.
+
+**Not performed.** No independent review. No manual macOS or Windows terminal
+check. No live Provider request, and no real Agent was launched. 0.11.0 is not
+deprecated on npm.
