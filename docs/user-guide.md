@@ -369,9 +369,6 @@ line-oriented report by default, or one JSON envelope on stdout with
 
 ### Select, add, and use a provider
 
-The short commands in this section target the next release. For this checkout,
-run `npm ci` and `npm run build`, then use `node dist/cli.js` in place of `ccset`.
-
 ```bash
 ccset presets list
 ccset presets list openrouter --json

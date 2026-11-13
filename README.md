@@ -50,9 +50,6 @@ Claude Code session command; `run` starts it. Other Agents save a default for
 their next start. An explicit selector wins over `CCSET_AGENT`; only an
 interactive terminal can infer a sole detected Agent.
 
-These short commands are for the next release. To try this checkout, run
-`npm ci` and `npm run build`, then replace `ccset` with `node dist/cli.js`.
-
 ## Core features
 
 - **Five agents, one interface.** Manage global settings and multiple providers; inspect local configuration with Status.

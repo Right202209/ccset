@@ -49,9 +49,6 @@ ccset claude-code run relay
 启动命令，`run` 才启动；其他 Agent 的默认选择在下次启动时生效。
 显式选择优先于 `CCSET_AGENT`，只有交互终端才会自动选择唯一检测到的 Agent。
 
-以上简写命令面向下一版本。体验当前源码时，先运行 `npm ci`、`npm run build`，
-再将示例中的 `ccset` 替换为 `node dist/cli.js`。
-
 ## 核心特性
 
 - **五种 Agent，一个界面。** 管理全局设置和多个提供商，通过状态页检查本地配置。
