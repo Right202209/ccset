@@ -1,248 +1,130 @@
 # Important Documentation
 
-Verification and test register for **ccset** (`@droite/ccset`).
+Verification register for **ccset** (`@droite/ccset`). [AGENTS.md](AGENTS.md) owns workflow; [verification.md](docs/verification.md) selects executable checks. §§1–8 are the current experiment/scenario/release index. A pass condition is not evidence it has passed.
 
-Runtime checks are recorded below as they are performed. Each item states what
-to check, how, and what a pass looks like; entries without an explicit result
-remain pending.
-
-For the current change workflow and executable check selection, see
-[AGENTS.md](AGENTS.md) and [docs/verification.md](docs/verification.md). Sections
-1–7 describe checks and requirements; §9 is append-only evidence, so earlier
-entries can describe behavior or test wiring superseded by later work.
-
----
+**§9 is immutable dated history, not active instructions.** Earlier claims, commands, check counts and blockers can be superseded. Read current source/guides and [open safety findings](review.md) first; use §9 only to trace evidence. Append new runtime evidence without rewriting earlier entries; routine documentation checks belong in the handoff/PR.
 
 ## 1. Blocking unknowns
 
-These gate design decisions already written into `PRD.md`. Resolve before building
-the dependent part.
+Remaining live/upstream assumptions; these do not mean the local integration is unimplemented. Use placeholder/scratch experiments unless a live check is explicitly authorized, and record Agent version/results separately.
 
-| # | Question | Experiment | Blocks |
-| --- | --- | --- | --- |
-| U1 | Does `apiKeyHelper` supply the **Bearer** credential when `ANTHROPIC_BASE_URL` points at a third party, or only `x-api-key`? | Settings file with `apiKeyHelper` and a third-party `ANTHROPIC_BASE_URL`, no `ANTHROPIC_AUTH_TOKEN`. Run one prompt. | Milestone 2 in full. If it fails, secret-indirection is impossible for the target audience and M2 must be re-scoped. |
-| U2 | Does a key in `--settings` **override** the same key in `~/.claude/settings.json`, and does `env` merge per-key or wholesale? | Set `model` in both, differing. Set one `env` var in each. Inspect effective values. | §4.2.3 "leave model blank to inherit global". If merge is wholesale, provider files must restate the global `env` block. |
-| U3 | Is `fallbackModel` in settings JSON a `string[]` or a comma-joined string? | Write each form, launch, observe whether it is honoured or rejected. | §4.2.3 Advanced field type. |
-| U4 | Does Claude Code prune `~/.claude/backups/` by filename pattern or across the whole directory? | Place a foreign file there, use Claude Code until rotation occurs, check survival. | Confirms §6.5's subdirectory choice. Low risk — the subdirectory is safe either way. |
-| U5 | Is the `droite` npm scope owned/creatable by the publisher? | `npm whoami`, then `npm org ls droite` while authenticated. | Publishing at Milestone 1. |
-| U6 | When both `~/.config/opencode/opencode.json` and `opencode.jsonc` exist, which does opencode load — and does it merge them or pick one? | Write a distinguishing key into each, launch opencode, inspect the effective value. | Answered from source at v1.18.25 (issue #39): both load, merged per key, `.jsonc` last, so the `.jsonc` wins conflicts. The decision that follows — ccset writes the `.jsonc` (issue #46, §9.34) — is implemented; the runtime experiment itself has not been run, so the row stays open. |
-| U7 | ~~Can a TOML config be round-tripped without losing comments, key order, and formatting, using a format-preserving parser?~~ **Answered 2026-09-01, see §9.26.** Yes, by editing the document in place rather than re-serialising it (ADR 0003). A corpus of 13 documents — comments, CRLF, no trailing newline, `#` inside strings, quoted and dotted keys, multi-line arrays and strings, inline tables, arrays of tables, literal Windows paths, date-times, radix integers — is byte-identical after an empty write list, and stays so after a managed edit elsewhere in the file. | Take a real `~/.codex/config.toml`, parse and re-emit it unchanged, byte-compare. | Was: a Codex CLI agent, and the `Codec` seam being real rather than notional. Both are now built. |
-| U8 | Does a custom `model_providers.<id>` entry with `requires_openai_auth = true` actually authenticate against a third-party endpoint using the credential in `auth.json`? | Point a Codex provider at a real Responses-API-compatible endpoint, switch to it with ccset, run one prompt. | Whether ccset's Codex provider blocks work end to end. The mechanism is read from Codex's own source (`resolve_provider_auth` in `codex-rs/model-provider/src/auth.rs`, v0.152.0) and matches its tests, but no live request has been made. |
-| U9 | When `cli_auth_credentials_store = "keyring"`, does Codex ignore `auth.json` entirely? | Set the key, log in, inspect whether `auth.json` is written or read. | Whether ccset's Status warning is a warning or must become a refusal to offer profile switching. |
-| U10 | Do the provider blocks ccset writes to pi's `models.json` actually load and serve models in a live pi run, and does pi strip comments from `models.json` at runtime the way its source reads? | Write a ccset provider into `~/.pi/agent/models.json`, launch pi, select the model, run one prompt; repeat with a commented `models.json`. | Whether the pi integration works end to end and whether the JSONC-codec choice for `models.json` holds at runtime. Both mechanisms are read from pi's source (`model-config.ts`, `model-resolver.ts`, pi-mono main `71dca871bc80b6bc97be37f0ca3189399d651fff`, 2026-09); no live run has been made. |
+| ID | Question / bounded experiment | Current limit |
+| --- | --- | --- |
+| U1 | Claude apiKeyHelper with third-party base URL: which auth header receives its result? | Credential indirection remains gated; no live prompt evidence |
+| U2 | Claude --settings/global model and env precedence: use differing values and inspect effective state | Session-file inheritance is not live-verified |
+| U3 | Claude fallbackModel array versus joined string: compare accepted/effective values | ccset emits an array; upstream effect still needs a live check |
+| U4 | Claude backup pruning: observe survival of a foreign file | ccset already isolates backups in backups/ccset; native pruning not observed |
+| U6 | opencode JSON + JSONC merge order: distinguishing fields, inspect effective config | Source at v1.18.25 says per-key merge/JSONC last; ccset JSONC target/editor implemented, live check pending |
+| U8 | Codex requires_openai_auth Provider with Responses endpoint: switch then one prompt | Source-backed auth mechanism, no recorded live third-party request |
+| U9 | Codex keyring: inspect whether auth.json is effective | Activation/restoration refusal implemented; upstream live behavior untested |
+| U10 | pi custom models/commented models.json: launch/select/prompt | Source-backed integration/JSONC choice, no recorded live run |
 
----
+U5 npm-scope ownership is superseded by published scoped releases (§9.78). U7 format-preserving TOML is implemented and corpus-tested (§9.26 and later); neither remains an implementation blocker. Grok built-in override behavior and all model suggestions likewise need separate live evidence before compatibility claims.
 
 ## 2. Data-safety tests (highest priority)
 
-The failure mode that matters is destroying a config the user already had.
+Scenario IDs remain stable for historical references. Plain JSON preserves values, not original formatting; TOML/JSONC preserve unrelated text. These are expected outcomes; [review.md](review.md) records current gaps.
 
-| # | Test | Pass condition |
-| --- | --- | --- |
-| D1 | Save global settings against a `settings.json` containing `hooks`, `statusLine`, `enabledPlugins`, `effortLevel`, `tui`, `verbose`. | Every unmanaged key byte-identical afterward, including nesting order-independence. |
-| D2 | Toggle proxy **off** after it was on. | `HTTPS_PROXY` and `HTTP_PROXY` are **absent** from the file, not set to `""`. |
-| D3 | `settings.json` contains a hand-set `env` var ccset does not manage. | It survives; `env` was merged per-key, not replaced. |
-| D4 | Existing `~/.claude.json` (any size). | ccset performs **zero** writes. Verify by mtime and inode before/after. |
-| D5 | Absent `~/.claude.json`. | Created with exactly `{"hasCompletedOnboarding": true}`, mode `0600`. |
-| D6 | Kill the process mid-write (SIGKILL during save). | Target file is either the complete old content or the complete new content — never truncated. Confirms temp + `rename()`. |
-| D7 | Provider file with unmanaged extra keys, then edit via ccset. | Extra keys survive. |
-| D8 | Run save twice with no edits. | Second run is byte-identical to the first; backup count grows by at most one per write. |
-| D9 | 11+ consecutive writes. | `~/.claude/backups/ccset/` holds exactly 10, oldest pruned. |
+| ID | Scenario → pass condition |
+| --- | --- |
+| D1 | Claude global save → unmanaged values survive at every depth |
+| D2 | Proxy off → HTTP_PROXY/HTTPS_PROXY absent, not empty strings |
+| D3 | Custom env sibling → preserved by leaf writes |
+| D4 | Existing ~/.claude.json → zero writes, unchanged inode/mtime |
+| D5 | Missing ~/.claude.json → onboarding-only state, POSIX 0600 |
+| D6 | SIGKILL during replacement → complete old/new target, never truncation; no fsync claim |
+| D7 | Provider edit → unmanaged extra values survive |
+| D8 | Re-save → byte-identical result; ordinary TUI may back up/rewrite, CLI no-op does neither |
+| D9 | More than ten writes → ten completed backups per target basename, oldest pruned |
+| O1 | opencode nested Provider/options → deepest custom siblings and other Providers survive |
+| O2 | Blank/int field → absent key / numeric value |
+| O3 | autoupdate false / disabled list → boolean / array |
+| O4 | Model map keep/add/drop → kept metadata survives, new empty object, dropped ID absent |
+| O5 | Unmanaged choice → managed key absent |
+| O6 | Repeated saves → per-basename ten backups/private modes, managed key masked |
+| O7 | JSONC beside JSON → only JSONC edited, legacy JSON untouched and named in Status |
+| O8 | JSON only → retain JSON target, create no JSONC |
+| O9 | JSONC form roundtrip → effective values correct, unrelated comments preserved |
+| O10 | Malformed JSONC replacement → explicit consent and original backup |
+| O11 | Empty/edit JSONC corpus → unchanged/unrelated bytes identical |
+| C1 | TOML corpus read/empty writes → typed values and byte-identical output |
+| C2 | TOML Provider edit → unrelated alignment/comments/order/custom headers survive |
+| C3 | Codex Provider save → responses wire API and requires_openai_auth true |
+| C4 | Blank/int TOML field → key removed / unquoted number |
+| C5 | Unmanaged/new-table setting → delete/create without disturbing unrelated text |
+| C6 | Save API key → private auth.<id>.json, no key in config.toml |
+| C7 | Switch unmatched live auth → explicit adopt/replace, backup, whole-file credential and correct route |
+| C8 | Separate Remove saved credential → sidecar absent/idempotent, Provider table untouched; old backups remain |
+| C9 | Repeated Codex saves → per-basename retention/private modes, no OAuth/managed key disclosure |
 
-The same failure mode in the second agent's shape — one document, providers as
-nested keys — is covered by the O-series:
-
-| # | Test | Pass condition |
-| --- | --- | --- |
-| O1 | Save a provider block against an `opencode.json` holding `theme`, `keybinds`, `mcp`, a second provider, and `options.headers` inside the edited provider. | Every unmanaged key survives, including a sibling of a managed key four levels deep. |
-| O2 | Blank a field; set an int field. | The key is omitted entirely — no `null`, no `""` — and the int is written as a number. |
-| O3 | Set `autoupdate` off; set `disabled_providers`. | `false` is a JSON boolean, not `"false"`; the CSV is a JSON array. |
-| O4 | Edit the `models` list: keep one id, add one, drop one. | The kept id retains its unmanaged options, the new id appears as `{}`, the dropped id is gone. |
-| O5 | Set a managed choice to Unmanaged. | The key is deleted from the file. |
-| O6 | 13 consecutive writes. | Exactly 10 backups under `~/.config/opencode/backups/ccset/`, all `0600`; Status shows the masked key and never the whole one. |
-| O7 | An `opencode.jsonc` beside the managed file. | The `.jsonc` is the managed target: ccset writes it in place — comments, order and formatting survive — and the legacy `.json` is byte-identical after a save. Status names the `.jsonc` as the managed path and the `.json` as not managed. (Revised by #46; was "names it and warns, never writes".) |
-| O8 | Only `opencode.json` exists. | Target, bytes and Status are as before the change: the save lands in the `.json`, no `.jsonc` is created, and no not-managed section appears. |
-| O9 | The round trip: values seeded from a `.jsonc`, then saved. | Effective values read back correctly, and every comment written before the save survives it verbatim. |
-| O10 | A `.jsonc` that fails the syntax pass. | The same start-fresh confirm a malformed JSON target gets; the broken original survives in the backup. |
-| O11 | An empty write list over a corpus of JSONC documents; a managed edit elsewhere in each. | Byte-identical empty round trip; the managed edit leaves every other byte identical. Runs inside `verify:opencode` (verify-opencode-jsonc.ts), the way C1's corpus runs inside `verify:codex`. |
-
-The third agent adds two shapes neither of the others has: a document that is
-not JSON, and a credential that lives outside it. Those are the C-series:
-
-| # | Test | Pass condition |
-| --- | --- | --- |
-| C1 | Read a hand-written `config.toml` and apply an empty write list, over a corpus of 13 documents. | Byte-identical output (U7). Every value reads back with the right type, including radix integers, arrays of tables, and multi-line strings. |
-| C2 | Save a provider against a `config.toml` carrying comments, aligned assignments, an array of tables, and `http_headers` inside the edited table. | Comments, alignment, blank lines and key order survive; the edit touches its own value span only; the result is still valid TOML. |
-| C3 | Save any ccset-managed provider. | `wire_api = "responses"` and `requires_openai_auth = true` are written as a bare string and a real TOML boolean, and are re-asserted on every save. |
-| C4 | Blank a field that is on disk; set an int field. | The key's whole line is removed — not blanked — and the int is written unquoted. |
-| C5 | Set a managed global choice to Unmanaged; set one that needs a table that does not exist. | The key is deleted; the missing table is created without disturbing the document around it. |
-| C6 | Save a provider with an API key. | The key appears in `~/.codex/auth.<id>.json` at `0600` with `auth_mode: "apikey"`, and **nowhere** in `config.toml`. |
-| C7 | Switch to a provider while `auth.json` holds a ChatGPT login. | The old file is copied byte-for-byte to the named profile, backed up, then replaced; `model_provider` is routed; the live file is recognised as matching its profile afterwards. `auth.json` itself is never offered as a switchable profile. |
-| C8 | Remove a saved credential. | The sidecar is gone, a second removal reports nothing to do, and the provider block in `config.toml` is untouched. |
-| C9 | 13 consecutive writes. | Exactly 10 backups under `~/.codex/backups/ccset/`, all `0600`; Status shows the masked key, never the whole one, and never an adopted OAuth token. |
-
-`verify:codex` also walks every screen the agent can produce and asserts that
-every i18n key resolves — including the ones reached indirectly through
-`labelKey`, `helpKey`, `detailKey` and a choice's label, which a grep for `t()`
-cannot see.
-
----
+Codex/Agent Screen walks also resolve indirect labels/help/details/choices in both catalogs. New data-safety assertions must be mutation-proven; select their owning fixture from the verification guide.
 
 ## 3. Security checklist
 
-Select the checks affected by runtime changes and during release preparation.
-Use the executable fixtures where they cover the scenario, and record manual
-checks for the remaining cases; a documentation-only edit does not require a
-full security session.
+Apply to the affected runtime scope/release, not every documentation edit:
 
-- [ ] No hardcoded secrets anywhere in `src/` or fixtures. Test fixtures use obvious
-      placeholders (`sk-TEST-DO-NOT-USE`), never real tokens.
-- [ ] Every file ccset creates is `0600` on POSIX — verify with `stat` on
-      `settings.json`, `settings.<name>.json`, `~/.claude.json`, and every backup.
-- [ ] Token entry is masked by `src/ui/TextField.tsx` through the secret field
-      renderer in `src/ui/Field.tsx`; Status, review, errors, and command output
-      never expose the full token.
-- [ ] Display masking uses a fixed-width middle and fully hides short secrets.
-- [ ] Grep the built bundle and any log output for a test token string after a full
-      session including a failed save and a failed connection test. Zero hits.
-- [ ] Test-connection never prints the response body.
-- [ ] Test-connection shows the destination host and requires confirmation before
-      sending.
-- [ ] Provider ID validation rejects `../`, absolute paths, empty strings, path
-      separators on POSIX and Windows (`\` included), and the Agent's reserved
-      IDs (for example, Claude Code's `local` and `json`).
-- [ ] Base URL is validated as `http(s)://` before being used in a fetch — no
-      `file://`, no `javascript:`.
-- [ ] Backups containing tokens are `0600` and the README documents that rotating a
-      token leaves the old one in backups until cleared.
-
-### Windows-specific
-
-- [ ] **`fs.chmod` cannot enforce `0600` on win32** (only the read-only bit; ACLs
-      untouched). Confirm the README states this. The `0600` guarantee in §2.2 is
-      POSIX-only and must not be claimed generally.
-
----
+- Placeholder credentials only; no real tokens/config fragments in source, fixtures, logs or reports.
+- Private exclusive staging at POSIX 0600; existing replacements/deletions backed up. Native Windows ACLs remain unmanaged.
+- Managed secret input/display masked; output uses explicit safe projections, including URL userinfo and unmanaged metadata. Test every error/refusal path; current violations stay in review.md.
+- Provider IDs obey Agent rules and cannot traverse paths; model IDs use their own validator. User-key traversal checks own properties, blocking __proto__ only.
+- Probe destination confirmed, HTTP warning based on actual loopback host, allowed URL scheme, no redirects/response body.
+- CLI no-op/dry-run creates no files/backups; all targets preflighted; partial changes/rollback reported honestly.
+- Backups may hold plaintext old keys; cleanup/removal is explicit, never described as remote rotation or full erasure.
 
 ## 4. Functional tests
 
-| # | Test | Pass condition |
-| --- | --- | --- |
-| F1 | Fresh machine, no `~/.claude/` at all. | All parents created, no crash, sensible defaults. |
-| F2 | Status against 6+ provider files. | All listed, tokens masked, one copy-ready command each. |
-| F3 | One provider file is malformed JSON. | Listed as an error entry; the other providers still render; exit code 4 only if the user chose to act on it. |
-| F4 | A `settings.*.json` with no `ANTHROPIC_BASE_URL`. | Listed with a note, not hidden. |
-| F5 | Review screen seeding. | Values come from the existing file, **not** template defaults; a config lacking proxy vars is not silently offered proxy vars as if pre-existing. |
-| F6 | Free-text model. | `Kiro-5-claude-opus-4-8` accepted verbatim, no coercion to a known alias. |
-| F7 | Blank Advanced fields. | Omitted from output entirely — no `null`, no `""`. |
-| F8 | Single locally detected agent. | Agent-selection screen is skipped; undetected registered Agents never appear in it. |
-| F9 | Success message. | Contains absolute path, resulting mode, and a `claude --settings <abs-path>` line that runs as printed. |
-| F10 | Exit with unsaved edits / without. | Confirms only in the former case. |
-| F11 | Save fails against an unusable target after fields were typed. | The failure is a Screen of its own naming the path and required mode; `esc` returns to the form still holding every typed value, token masked; fixing the cause and saving again succeeds without retyping. |
-| F12 | A partial backup copy exists (`.ccset-partial.*` from an interrupted backup). | Status lists it with a warning and a count; **Clear ccset backups** removes it together with the finished backups. |
+| ID | Scenario → pass condition |
+| --- | --- |
+| F1 | Fresh explicit Agent/home → create needed parents, usable form |
+| F2 | Multiple Claude Providers → listed with masked managed tokens and activation commands |
+| F3 | Malformed Provider → diagnostic entry, other records usable; command status parse failure classified as 4 |
+| F4 | Missing base URL → visible with a finding, not silently hidden |
+| F5 | Form entry → disk-seeded baseline, template suggestions distinguished from existing values |
+| F6 | Free model ID → Agent-allowed dot/slash/colon retained verbatim |
+| F7 | Blank advanced field → deletion, no null/empty sentinel |
+| F8 | Sole detected Agent → auto-enter; undetected options absent; explicit selection bypasses |
+| F9 | Successful save → path/mode and correct next-start/session instruction |
+| F10 | Leave dirty/clean form → confirmation only when dirty |
+| F11 | Save failure → recoverable error, retained masked draft/dirty baseline and retry |
+| F12 | Interrupted backup → warning/partial file visible; cleanup counts actual removals and reports failures |
 
----
+Also verify fresh Edit after save/external change, successful deletion returning to the list, ignore reveal/unignore, and side-info read-only projections through provider-management/UI fixtures.
 
 ## 5. Environment and platform
 
-| # | Test | Pass condition |
-| --- | --- | --- |
-| E1 | `echo "" \| npx @droite/ccset` (non-TTY). | Clear message, exit code **2**, no ANSI escapes in the pipe. |
-| E2 | Node 18, 20, 22. | Runs; global `fetch` available on all three. |
-| E3 | `~/.claude/` read-only (chmod 500). | Core raises `error.permission` naming the path and required mode, with no partial state — asserted at the module level by `verify:write-safety`. The interactive app renders the same failure as a recoverable error Screen and keeps the session; see F11 and §9.27. |
-| E4 | Warm start timing. | ≤ 2 s to first paint, excluding `npx` download. |
-| E5 | Windows Terminal + PowerShell. | Best-effort: renders, paths resolve under `%USERPROFILE%`. Failures are documented, not release-blocking (§5.2 tier 2). |
-| E6 | Narrow terminal (80 cols) and resize during render. | No layout corruption. |
+| ID | Required observation |
+| --- | --- |
+| E1 | No-command/non-TTY invocation exits 2 with clear ANSI-free text |
+| E2 | CLI CI matrix Node 18/20/22; website uses its separate package engine |
+| E3 | Permission failure classified with path; TUI retains draft and offers retry |
+| E4 | Warm first paint ≤2 s excluding npm download; record measured environment |
+| E5 | Native Windows Terminal/PowerShell core flow is best-effort evidence, not inferred from CI |
+| E6 | Narrow/resize paint stays usable and preserves scrollback |
 
----
+[SUPPORT.md](SUPPORT.md) defines platform tiers. POSIX permissions on WSL Linux filesystems do not establish NTFS/DrvFs protection.
 
 ## 6. Build and publish
 
-### Release gates
+Every release requires typecheck/build/full sequential npm test, packed-artifact inspection/install/core-flow smoke, relevant safety checks, and no known data-loss/credential-exposure/startup/mandatory-check failure. Runtime results must identify the actual environment.
 
-Every npm release must satisfy all of these:
+Manually smoke macOS/Linux core flow. A general release lacking one manual run must state the omission; platform-specific paths/permissions/terminal changes stay blocked until tested on that platform. Do not convert CI smoke into manual evidence.
 
-- [ ] `npm run typecheck`, `npm run build`, and the full `npm test` suite pass
-      on the applicable supported platforms.
-- [ ] `npm pack` contents are reviewed, then the tarball is installed and its core
-      flow is run.
-- [ ] Changes involving writes, backups, credentials, or migrations pass the
-      relevant data-safety checks in this register.
-- [ ] The core flow receives a manual smoke test on macOS and Linux, normally with
-      CI covering typecheck, build, pack, and install on both platforms.
-- [ ] There is no known data loss, credential exposure, startup failure, or failed
-      mandatory release check.
+During 0.x, release notes may identify UI/CLI/managed-field breaking changes. A patch must not intentionally change existing configuration meaning; safety fixes normally ship as patches. Only latest npm receives support.
 
-If a general change lacks one platform's manual smoke test, the release notes must
-say that the platform was not manually verified. The release must not describe the
-missing check as passed. A change to platform-specific paths, permissions, or
-terminal behavior remains blocked until it is manually verified on that platform.
+| Package | Artifact / release contract |
+| --- | --- |
+| @droite/ccset | Single executable ESM dist/cli.js/shebang, README + Chinese README + package.json/LICENSE; Node ≥18, public scoped access; v<version> |
+| ccset forwarder | cli.js + both READMEs + package.json/LICENSE; exact already-published scoped dependency, independent install/parity fixture; ccset-v<version> |
 
-Releases are made as needed under SemVer. During `0.x`, UI, CLI, and managed-field
-breaking changes are allowed when release notes identify them. A patch must not
-intentionally change the meaning of configuration already written. Security and
-data-safety fixes normally ship as patches. Only the latest npm version receives
-support; release notes record verified environments without creating a long-term
-compatibility window.
-
-- [ ] `tsup` emits a single ESM bundle with a `#!/usr/bin/env node` shebang, and the
-      output file is executable.
-- [ ] **No dynamic `import()` of scanned paths** anywhere — this is why §4.3 uses a
-      static registry. A bundle cannot resolve them.
-- [ ] `package.json` has `"bin": { "ccset": "./dist/cli.js" }`.
-- [ ] `package.json` has `"publishConfig": { "access": "public" }` — **scoped
-      packages are private by default and `npm publish` fails without it.**
-- [ ] `"engines": { "node": ">=18" }`.
-- [ ] `npm pack` contents reviewed: generated `dist/`, `README.md`,
-      `README.zh-CN.md`, and npm's included `package.json` and `LICENSE`.
-      No `src/`, fixtures, `.env`, or local settings files.
-- [ ] Install from the packed tarball and run once before publishing.
-- [ ] Publish only from a clean, version-matched GitHub Release through npm
-      trusted publishing, with provenance enabled. The GitHub Actions trusted
-      publisher must match `Right202209/ccset`, `.github/workflows/publish.yml`,
-      and the `npm-publish` environment; do not replace OIDC with a long-lived
-      npm token.
-
----
+No source/fixtures/.env/local settings in tarballs; registry pin must not resolve from the local tarball. Static Agent imports are required for bundling. Use [publish.yml](.github/workflows/publish.yml) from clean, version-matched GitHub Releases with package-specific trusted publishers in npm-publish and provenance, not long-lived npm tokens. First registration needs maintainer bootstrap; prepared source is not publication evidence.
 
 ## 7. Code-quality gates
 
-Apply these rules to changed TypeScript code. `npm run verify:code-gates`
-(inside `npm test`) scans TypeScript files under `src/`, `scripts/`, and
-`pages/`: files
-≤ 300 lines, functions ≤ 50 non-blank lines, complexity ≤ 10 per function,
-measured through the TypeScript AST. Nesting, parameter counts, and constant
-placement remain manual review checks. Functions over a limit in files
-the gate's introduction did not touch sit in the fixture's BASELINE ratchet:
-each entry must still match a live violation, so fixing one forces the entry's
-removal, and any new violation fails the gate. Do not add baseline entries to
-hide new violations.
+[AGENTS.md](AGENTS.md#style-and-verification) owns style. verify:code-gates parses src/scripts/pages TypeScript: files ≤300 lines, functions ≤50 nonblank lines, complexity ≤10. Manually check nesting ≤3, positional parameters ≤3 and constant ownership. Remove fixed baseline entries; never add exceptions to hide new violations. Agent manifests/defaults/constants remain local; only shared constants belong in core.
 
-- Functions ≤ 50 lines (excluding blanks); files ≤ 300 lines; nesting ≤ 3;
-  positional parameters ≤ 3; cyclomatic complexity ≤ 10 per function.
-- No magic numbers. Named constants at minimum for: `MAX_BACKUPS = 10`,
-  `FILE_MODE = 0o600`, `DEFAULT_CLEANUP_DAYS = 720`, `DEFAULT_PROXY_URL`,
-  `CONNECTION_TIMEOUT_MS`, `MASK_VISIBLE_CHARS = 4`, `EXIT_*` codes.
-- Keep managed-key manifests as **data** in each Agent's `manifest.ts`. Shared
-  constants belong in `src/core/constants.ts`; Agent-specific defaults and
-  constants stay with their Agent.
+## 8. Credential-handling lesson
 
----
-
-## 8. Incidental finding from the design review
-
-The review read `~/.claude/settings.any.json` and `~/.claude/settings.mmkg.json` to
-determine the real provider-file shape. Both contain live third-party API tokens in
-plaintext, and every `~/.claude/settings.*.json` on that machine is mode `0644`
-(world-readable).
-
-Actions, unrelated to ccset's code but relevant to the machine it was designed on:
-
-- [ ] Rotate both tokens — they were surfaced into a review transcript.
-- [ ] `chmod 600 ~/.claude/settings.*.json`.
-
-This is also the concrete reason `PRD.md` §5.3 mandates `0600` rather than the
-original draft's "`0600` or `0644`, depending on system defaults."
+Reading real Agent files into a transcript can expose plaintext credentials; permissive directory/file defaults can expose them locally too. Use scratch homes/placeholders for reviews. If exposure occurs, rotate the credential and inspect permissions; editing the transcript cannot guarantee removal from caches/history. Workstation-specific names and recovery chores are not project instructions.
 
 ---
 

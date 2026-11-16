@@ -2,244 +2,69 @@
 
 [简体中文](zh-CN/adding-an-agent.zh-CN.md) | English
 
-Use the existing Claude Code, opencode, Codex, pi, and Grok Build modules as
-examples of the
-same extension boundary with different file layouts. An integration includes
-its runtime module, registry entry, verification fixtures, and documentation.
-The existing JSON, JSONC, and TOML Codecs are available for reuse.
-
-Read [`CONTEXT.md`](../CONTEXT.md) for the vocabulary (Screen, Frame, Agent,
-Provider) before starting. Read [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the
-bar a new integration has to clear; this guide only covers the mechanics.
-For a step-by-step coding-assistant workflow, deliverables, and a reusable task
-prompt, see the [Chinese workflow](agents/add-agent-workflow.md).
+First meet [contribution criteria](../CONTRIBUTING.md#new-agents). Read [terms](../CONTEXT.md), [architecture](architecture.md), and the [command contract](milestone-3-non-interactive.md). The [coding-assistant SOP](agents/add-agent-workflow.md) sequences this work.
 
 ## What you are actually building
 
-An agent module turns files on disk into the five `ActionResult` shapes in
-`src/types.ts` — `form`, `list`, `status`, `confirm`, `message` — and turns a
-submitted form back into writes. It never imports from `src/ui/`. If you find
-yourself wanting to, the shape you need is missing from `types.ts` and that is
-the change to propose.
+An Agent reads local configuration, returns `ActionResult` data (`form`, `list`, `status`, `confirm`, `message`), and maps submitted values to managed writes. Views render that data; the module never imports `src/ui/`.
+
+Before coding, record upstream sources/version, paths/precedence, formats, managed leaves/types, deletion semantics, ID constraints, credential authority, activation timing, detection and verification limits. Another Agent's implementation is a structural example, not evidence for the new Agent's policies.
 
 ## Extension boundary
 
-PRD §2.2 criterion 5 defines the Agent module and `src/registry.ts` as the
-extension boundary. The module is a directory with multiple files.
-An Agent reusing existing capabilities
-changes no runtime code outside its module except the registry. Fixtures,
-`package.json` wiring, and docs are expected additional changes.
-
-If you need another runtime change, identify the responsibility first:
-
-- **You need a string.** Ship it in your own `messages.ts` (below), not in
-  `src/i18n/en.ts`.
-- **You need a path helper.** Put it in your module's `paths.ts`. `src/core/paths.ts`
-  holds only `resolveHome`, `backupsDirFor`, and `listNamedFiles`, which takes
-  your naming rule as a callback.
-- **You need a shared capability.** Make the core/interface change explicit and
-  separately reviewable, with checks for existing Agents as well as the new one.
-  It may be part of a complete implementation proposal; a preceding issue is
-  optional under [CONTRIBUTING.md](../CONTRIBUTING.md).
+Reusing existing capabilities changes runtime only in `src/agents/<id>/` and `src/registry.ts`. Fixtures, npm-script wiring and docs are additional deliverables. A new Codec, Screen shape or operation is an explicit shared-interface extension: state ownership and regression scope for existing Agents; a preceding issue remains optional.
 
 ## Layout
 
-Use focused files within the module and follow the executable quality limits.
-This is a common layout, not a required file count:
+Split by responsibility; this is a reference layout, not a required file count.
 
-| File | Holds |
+| File | Owns |
 | --- | --- |
-| `index.ts` | The `Agent` object: `id`, `name`, `messages`, `detect`, `getActions`, and optional `commands` |
-| `manifest.ts` | **Data only.** Every managed key, declared once |
-| `constants.ts` | Template defaults, enum values, wire details |
-| `paths.ts` | Where the config lives, and where backups go |
-| `global.ts` | `seed*` / `emit*` / `save*` for the top-level config |
-| `providers.ts` | The same for a provider, plus discovery |
-| `status.ts` | The read-only view. Reads everything, writes nothing |
-| `actions.ts` | Assembles the menu actions |
-| `messages.ts` | Your strings, under a unique Agent namespace, in both locales |
-| `commands.ts` | Command declarations and handlers, when exposing Non-interactive commands |
-| `status-dto.ts` | Structured, secret-free status data shared with command presentation |
+| `index.ts` | Agent identity, messages, detection, actions, optional commands |
+| `paths.ts`, `constants.ts` | Agent paths/overrides, defaults/bounds/protocol facts |
+| `manifest.ts` | Managed-field declarations and mapping |
+| `global.ts`, `providers.ts` | Read/seed/emit/save, Provider discovery |
+| `status.ts`, `status-dto.ts` | Read-only status and explicit safe diagnostic projection |
+| `actions.ts`, `messages.ts` | Screen composition and both locale catalogs |
+| `commands.ts` | Agent-owned field declarations and structured handlers |
 
-Codex also separates credential handling into `auth.ts`, `activate.ts`, and
-`provider-use.ts`, because its Auth profiles live outside the config document.
-Use additional files when the Agent's responsibilities need them.
+Codex separates Auth profiles, activation and route restoration; reuse responsibilities rather than copying its credential policy.
 
 ## The parts that are easy to get wrong
 
-### Deletion is not an optimisation
-
-A `ManagedWrite` with `value: undefined` means **delete the key**. A blank or
-Unmanaged TUI choice must remove a key when its field contract says to omit it,
-rather than write `""` or `null`. Proxy-off deletes its environment keys, while
-a supported boolean setting such as `autoupdate = false` remains a value.
-Use `textOrUndefined`, `intOrUndefined`, and `csvOrUndefined` in
-`src/core/values.ts` for the corresponding form coercions.
-
-### Re-read immediately before writing
-
-Agents rewrite their own config while ccset is open. `save*` re-reads the target
-inside the save, not at launch. A parse from when the screen opened will clobber
-whatever the agent wrote in between.
-
-The re-read protects keys the form does not carry. The form's own fields are
-written as the form holds them, so a form is seeded from a read made when it
-opens. A provider's own screen stays open across the saves made from it; its
-Edit entry reads the provider again each time, never from the record the list
-loaded.
-
-### Never write a subtree wholesale
-
-Write the leaf, not its parent. opencode's provider options look like a natural
-object to assign:
-
-```ts
-// WRONG: destroys options.headers, and anything else the user put there.
-{ path: ['provider', id, 'options'], value: { baseURL, apiKey } }
-
-// RIGHT: two leaves, and every unmanaged sibling survives.
-{ path: ['provider', id, 'options', 'baseURL'], value: baseURL }
-{ path: ['provider', id, 'options', 'apiKey'], value: apiKey }
-```
-
-The same applies to a map whose entries the user also edits. opencode's
-`provider.<id>.models` is merged per key — an id already on disk is left
-untouched, a new one is added, one dropped from the list is deleted — because
-writing the map outright would discard per-model settings. That needs the
-current disk state, so `emitProvider` takes it as an argument.
-
-### Backups belong to you
-
-`backupFile(dir, path)` takes the directory. Pass `backupsDirFor(yourConfigDir)`
-so your rotation cannot evict another agent's backups, and so ccset never writes
-into a directory the target agent prunes on its own schedule.
-
-### Strings ship with the module
-
-```ts
-export const yourMessages: Record<string, Record<string, string>> = {
-  en: { 'yourAgent.field.apiKey': 'API key' },
-  'zh-Hans': { 'yourAgent.field.apiKey': 'API 密钥' },
-}
-```
-
-Use a unique Agent namespace for every key. The registry merges these and **throws
-on a duplicate**, so you cannot silently redefine a shell string. Reuse the
-shared vocabulary in `src/i18n/en.ts` — `field.baseUrl`, `action.status`, every
-`write.*` and `confirm.*` line — rather than restating it.
-
-Two fields exist because two agents disagreed:
-
-- `Action.detailKey` — both agents label a screen "Global settings" while
-  describing different files.
-- `WriteReport.activateKey` — Claude Code needs `claude --settings <path>`;
-  opencode reads its config on start and has nothing to activate.
-
-### Say what you cannot do
-
-Name an unsupported format, credential store, or activation path in Status
-and document the verification gap. Record unresolved compatibility assumptions
-in `Important Documentation.md` §1 instead of treating a synthetic fixture as a
-live compatibility result.
-
-For example, opencode's JSONC gap was resolved with a format-preserving Codec
-(ADR 0004): an existing `.jsonc` is now the managed target and its legacy `.json`
-stays untouched. Reuse that selection and Codec behavior; the separate live
-merge-order check remains recorded as U6.
+- **Deletion:** `ManagedWrite.value: undefined` deletes. Blank/Unmanaged TUI choices omit according to their contract; `false` remains boolean. Use shared value coercions. CLI omission preserves; optional `--unset` removes by declaration ID.
+- **Freshness:** seed on every form entry, including a persistent Provider Screen's Edit. Re-read again during save; held managed fields can still overwrite external managed changes. Do not claim locking/CAS.
+- **Leaves and collections:** emit `options.baseURL` and `options.apiKey`, not a replacement `options` object. Keep metadata on retained model IDs; remove/add only selected members.
+- **Safety:** reuse plan/apply, backup/atomic/create-only/remove helpers. Backups use `backupsDirFor(configDir)` so one Agent's retention cannot prune another's. Preserve malformed originals after explicit recovery consent; preflight before command mutation.
+- **Credentials:** model upstream precedence explicitly. Never export arbitrary model/header objects or credential-bearing URL components in diagnostic DTOs; preserving them on disk does not authorize printing them.
+- **Strings:** Agent keys belong in its `messages.ts`, under a unique namespace, in `en` and `zh-Hans`. Reuse shared shell keys. Registry merging rejects duplicates; `Action.detailKey` and `WriteReport.activateKey` carry Agent-specific descriptions.
+- **Detection:** only cheap local file/directory checks; no process execution or Provider requests. Override rules must keep scratch homes isolated.
+- **Limits:** unsupported stores/formats/activation paths get findings and documentation. Record live compatibility assumptions in [register §1](<../Important Documentation.md#1-blocking-unknowns>).
 
 ## Non-interactive commands
 
-An Agent may expose `commands` through the `AgentCommands` interface. Declare
-its command fields and handlers inside the Agent module so the shared parser
-and dispatcher need no Agent-specific branches. An Agent without `commands`
-serves only the TUI; document the supported surface explicitly.
-
-Commands are Managed patches: supplied fields change, omitted fields preserve
-the disk state, and `--unset` removes a managed key. Seed from disk without TUI
-template defaults, validate the complete proposal, and reuse the operation and
-commit core. Do not implement commands by invoking Screen callbacks. Follow the
-[command specification](milestone-3-non-interactive.md) and ADRs 0006–0014 for
-secret sources, preflight, output, and exit contracts.
+Declare `AgentCommands` fields/handlers inside the module. Seed from disk without TUI defaults, validate the resulting proposal and reuse `executeOperation`/commit. Do not drive Screen callbacks or add Agent-ID branches to shared parsing/UI. State supported commands explicitly; neither existing Agents nor both surfaces have automatic feature parity.
 
 ## Register it
 
-```ts
-import { yourAgent } from './agents/your-agent/index.js'
-
-export const AGENTS: Agent[] = [claudeCode, opencode, codex, yourAgent]
-```
-
-That is the whole registry change. No dynamic `import()`, no scanning: the
-published artifact is a bundle and a bundler cannot resolve a scanned path.
-
-Check detection, agent selection, and the new `--agent <id>` value. Update
-fixtures that enumerate supported Agents, including locale parity and command
-capabilities where the new Agent exposes them.
+Import the module statically and append it to [registry.ts](../src/registry.ts). Never scan paths for dynamic imports: the published bundle cannot resolve them. Update Agent-enumerating fixtures for discovery, selection, command capabilities and locale parity.
 
 ## Prove it
 
-A new Agent needs its own fixture in `scripts/`, running against a `mkdtemp`
-home. Wire it into a `verify:*` command **and** the sequential `npm test` chain in
-`package.json`, and add it to the [verification map](verification.md#fixture-map).
-Cover at minimum:
+Use a separate `mkdtemp` home and placeholder credentials. Register a fixture in both `verify:*` and sequential `npm test`; add its scope to [the map](verification.md#fixture-map). Assert:
 
-- unmanaged keys survive a save, including siblings of a managed key at the
-  deepest level your config nests;
-- a blank field omits its key entirely — no `null`, no `""`;
-- choosing Unmanaged or disabling a proxy deletes its keys, while boolean
-  settings retain real boolean values;
-- secrets are masked in Status and never appear whole;
-- backups rotate to `MAX_BACKUPS` and are `0600` on POSIX.
+- unmanaged siblings survive at the deepest managed nesting; retained collection members keep metadata;
+- blank/unset deletes, omitted CLI fields preserve, and valid booleans retain their types;
+- save-time reread and each Edit entry see current disk state;
+- backups rotate per basename, originals survive recovery, POSIX modes and no-op/dry-run zero writes hold;
+- secrets/control sequences stay out of output, including indirect metadata and errors;
+- malformed/partial failures report committed files, rollback and retry behavior;
+- every Screen key (`labelKey`, `helpKey`, `detailKey`, choices) resolves in both locales.
 
-Then **mutate your own code and check the gate fails.** `verify:opencode` was
-run against four deliberate bugs — a wholesale models write, a skipped delete, a
-blank written as `""`, and a replaced `options` subtree — and each turned it
-red. A data-safety gate that has never failed has not been tested.
-
-Then walk your screens and check every string resolved. `t()` returns the key on
-a miss, so a typo in `messages.ts` paints `yourAgent.field.apiKey` at the user
-rather than throwing. `verify-codex-auth.ts` has the walk: it runs each action,
-descends through list items — `run()` only, never `confirm()` or `submit()`,
-which are the writes — and asserts both that painted strings are not unresolved
-keys and that every `labelKey`, `helpKey`, `detailKey` and choice label exists.
-Import `src/registry.js` in the fixture: `registerMessages` is a load-time side
-effect of that module, and without it your whole catalog reads as missing.
-
-Ship both locales while you are in `messages.ts`: an `en` block and a `zh-Hans`
-block. At runtime a key your agent has not translated falls back to English
-rather than to the raw key, but that is no licence to skip it:
-`verify:i18n-zh` holds every agent's two catalogs key-for-key identical and
-turns red on a missing block or a missing key. An untranslated agent is a red
-gate, not a silent gap.
-
-Record what you ran in `Important Documentation.md`. A passing local build is
-not evidence for a platform gate.
+Import `src/registry.js` before resolving messages. Walk read-only `run()` paths; do not submit or confirm writes merely to inspect a Screen. Deliberately mutate a preservation/deletion path and prove the assertion fails; restore and rerun. Select remaining checks in [verification](verification.md), document actual environments and append runtime evidence to register §9.
 
 ## If the config needs a new Codec
 
-JSON, JSONC, and TOML are already supported. Reuse their readers, strict checks,
-and editors when they match the Agent's format. A format that needs another
-Codec is a shared-core change outside the Agent module and registry; state
-that scope explicitly and verify existing formats as well.
+Reuse JSON/JSONC/TOML first. A new Codec requires a reader producing `JsonObject`, a strict write-permission check, a `ManagedWrite[]` editor and typed `ConfigParseError` presentation. Recheck rendered output before committing.
 
-`ConfigFile` carries a `codec`, and `src/core/config-file.ts` dispatches on it.
-Adding one means:
-
-- a reader that produces a `JsonObject`, so agents and Status never learn the
-  format;
-- a strict checker, separate from the reader, that decides whether ccset may
-  rewrite the file at all. A file that fails it becomes the same "back it up and
-  start fresh" confirm a malformed JSON target does;
-- a writer that applies `ManagedWrite[]`.
-
-The writer is where the guarantee lives. If the format carries anything a parse
-throws away — comments, blank lines, key order, alignment — then rebuilding the
-document from a parse deletes it, and "unmanaged keys survive" becomes false the
-first time someone saves. `src/core/toml/` does not rebuild: it records where
-each value *is* and splices spans, so every byte it did not write is copied
-through. Prove that with a corpus that must survive an empty write list
-byte-identically before you write anything else.
-
-`ConfigParseError` is the base class the save flow catches. Subclass it with
-your own `messageKey` and `titleKey` so the user is told which format the file
-failed to be, rather than being told a TOML file is bad JSON.
+For comment-bearing formats, parse-and-reserialize loses unmanaged text. Prove an empty write list is byte-identical across a representative corpus and unrelated bytes survive managed edits. Include malformed input, scalar-parent insertion, inline structures, deletion, depth bounds and prototype-sensitive own keys. Python `tomllib` parity excludes ccset's deliberate TOML extensions; do not erase them to satisfy the wrong oracle.

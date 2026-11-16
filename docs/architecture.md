@@ -2,238 +2,91 @@
 
 [简体中文](zh-CN/architecture.zh-CN.md) | English
 
-Read [AGENTS.md](../AGENTS.md) for the change workflow and
-[CONTEXT.md](../CONTEXT.md) for the domain vocabulary. This guide explains the
-runtime boundaries and the reasons behind the guarantees contributors must
-preserve. Specifications and accepted decisions live in [PRD.md](../PRD.md), the
-[command specification](milestone-3-non-interactive.md), and [ADRs](adr/).
+[AGENTS.md](../AGENTS.md) owns contributor rules; [CONTEXT.md](../CONTEXT.md) owns terms. This guide maps current behavior to source. [Open safety findings](../review.md) are limitations, not completed fixes.
 
 ## Entry points and contracts
 
-`src/cli.tsx` owns process arguments, `CCSET_*` overrides, invocation mode, locale
-selection, and exit status. An explicit subcommand selects the command adapter;
-without one, the TTY guard precedes interactive rendering. Command mode must not
-load Ink. Pass boundary values inward rather than reading overrides again in
-helpers.
-
-`src/types.ts` defines the TUI contract: an Agent returns an `ActionResult`
-(`form`, `list`, `status`, `confirm`, or `message`), and the Ink Views render those
-shapes without Agent-specific knowledge. `src/ctx.ts` owns the shared context;
-`types.ts` re-exports it. Agent modules do not import from `src/ui/`.
-
-The Non-interactive contract is `src/operations/types.ts` and
-`executeOperation` in `src/operations/index.ts`: a normalized `OperationRequest`
-produces an `OperationResult` or typed error. Screens, translated presentation,
-and `ManagedWrite[]` do not cross the public operation contract. See ADR 0006.
-
-`src/commands/` adapts argv to that contract. The parser uses declarations from
-each Agent, secret readers supply `CCSET_TOKEN` or explicitly selected stdin,
-and presenters produce localized lines or the `schemaVersion: 1` JSON envelope.
-The printed error and process exit status must agree. The command adapter resolves
-explicit positional/flag/environment selectors, only lets a terminal infer its
-target from filesystem detection, and expands bundled preset data
-into the same declared provider options (ADR 0020). Only terminal `add` can ask
-for a hidden key. The explicit `run` adapter executes the Agent-provided argument
-array without a shell, after the operation validates the Provider; `use` and
-dry-run never spawn it. The command specification
-records known conformance differences; changing those is a behavior change, not
-a documentation cleanup.
-
-## Shared writes and codecs
-
-Configuration saves use `src/operations/commit.ts` for planning and applying
-writes. The flow is `read → overlay → validate → plan → apply`: read current
-disk state at save time, validate the proposed result, render and preflight all
-command targets, then commit them in order. Non-interactive no-ops skip writes
-and backups; dry-run stops at the plan. A failure after a multi-target commit
-reports the paths already written as partial, not as a rolled-back transaction.
-
-TUI form mapping and command patch mapping stay separate. A blank TUI field can
-emit a deletion; an omitted command option preserves the disk value, and command
-removal is explicit. Template defaults must not populate omitted patch fields
-(ADR 0008). A `ManagedWrite` whose `value` is `undefined` means deletion; boolean
-`false` is still a value.
-
-Shared file-safety helpers live under `src/core/`:
-
-| Module | Responsibility |
+| Source | Responsibility |
 | --- | --- |
-| `merge.ts` | Apply managed leaf writes while preserving unmanaged siblings |
-| `json-file.ts`, `copy.ts`, `create-file.ts` | Atomic private temp-file publication: rename for replacements, hard link for create-only writes, POSIX `0600` |
-| `backup.ts` | Backups and per-file rotation in the directory supplied by the Agent |
-| `config-file.ts` | Read, check, render, and write through the selected Codec |
-| `save.ts` | Translate save errors into TUI recovery/confirmation Screens and success messages |
-| `remove.ts` | Delete one managed path through the same plan/apply core, or delete a file after backing it up |
-| `provider-actions.ts` | The provider-management Screens every Agent shares: the list that hides ignored providers, and one provider's screen with edit, ignore and delete |
-| `mask.ts`, `errors.ts` | Secret-safe display and typed errors with message keys and exit codes |
-| `values.ts`, `validate.ts` | Shared coercions and validator factories; Agent policy stays with the Agent |
-| `paths.ts`, `settings.ts` | Shared home/backup helpers and ccset's own settings document: the locale preference and the ignored providers |
+| [cli.tsx](../src/cli.tsx) | Arguments, `CCSET_*` values, mode split, locale, TTY guard, process exit |
+| [registry.ts](../src/registry.ts) | Static Agent imports and catalog registration |
+| [types.ts](../src/types.ts), [ctx.ts](../src/ctx.ts) | TUI `ActionResult` and runtime context |
+| [operations/types.ts](../src/operations/types.ts), [index.ts](../src/operations/index.ts) | `OperationRequest → executeOperation → OperationResult` or typed error |
+| [commands/](../src/commands/) | Selector/preset expansion, declaration-driven parsing, secret input, output, launch |
 
-`ConfigFile.codec` selects `json`, `jsonc`, or `toml`. `LoadedConfig` carries
-both parsed data and original text. JSON can be rendered from the merged object;
-TOML and JSONC edit original spans to retain comments, whitespace, and key order.
-For those formats, an empty write list must be byte-identical and a managed edit
-must leave unrelated bytes alone.
+Without a positional command, the CLI enters the TUI after checking stdin is a TTY. Help/version finish earlier. Ink and React renderers load only on that path. A command never invokes Screen callbacks.
 
-The TOML Codec under `src/core/toml/` separates scanning, reading, strict checking,
-and editing (ADR 0003). The JSONC Codec uses npm's `jsonc-parser` for syntax and
-spans, with ccset's own editor because the package's formatter changes unmanaged
-bytes (ADR 0004). Tolerant reads do not authorize writes: a target failing the
-strict check requires TUI confirmation or the command's `--replace-invalid`
-choice. The strict check follows the Agents' parsers rather than one TOML 1.0
-oracle: it enforces the redefinition rules, but accepts the TOML 1.1 `\e`
-escape and RFC 3339's leap second and year `0000` (9.56). An authorized
-replacement backs up the unreadable original first.
-`ConfigParseError` carries format-specific message keys; `runSave` catches it.
+Explicit positional/`--agent` selection wins over `CCSET_AGENT`; conflicting CLI selections fail. Only commands with stdin and stdout TTYs can infer a sole locally detected Agent. TUI discovery offers detected Agents; explicit selection bypasses it. Detection never runs the Agent or contacts a Provider (ADR 0020).
 
-## Agent modules
+The CLI parser consumes Agent-owned field declarations. Presets expand to those same options; explicit fields/unsets win. Only terminal preset `add` can request a hidden key. The operation prepares a launch argument array; [launch.ts](../src/commands/launch.ts) spawns it with `shell: false` only for live Claude Code `run`.
 
-Each `src/agents/<id>/` module owns paths, defaults, manifests, validators,
-messages, actions, and command declarations. Keep `manifest.ts` as data; use
-`seed*` and `emit*` helpers for form/config mapping and reuse the commit core for
-saves. Status builders read without writing. Command status DTOs and TUI status
-presentation can share reads while keeping their output contracts separate.
+## Write pipeline
 
-`src/registry.ts` is static: add an import and array entry, never scan paths for
-dynamic imports. It merges Agent catalogs at module load and rejects duplicate
-keys. Fixtures resolving Agent strings must import the registry too.
+`read → overlay → validate → render/plan → apply`
 
-The interactive App runs every registered Agent's filesystem-only `detect(ctx)`
-check in parallel before rendering Agent selection, and passes only positive
-results to that list. A single positive result is selected automatically. An
-explicit `--agent` skips this discovery so first-time configuration remains a
-deliberate option; scripts retain an explicit Agent through a positional selector,
-`--agent`, or `CCSET_AGENT`. A command on a terminal with both stdin and stdout attached may
-select a sole detected Agent; every other missing selection fails with 64 and
-candidates. See ADR 0020, which supersedes this part of ADR 0016.
+1. An Agent re-reads each target, applies its TUI form or CLI patch mapping, and validates the resulting proposal.
+2. [config-file.ts](../src/core/config-file.ts) parses and renders through the selected Codec, then checks the rendered document again.
+3. [commit.ts](../src/operations/commit.ts) plans all ordinary command targets before mutation and compares rendered bytes with the base.
+4. `applyPlan` backs up and atomically replaces each target in order. It reports committed records on failure; it provides no cross-file transaction.
 
-The PRD's extension boundary allows multiple files inside
-an Agent module. Fixtures, package wiring, and docs are additional expected
-changes. A new shared capability needs an explicit core/interface change with
-its own verification scope; see [adding an Agent](adding-an-agent.md).
+CLI saves use `skipUnchanged: true`; ordinary TUI saves use `false`. Dry-run plans intent without creating directories, backups, or files. An absent target receiving an empty document is a no-op. The authorized-invalid/empty-result edge case remains in [the safety follow-up](../review.md).
 
-Agent-specific constraints that are easy to miss:
+Forms write their held managed values. A fresh save-time read protects unmanaged data already on disk; it does not merge later external changes into form fields. Each Edit entry must seed from a new read, including when its Provider Screen has stayed open across a save.
 
-- **Claude Code:** global settings and each Provider use separate JSON files.
-  `state.ts` creates `~/.claude.json` only when missing; never update this live
-  state store. `test-connection.ts` is ccset's only outbound network path:
-  confirm the destination before sending a token and never print the response
-  body. An explicitly launched Claude process owns its own requests.
-- **opencode:** Providers share one document under `provider.<id>`.
-  `provider.<id>.models` merges per model ID, preserving options on retained
-  models. `opencodeTarget` in `paths.ts` selects an existing `.jsonc`, otherwise
-  `.json`; when `.jsonc` is selected, the legacy `.json` remains untouched.
-  ccset does not create a `.jsonc`. The upstream merge-order evidence and pending
-  runtime check are recorded as U6 in the verification register.
-- **Codex:** Provider keys live in `auth.<id>.json` Auth profiles, outside
-  `config.toml`. Provider saves reassert `wire_api = "responses"` and
-  `requires_openai_auth = true`, and refuse a conflicting `env_key` or
-  `experimental_bearer_token` credential source. The live `auth.json` is copied
-  whole after a backup; adopted credentials retain fields ccset does not model.
-  Switching writes routing before credentials and handles failures explicitly.
-  Non-interactive switches require explicit credential-conflict choices;
-  `CODEX_HOME` mismatch and keyring preconditions follow ADRs 0011–0013.
-- **pi:** providers share `~/.pi/agent/models.json` under `providers.<id>`;
-  startup defaults (`defaultProvider`, `defaultModel`, `defaultThinkingLevel`)
-  live in a second document, `settings.json`, so `provider.use` writes two
-  leaves of a different file than `provider.set`. The `models` array merges per
-  member id (a JSON array, not a map), materialised from the re-read at save
-  time; members without a usable string `id` pass through untouched.
-  `models.json` is edited with the format-preserving JSONC codec because pi
-  strips comments on that file when reading; `settings.json` is plain JSON.
-  `auth.json` is pi's `/login` credential store — Status names it, ccset never
-  edits it. `PI_CODING_AGENT_DIR` is honoured only when the run points at the
-  real home, matching the opencode `XDG_CONFIG_HOME` rule.
+| Core source | Guarantee/mechanism |
+| --- | --- |
+| [merge.ts](../src/core/merge.ts) | Managed leaf set/delete; own-property traversal; `__proto__` blocked, `constructor`/`prototype` retained as data |
+| [atomic-file.ts](../src/core/atomic-file.ts), [json-file.ts](../src/core/json-file.ts), [copy.ts](../src/core/copy.ts) | Random exclusive private staging, then rename for replacement; POSIX mode applied at creation, chmod reassertion best effort |
+| [create-file.ts](../src/core/create-file.ts) | Hard-link publication only if absent, with no overwriting fallback |
+| [backup.ts](../src/core/backup.ts) | Staged copies, per-basename retention of ten, partial-copy reporting and cleanup |
+| [save.ts](../src/core/save.ts), [errors.ts](../src/core/errors.ts) | TUI recovery confirmation and typed parse/permission/partial errors |
+| [remove.ts](../src/core/remove.ts), [provider-actions.ts](../src/core/provider-actions.ts) | Backup-before-delete, whole-file/shared-block removal, confirmed Provider management |
 
-- **Grok Build:** everything ccset manages is one TOML document,
-  `~/.grok/config.toml`: `[models].default` names the startup model, and each
-  `[model.<id>]` table is a Provider. Managed leaves are `model`, `base_url`,
-  `name`, `api_backend`, and the inline `api_key` secret; Grok resolves
-  credentials as `api_key` → `env_key` → session token → `XAI_API_KEY`, so no
-  key or endpoint is *required* — a block whose id names a built-in model may
-  override only the fields it sets, and a block without `base_url` is warned
-  about rather than refused. `provider.use` writes the one `models.default`
-  leaf and warns when the id defines no `[model.*]` block (it may be a
-  built-in). `auth.json` is Grok's own credential store — Status names it,
-  ccset never edits it. `GROK_HOME` is honoured only when the run points at the
-  real home, matching the opencode `XDG_CONFIG_HOME` rule. Provider ids carry
-  the shared name pattern, so a built-in id with a dot (`grok-4.6`) is never a
-  ccset-manageable table id; the default reaches it through the free-text
-  `models.default`, and a hand-written quoted table survives untouched.
+Atomic rename protects each completed publication from truncation; it does not provide locks, compare-and-swap, exclusive final backup names, or fsync durability. Do not claim protection against concurrent external writers or power loss.
 
-There is no Test connection for opencode, Codex, pi, or Grok Build: the existing
-probe speaks the Anthropic protocol, and arbitrary SDK/Responses endpoints need
-their own contract. Live compatibility unknowns belong in the register, not in
-assumed guarantees.
+## Codecs
 
-## Navigation and terminal rendering
+`LoadedConfig` carries parsed data and original text. JSON reserializes the merged object; JSONC/TOML edit spans. Empty format-preserving write lists are byte-identical; unmanaged text outside the edit survives.
 
-`src/ui/useScreens.ts` owns a stack of `Frame`s. Only `list` and `status` Frames
-retain their producing task for reload on back, because rerunning those is a
-read. Returning from a success message must never rerun the write that produced
-it. A message marked `closesOrigin` also closes the Screen its confirm was
-opened from: a delete's outcome is marked, because that Screen was about the
-provider that is now gone, so leaving the message returns to the provider list.
+- [TOML](../src/core/toml/): scan/read/check/edit separately. A managed leaf inside an inline table may expand to dotted assignments; Provider removal also removes its owned tables. Recheck rendered syntax (ADR 0003).
+- [JSONC](../src/core/jsonc/): npm `jsonc-parser` provides syntax/spans; ccset edits them. The package's `modify()` formatter changed adjacent compact arrays, so it failed the preservation corpus (ADR 0004).
+- The TOML checker intentionally accepts `\e`, leap seconds, and year `0000`. Python `tomllib` is an oracle for the parity corpus, not these separate extension cases.
+- A tolerant reader is not write permission. Malformed Agent files require confirmation or a declaration-supported `--replace-invalid`; originals remain in backups.
 
-A confirmation returned by `replace()` stacks over the form, and `App` parks
-submitted values as a separate draft on the form's Frame before submitting. Declining malformed-file
-replacement or returning from a failed save must retain the draft, including
-masked secrets. The original values remain the dirty-check baseline until a
-successful save; successful confirmation updates any retained form. The unsaved-edits prompt keeps the form mounted but hidden;
-confirmation cursors start on the safe choice.
+## Agent policies
 
-Frame titles form the navigation path in the main Panel's title and elide from
-the front when space is short. The TUI keeps output in terminal scrollback and
-windows long regions instead of owning a fixed-height screen (ADR 0002); its
-bordered frame is only as tall as its content (ADR 0017).
+Paths, defaults, manifests, field validation, actions, commands, and messages stay in `src/agents/<id>/`. Status readers have no writes. Exact paths/options are in [the user guide](user-guide.md#agent-configuration) and [command contract](milestone-3-non-interactive.md).
 
-- `Layout.tsx` owns the frame. `planLayout()` decides once what the borders,
-  side column or detail strip, and key help cost, then gives the View the main
-  Panel's interior as its Viewport; below 7 rows or 30 columns the View paints
-  alone. At 100 columns and 16 rows it may budget a side column; at 80–99
-  columns and 20 rows it budgets a two-line strip. Both plans reserve one
-  terminal row, keeping the frame content-height and below the viewport. At 130
-  columns the side column widens from 26 to 36 columns. `side-plan.ts` drops or trims
-  side Panels within the row budget, keeping error findings ahead of warnings.
-  `Panel.tsx` draws bordered regions with labels set into their top and bottom
-  borders. `useGlance.ts` gets secret-free summaries and findings from the
-  selected Agent's status operation (ADR 0018); `useFocusPreview.ts` carries
-  the translated Preview from the focused list option. Neither adds a file
-  read path, and message Screens still take the full width.
-- `terminal.ts` owns glyphs (Panel box characters included), colors (Panel
-  border roles and the selection bar included), busy frames, and `fold()` for
-  catalog text on seven-bit terminals. New paint sites must use the terminal
-  helpers.
-- `text-fit.ts` pads and truncates by display width with an ellipsis the
-  caller folds. Ink's own truncation always inserts `…`, so text that can be
-  cut to fit a row is cut here instead.
-- `Viewport.tsx` owns terminal dimensions, resize handling, `windowAround()`,
-  and `WindowRegion`. A width below the last paint clears the visible screen,
-  never the scrollback, before the repaint. Lists, Status, and forms use it to
-  keep focused content inside the row budget.
-- `SelectList.tsx` handles keyboard navigation and left-click selection for
-  visible rows. `mouse.ts` parses SGR mouse reports, maps terminal coordinates
-  through the row's Yoga ancestors, enables reporting only on a TTY, and
-  defers Escape briefly when an input chunk may be a fragmented mouse sequence.
-- `keymap.ts` owns bindings and the help text the frame draws in its bottom
-  border. It rejects duplicate bindings and missing message keys at load time.
-- `useReviewForm.ts` owns editing state, Advanced fields, validation, row
-  windowing, and `ctrl+s`; `ReviewForm.tsx` renders that state.
+| Agent | Distinct policy |
+| --- | --- |
+| Claude Code | Separate global/Provider JSON files; live state create-only; only confirmed Messages probe. `use` prepares a session command; `run` executes it. |
+| opencode | Existing `.jsonc` preferred, otherwise `.json`; never creates JSONC or touches the legacy JSON beside it. Models merge by ID. |
+| Codex | TOML routing plus saved Auth profiles and adoption-routing metadata; saves enforce Responses/auth invariants and reject overriding credential sources. Live auth replaced whole. CLI enforces home mismatch; TUI reports it. Both activation paths check keyring, but have distinct orchestration and remaining gaps. |
+| pi | JSONC `models.json`, plain JSON `settings.json`; model arrays merge by usable member ID and preserve retained metadata. `use` writes both default Provider/model leaves. Login auth is unmanaged. |
+| Grok Build | One TOML document; Provider `model.<id>`, startup `models.default`; optional key/endpoint for built-in overrides. Login auth is unmanaged. |
 
-## Locale and messages
+opencode's `XDG_CONFIG_HOME`, pi's `PI_CODING_AGENT_DIR`, and Grok's `GROK_HOME` apply only when `ctx.home` is the real home. Codex never follows `CODEX_HOME`; CLI mutation refuses a mismatch. Scratch-home fixtures must clear inherited Agent overrides. Launching an upstream Agent needs its own isolation.
 
-Shell catalogs live in `src/i18n/en.ts` and `src/i18n/zh-Hans.ts`; Agent-specific
-strings live in each Agent's `messages.ts`. Ship both locales. `t()` can fall back
-to English or return the raw key, so successful rendering alone does not prove
-catalog coverage. Keys also occur in fields, validators, choices, error objects,
-and template-built families; searching only for direct `t()` calls misses them.
+## Navigation, terminal, and language
 
-The CLI resolves locale before mounting the main App (ADR 0005). An explicit
-`CCSET_LOCALE` overrides the saved choice without persisting it; otherwise the
-TUI uses the saved locale or asks on first use. The initial prompt is bilingual
-and bypasses the catalogs because no locale has been selected. Help, version,
-and non-TTY interactive refusals do not prompt or persist a choice.
+[useScreens.ts](../src/ui/useScreens.ts) reloads only list/status-producing tasks on back. Never retain a save as a reload task. A successful delete's `closesOrigin` closes the Provider Screen and its confirmation; clearing its ignore note happens after removal. A settings failure at that point can omit the removal report (open follow-up).
 
-Use the [verification guide](verification.md) to select fixtures for any of
-these boundaries. Keep release status and dated evidence in the register rather
-than duplicating milestone snapshots in coding-assistant instructions.
+A retained draft and dirty baseline are separate. Failed saves and declined replacement preserve the draft; only successful saving or explicit discard clears unsaved state. Confirmation cursors start on the safe choice.
+
+[Layout.tsx](../src/ui/Layout.tsx) computes chrome once and supplies the main Panel's interior Viewport. [Viewport.tsx](../src/ui/Viewport.tsx), [terminal.ts](../src/ui/terminal.ts), and [text-fit.ts](../src/ui/text-fit.ts) own windowing, capabilities, and display-width fitting. Frame height follows content; narrowing clears visible paint, never scrollback. Numeric/mouse selection addresses visible rows.
+
+Glance calls read-only status on Agent selection and after a message, discarding stale refreshes. Focused Previews reuse loaded rows and show credentials only as presence, URLs only as valid origins. Views add no Agent file-read path (ADRs 0017–0018).
+
+TUI locale: invocation override → saved choice → first-use prompt. Commands use the invocation override or English. Neither infers `LANG`. Agent catalogs merge at registry import and reject duplicates; fixtures must import it before resolving Agent keys.
+
+## Anti-patterns from fixed failures
+
+| Do not | Failure and replacement |
+| --- | --- |
+| Reuse a list's record for later Edit forms | Reinstates an old credential after rotation; read on every form entry (`3fdbce1`). |
+| Replace `env`, options, or models wholesale | Drops unmanaged siblings/retained model metadata; emit leaves/member edits. |
+| Encode off/deletion as empty text or treat `false` as deletion | Leaves proxy keys active or loses valid booleans; use explicit deletion. |
+| Check absence, then rename over a create-only destination | Overwrites a concurrently created live state/profile; use exclusive publication (`ec668ba`). |
+| Share one scratch home across independent fixture scenarios | A fresh-file test unexpectedly creates a backup; allocate independent homes (`0569b3e`). |
+| Use Provider-ID rules for model IDs | Refuses real IDs containing `.`, `/`, or `:`; use Agent model validation (`59121f1`). |
+| Install the forwarder beside the same-version local tarball | npm satisfies its pin locally and parity compares the build with itself; install separately and assert registry resolution (`a999c4a`). |

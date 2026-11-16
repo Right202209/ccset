@@ -1,515 +1,164 @@
 # ccset user guide
 
-[简体中文](zh-CN/user-guide.zh-CN.md) | English
-
-[Back to README](../README.md)
+[简体中文](zh-CN/user-guide.zh-CN.md) | English · [README](../README.md)
 
 ## Agent selection
 
-When the interactive app starts, it checks the registered Agents' local files
-in parallel and lists only the Agents detected in the current home. One detected
-Agent is selected automatically. If no Agent is detected, use an explicit
-`--agent <id>` to deliberately open a first-time configuration. Commands also
-accept a leading Agent ID or `CCSET_AGENT`; scripts require one of these explicit
-selectors. Only a terminal may infer a sole detected Agent. Choose **Change agent** or press
-Esc in an Agent's main menu to return to Agent selection. After a launch with
-`--agent`, the first return runs local detection; only detected Agents are
-offered, just as on a normal launch.
+The TUI lists registered Agents detected from local files and automatically enters a sole match. Explicit `--agent <id>` or `CCSET_AGENT` permits first-time setup. **Change agent** or Esc from the Agent menu returns to local detection.
+
+Commands also accept a positional Agent ID. Scripts always require an explicit selector; only commands with both stdin and stdout TTYs may infer a sole match. Detection is read-only and never executes an Agent.
+
+## Interaction
+
+Arrow keys move, Enter selects, Esc returns; `1`–`9` address numbered visible rows. SGR mouse clicks open visible menu/list rows. **Ctrl+S** saves a form; abandoning a dirty form asks for confirmation.
+
+Each Edit entry reads the file again. Failed saving or declined malformed-file replacement keeps the draft and its dirty baseline. Returning from a success message does not repeat the save. After a successful delete, the TUI returns to the Provider list.
+
+The frame follows content height and retains terminal scrollback. At ≥100 columns/16 rows it can show side Panels; at 80–99 columns/≥20 rows it can show a detail strip. Smaller terminals keep only the main View. Previews show key presence and valid URL origins, hiding paths/queries/fragments. Use `CCSET_ASCII=1` for seven-bit decorative glyphs; Chinese is not transliterated.
 
 ## Agent configuration
 
+Paths below use the run's home; Agent-specific overrides are listed afterwards.
+
+| Agent | Managed configuration | Provider credential |
+| --- | --- | --- |
+| Claude Code | `~/.claude/settings.json`; `settings.<id>.json` per Provider | `env.ANTHROPIC_AUTH_TOKEN` in the Provider file |
+| opencode | Existing `~/.config/opencode/opencode.jsonc`, otherwise `opencode.json`; `provider.<id>` | Block's `options.apiKey` |
+| Codex CLI | `~/.codex/config.toml`; `model_providers.<id>` | Saved `~/.codex/auth.<id>.json`; selected profile replaces live `auth.json` |
+| pi | `~/.pi/agent/settings.json`; `models.json` under `providers.<id>` | Block's `apiKey`; login `auth.json` is unmanaged |
+| Grok Build | `~/.grok/config.toml`; `model.<id>` | Block's `api_key`; login `auth.json` is unmanaged |
+
+ccset also writes `~/.ccset/settings.json` for language/ignore preferences and `~/.codex/ccset.auth-profiles.json` for adopted routing. Backups live in `backups/ccset/` under the selected Agent directory.
+
 ### Claude Code
 
-| Menu entry | What it touches |
-| --- | --- |
-| Global settings | `~/.claude/settings.json` |
-| Providers | `~/.claude/settings.<name>.json` — add, edit, list |
-| Status | Reads everything above plus `~/.claude.json`. Writes nothing. |
-| Test connection | One opt-in request to a provider you pick |
+Global settings manage proxy, traffic/install/tool-search switches, cleanup days, and model. Providers manage endpoint/token/model plus optional fallback and model-remapping fields. IDs use letters/digits/`_`/`-`; `local`, `json`, and `__proto__` are reserved.
+
+`~/.claude.json` is created only when absent, with onboarding marked complete; an existing file is read-only. Provider files take effect only through `claude --settings <path>`: `use <id>` prints that command, `run <id>` executes it.
+
+**Test connection** is an optional confirmed Messages request. It names the host, warns for non-loopback HTTP, refuses redirects, and discards the response body. Saving never sends this request. Other Agents have no probe.
 
 ### opencode
 
-| Menu entry | What it touches |
-| --- | --- |
-| Global settings | `~/.config/opencode/opencode.jsonc` when one exists, else `~/.config/opencode/opencode.json` — model, sharing, auto-update |
-| Providers | A `provider.<id>` block in that same file — add, edit, list |
-| Status | Reads the above. Writes nothing. |
+The existing JSONC file is the sole ccset target; a legacy JSON beside it remains untouched and is named in Status. ccset never creates JSONC or manages `config.json`. Upstream JSONC precedence is source-backed; its separate live check remains U6 in the register.
 
-opencode keeps every provider inside one document rather than one file each, so
-editing a provider rewrites only that block. Its `models` map is merged entry by
-entry: a model already on disk keeps its own settings, a new id is added, and one
-you remove from the list is deleted.
+Provider models merge by ID: retained IDs keep custom options, new IDs get empty objects, removed IDs disappear. `use` selects the first listed model or an explicit `--model`; absent/missing/disabled targets are refused without changing enable/disable lists.
 
-**ccset writes `opencode.jsonc` when it exists.** opencode loads both configs
-and merges them per key with the `.jsonc` winning every conflict — and it seeds
-a `.jsonc` itself on fresh installs. That merge order is read from opencode's
-source code, not yet confirmed by running it. So when that file exists, it is
-the one file ccset reads and writes, edited in place: your comments, key order
-and formatting survive every save, exactly as the TOML editing promises for
-Codex.
-When only `opencode.json` exists, nothing changes. A legacy `opencode.json`
-beside a managed `.jsonc` is named in Status as not managed: it still loads,
-but a key set in both files takes the `.jsonc`'s value. ccset never creates a
-`.jsonc`, never rewrites or deletes a legacy `.json`, and ignores `config.json`.
-
-**`XDG_CONFIG_HOME` is honoured for the real home.** opencode reads
-`$XDG_CONFIG_HOME/opencode` when the variable is set, so that is where ccset
-reads and writes too. A run pointed at another home (`CCSET_HOME`) keeps that
-home's own `.config/opencode` no matter what the surrounding shell exports.
-
-There is no Test connection for opencode: a custom provider's wire protocol comes
-from whichever SDK package you name, so there is no single endpoint ccset could
-probe honestly.
+`XDG_CONFIG_HOME` applies only when ccset's home equals the real home; a scratch home keeps its own `.config/opencode`.
 
 ### Codex CLI
 
-| Menu entry | What it touches |
-| --- | --- |
-| Global settings | `~/.codex/config.toml` — model, provider, reasoning effort, approval policy, sandbox mode |
-| Providers | A `[model_providers.<id>]` table in that file, plus a saved credential per provider — add, edit, switch |
-| Status | Reads the above and `~/.codex/auth.json`. Writes nothing. |
+Provider saves enforce `wire_api = "responses"` and `requires_openai_auth = true`, requiring a Responses endpoint. They refuse blocks containing `env_key` or `experimental_bearer_token`, which override the saved credential.
 
-Codex's config is TOML, not JSON. `config.toml` is **edited in
-place**, not rewritten: setting a key replaces its value, adding one inserts a
-line, removing one deletes a line, and your comments, blank lines, alignment and
-key order are copied through byte for byte.
+Saving a profile does not change live auth. CLI `use` switches routing/auth together; `--model` optionally selects a model. An unmatched live login requires `--adopt-current-as <new-id>` to retain it or `--replace-current-auth`; either path backs it up. Adoption records the prior route; restore refuses an absent required custom table.
 
-**ccset saves API keys separately from `config.toml`.** It saves each key to
-`~/.codex/auth.<id>.json` (mode `0600`) and writes
-`requires_openai_auth = true` on the provider block, which is what makes Codex
-use that credential. **Use this provider** then copies the saved credential over
-`~/.codex/auth.json` and points `model_provider` at the block — one step for both
-halves of a switch, since moving only the key would leave Codex calling the old
-endpoint with the new credential.
+Keyring activation/restoration is refused because `auth.json` is ineffective. **`CODEX_HOME` is reported, never followed:** CLI writes refuse a mismatch; the TUI reports it but does not enforce the same refusal. Use the CLI when this precondition matters.
 
-If `auth.json` already holds something ccset did not save — a ChatGPT login, or a
-key you set by hand — you are offered a name to keep it under before it is
-replaced, so you can switch back to it later. A backup is taken either way.
-Switching back is a real action: the saved login appears in the **Providers**
-list with the routing it restores to, and choosing it restores both the
-credential and the `model_provider` that was live when it was adopted. Command
-adoption records the same routing, so either surface can restore it. If that
-Provider was removed, restore refuses until its table is available again.
-An adoption name created by another session is preserved; go back and choose
-another name.
-
-A provider block is written with `wire_api = "responses"`, the only value Codex
-still accepts, so the endpoint has to speak the OpenAI Responses API.
-
-**A block that sets `env_key` or `experimental_bearer_token` is refused.** Codex
-reads the credential from those before it ever looks at `auth.json`, so saving a
-key into such a block would report success while Codex kept using the other
-source. Remove them from the table first.
-
-**If Codex is set to `cli_auth_credentials_store = "keyring"` it never reads
-`auth.json`**, and ccset cannot write a keyring entry. Status says so rather than
-offering a switch that would change nothing. Activation and restoration also
-recheck this setting when you confirm.
-
-**`CODEX_HOME` is reported, not followed.** If you have it set, Codex reads its
-config from there while ccset writes under the home this run was given. Status
-names the mismatch so a save that lands in the wrong directory does not look
-successful. ccset does not chase the variable: it would take an isolated run's
-writes back out of the directory it was pointed at.
-Non-interactive writes refuse a `CODEX_HOME` mismatch before changing files.
-
-There is no Test connection for Codex: the probe ccset ships is Anthropic-shaped,
-and a Responses-API endpoint is a different request it has no honest way to make.
+TUI activation has a separate implementation. Credential-source, adoption-name reuse, and partial-progress gaps are tracked in [the safety follow-up](../review.md). Neither a saved profile nor successful local file writes establish live API compatibility.
 
 ### pi
 
-| Menu entry | What it touches |
-| --- | --- |
-| Global settings | `~/.pi/agent/settings.json` — default provider, default model, default thinking level |
-| Providers | A `providers.<id>` block in `~/.pi/agent/models.json` — add, edit, list |
-| Provider use | Writes the default provider and model into `settings.json` |
-| Status | Reads the above and `~/.pi/agent/auth.json`. Writes nothing. |
+Startup defaults are `defaultProvider`, `defaultModel`, and `defaultThinkingLevel` in plain JSON. `models.json` uses the JSONC editor; retained model-array members keep metadata, and members without usable string IDs pass through unchanged.
 
-pi keeps custom providers in `models.json`, one block per id, and reads its
-startup defaults from `settings.json`. Editing a provider rewrites only that
-block. Its `models` array is merged per member: a model already on disk keeps
-its own settings (`cost`, `compat`, `headers`, anything ccset does not manage),
-a new id is appended as `{ "id": … }`, and one you remove from the list is
-deleted. A block without models is left possible on purpose — reusing a
-built-in id such as `anthropic` with just a `baseUrl` is pi's documented way to
-route a built-in through a proxy.
+A block may override a built-in Provider without models. Blocks retaining custom models require an effective `api`. `use` writes default Provider and model together; without listed models it needs an explicit `--model`.
 
-**`models.json` is edited in place; `settings.json` is plain JSON.** pi strips
-comments from `models.json` when it reads it (verified in pi's source), so the
-file may carry comments, and ccset edits it with the same format-preserving
-JSONC editor opencode's `.jsonc` gets: your comments, key order and formatting
-survive every save. `settings.json` pi parses as plain JSON, so ccset
-re-serialises that one.
-
-**ccset saves a provider key into the block's own `apiKey`.** pi resolves it
-through its documented order (CLI flag, `auth.json`, environment, then
-`models.json`), and the value supports pi's forms verbatim — a literal,
-`$ENV_VAR`, or `!command` — so you can store `$MY_KEY` instead of the secret
-itself. ccset never edits `auth.json`: pi's `/login` owns it, and Status names
-the file when it exists instead of pretending to manage it.
-
-**`PI_CODING_AGENT_DIR` is honoured for the real home.** pi reads its agent
-directory from that variable when set, so ccset follows it there. A run pointed
-at another home (`CCSET_HOME`) keeps that home's own `.pi/agent` no matter what
-the surrounding shell exports. Project-local `.pi/settings.json` is pi's own
-trust-gated file and is not managed.
-
-There is no Test connection for pi: a `models.json` provider speaks one of four
-API types, and there is no single endpoint ccset could probe honestly.
-
-**`provider use <id>` writes both `defaultProvider` and `defaultModel`** into
-`settings.json`, because pi's own startup resolution only honours a saved
-default when the two are set together. Without `--model`, the first model of
-the provider's disk entry is used; a provider entry without models (the
-built-in-override shape) has to name `--model` explicitly, since its startup
-model lives in pi's own catalog, which ccset does not read.
+`apiKey` is stored verbatim, including pi's reference forms such as `$ENV_VAR` or `!command`; ccset does not execute them. pi's login file and project-local settings are unmanaged. `PI_CODING_AGENT_DIR` applies only at the real home.
 
 ### Grok Build
 
-| Menu entry | What it touches |
-| --- | --- |
-| Global settings | `~/.grok/config.toml` — the default model (`models.default`) |
-| Providers | A `[model.<id>]` table in that file — add, edit, list |
-| Status | Reads the above and `~/.grok/auth.json`. Writes nothing. |
+The managed Provider leaves are `model`, `base_url`, `name`, `api_backend`, and `api_key`. Backends are `chat_completions`, `responses`, and `messages`. Built-in overrides may omit key/endpoint; a missing endpoint warns.
 
-Grok Build's config is TOML, edited in place the same way Codex's is: comments,
-blank lines, alignment and key order survive every save. `auth.json` is Grok's
-own credential store, written by `grok login`; ccset names it in Status and never
-edits it.
+`use` writes only `models.default`; an unknown ID warns because it may be built-in. Provider IDs use the shared letters/digits/`_`/`-` pattern. Select dotted built-in IDs through `global set --model grok-4.6`; hand-written quoted tables remain unmanaged.
 
-A provider is one `[model.<id>]` table. ccset manages `model` (the model
-identifier the endpoint receives), `base_url`, `name`, `api_backend`
-(`chat_completions`, `responses`, or `messages`) and `api_key`; everything else
-the table may carry — `env_key`, `extra_headers`, `query_params`, sampling and
-window numbers — survives untouched. An id that names a built-in model overrides
-only the fields it sets, which is Grok's documented way to override a built-in's
-key, so a new block is not required to carry a `base_url`. A block without one is
-flagged in Status and in command warnings, since a custom model cannot reach any
-endpoint without it. Ids ccset writes are limited to letters, digits, dashes and
-underscores; a built-in id that carries a dot (`grok-4.6`) is not an id ccset can
-write as a table — point `models.default` at it with `global set --model`, and a
-hand-written quoted table such as `[model."grok-4.6"]` is preserved untouched.
-
-**Provider use** writes `models.default` and nothing else: Grok reads it for
-every new session, and `/model` or `-m` still overrides it per session. A switch
-to an id no `[model.*]` block defines warns rather than refuses, because the id
-may name a built-in model.
-
-Grok resolves a model's credential as `api_key`, then `env_key`, then the signed-in
-session token, then `XAI_API_KEY`. A key ccset saves lands inline in
-`config.toml` and is masked in every display; prefer `env_key` (unmanaged — set
-it by hand) if you do not want the key in the file at all.
-
-**`GROK_HOME` is honoured for the real home.** Grok reads `$GROK_HOME` when the
-variable is set, so that is the directory ccset reads and writes too — but only
-when ccset itself was pointed at the real home. A run pointed elsewhere
-(`CCSET_HOME`, or every fixture) keeps that home's own `.grok`, so an inherited
-variable cannot take an isolated run's writes out of the scratch directory.
-
-There is no Test connection for Grok Build either: its three API backends each
-need their own request shape, and the Anthropic-shaped probe ccset ships would
-not be honest about any of them.
-
-Arrow keys move, `1`-`9` select the numbered visible row, Enter selects, and
-in TTYs with SGR mouse support, clicking a visible menu or list row opens it.
-Esc goes back. Long lists state
-the visible range and total row count. A form asks before
-discarding unsaved edits and never asks otherwise. The interface is drawn in a
-bordered frame: the keys the current screen accepts sit in its bottom border, and
-the main panel's title shows the full navigation path of nested screens; narrow
-terminals keep the final two steps visible. On a terminal at least 100 columns
-wide and 16 rows tall, side panels show the agent, a config summary, any
-Warnings, the focused row's Preview, and the last result when they fit. At
-80–99 columns and 20 rows or more, a two-line details strip appears below the
-main Panel instead. Below 80 columns, the extra information is hidden. The
-summary and Warnings come from the same local, read-only Status data; provider
-previews show a key only as set or unset. Base-URL previews show the origin and
-an ellipsis for any path; paths, queries, and fragments are omitted, and an
-invalid URL is hidden. At 130 columns the side column widens for longer paths.
-The frame stays at least
-one row shorter than the terminal, so earlier terminal output stays in the
-scrollback. Set `CCSET_ASCII=1`
-if your terminal cannot draw the box characters.
+Grok's credential order is inline `api_key` → unmanaged `env_key` → session token → `XAI_API_KEY`. Adding an inline key can override a hand-set reference. `GROK_HOME` applies only at the real home.
 
 ## Deleting and ignoring providers
 
-Each provider in the **Providers** list has a screen of its own: **Edit**,
-**Ignore** and **Delete**. Both new verbs work for every Agent.
+A Provider Screen offers **Edit**, **Ignore/Stop ignoring**, and **Delete**. Ignore/unignore/delete require confirmation and are TUI-only.
 
-Deleting removes what ccset manages for that provider and nothing else. For
-Claude Code it deletes the provider's own `settings.<name>.json` — even if the
-file no longer parses, which is often why it is being removed. For opencode,
-Codex, pi and Grok Build it removes that provider's block from the shared
-configuration document, through the same format-preserving edit as every other
-write, so the other providers, the comments and the formatting stay as they
-were. A backup is taken first, in the `backups/ccset/` directory beside that
-Agent's config, and it still holds the credential — **Clear ccset backups** is
-what removes those copies.
+- Claude Code deletion backs up/removes its whole Provider file, even if malformed.
+- Shared-document deletion requires a parseable document and removes the whole Provider block, including custom keys; sibling Providers and unrelated TOML/JSONC text remain.
+- Codex deletion refuses the currently routed Provider; it backs up/removes the Auth profile before the table.
+- An absent delete target is a no-op. Successful deletion clears its ignore note and closes its Screen.
+- Ignore changes only `~/.ccset/settings.json`, not Agent configuration. Normal lists and Claude probes omit ignored Providers; a list row reveals them and offers unignore.
+- If ignore-note clearing fails after removal, the current error omits the completed removal report; retrying clears the note. Separate **Remove saved credential** deletes a Codex sidecar directly and leaves its table/previous backups.
 
-Deleting a Codex provider deletes its saved credential sidecar too, and ccset
-refuses while `model_provider` names that provider: Codex does not start when
-its routing names a provider table that is not there.
-
-Ignoring is a note in ccset's own settings file, `~/.ccset/settings.json`. It
-hides the provider from the Providers list and from **Test connection**, and
-changes nothing on disk: the Agent keeps reading that configuration exactly as
-before. While any provider is ignored the list carries a row that reveals them,
-marked `ignored`, and a revealed provider's screen offers **Stop ignoring**.
-Deleting an ignored provider removes its note as well, so a provider saved
-later under the same name is listed as usual.
-
-Neither verb is on the command line. Deleting is destructive maintenance, which
-the non-interactive contract keeps out until it has a safety contract of its own
-(ADR 0007); ignoring is state ccset keeps for its own interface, so it has no
-place in a script that configures an Agent.
+Deletion and cleanup do not erase credentials from backups unless those backups are themselves removed.
 
 ## What it will not do to your files
 
-- **Unmanaged keys survive.** ccset owns a fixed list of keys. `hooks`,
-  `statusLine`, `permissions`, `enabledPlugins`, hand-set `env` vars and anything
-  else at any nesting level are read, kept, and written back unchanged. `env` is
-  merged per key, never replaced wholesale.
-- **Turning something off removes it.** Switching the proxy off deletes
-  `HTTP_PROXY` and `HTTPS_PROXY` rather than blanking them, because a file that
-  still holds the key is a proxy that is still on.
-- **Blank form fields mean absent.** An empty field in the interactive UI
-  removes its managed leaf, including inside a TOML inline table. Commands
-  preserve omitted fields and `--unset` removes the named leaf while keeping
-  inline-table siblings.
-- **Config edits target managed leaves.** A sibling key you set by hand inside
-  a managed object survives.
-- **The file is re-read immediately before writing**, so changes the agent
-  persisted while ccset was open are not clobbered by a stale parse.
-- **Writes are atomic**: a random same-directory temp file is created
-  exclusively at mode `0600` on POSIX, then renamed into place. A planted
-  symlink cannot redirect the write; a crash mid-write leaves the target wholly
-  old or wholly new.
-- **`~/.claude.json` is created only if it is missing.** If it exists, ccset
-  reads it and never writes it — it is Claude Code's live state store, rewritten
-  continuously, and a read-modify-write there races an active writer. If
-  `hasCompletedOnboarding` is missing, ccset prints the one-line fix instead of
-  applying it.
-- **Comments and formatting survive too, where the format has them.** Codex's
-  `config.toml`, Grok Build's `config.toml`, opencode's `opencode.jsonc` and
-  pi's `models.json` are edited in place rather than re-serialised, so unrelated
-  comments, blank lines, alignment and key order are preserved. If a managed
-  TOML leaf is inside an inline table, ccset expands that assignment to dotted
-  keys to preserve the other entries.
-- **A file ccset cannot parse is never silently overwritten.** The UI offers to
-  back it up and start fresh. Commands require `--replace-invalid` where
-  replacement is supported, and back up the unreadable original first.
-- **`~/.codex/auth.json` is replaced, never edited.** It is Codex's live
-  credential, rewritten on login and token refresh, so ccset copies a whole file
-  over it on your explicit request and never reads-modifies-writes it. Adopting
-  an existing one is a byte copy, so an OAuth token block ccset does not model
-  survives intact.
-- **A half-finished switch says what changed.** When a multi-file operation
-  stops partway, ccset reports the paths it had already written; if undoing the
-  routing also failed, the error names that failure too, so the state to inspect
-  is clear rather than hidden.
+- Managed edits set/delete leaves, preserving unmanaged siblings. TUI blank fields remove managed leaves; omitted CLI fields preserve them, with explicit `--unset` for deletion. Supported `false` is a value.
+- TOML/JSONC retain unrelated text; plain JSON may be reformatted. Inline TOML tables can expand to dotted assignments while preserving siblings.
+- Each save re-reads the target. TUI managed fields are still written as held in the form; external edits to those fields can be overwritten.
+- Configuration replacement/deletion backs up existing targets. Replacement uses an exclusive private stage and per-file atomic rename; create-only state/adoption uses publication that refuses an existing destination.
+- Malformed Agent configuration is replaced only after confirmation or supported CLI `--replace-invalid`. Codex CLI provider set cannot reconstruct an unreadable saved Auth profile.
+- Live Codex auth is replaced whole, preserving adopted bytes without merging unknown token structures.
+- Multi-file failures report committed targets and available rollback errors. No cross-file transaction, writer locking, or fsync power-loss guarantee exists. See [open safety findings](../review.md).
 
 ## Secrets
 
-- Tokens are masked on entry and display in the UI. Tokens shorter than 16
-  characters are hidden entirely; tokens of 16 characters or more show the first
-  and last four characters with a fixed-width masked middle. Command output
-  omits secrets.
-- Every file ccset writes is mode `0600` on POSIX. The mode is applied when
-  the file is created; ccset re-asserts it best-effort, so a filesystem that
-  refuses the mode change (some WSL, FUSE and SMB mounts) still receives the
-  write.
-- Within ccset, a token leaves your machine only through **Test connection**, which names the
-  destination host and asks before sending. Redirects are refused, so the probe
-  never contacts an unconfirmed host. The response body is discarded unread,
-  because it can echo the token back.
-- **Backups keep old tokens.** Every write first copies the target to a
-  `backups/ccset/` directory beside that agent's config —
-  `~/.claude/backups/ccset/` for Claude Code, `~/.config/opencode/backups/ccset/`
-  for opencode, `~/.codex/backups/ccset/` for Codex,
-  `~/.pi/agent/backups/ccset/` for pi, `~/.grok/backups/ccset/` for Grok
-  Build (mode `0600`, ten kept per file, oldest pruned). After you rotate a
-  token the previous one still sits in those copies until you run
-  **Clear ccset backups** from that agent's Status screen. Removing a Codex
-  provider's saved credential deletes the sidecar but not its backups, for
-  the same reason. Failed cleanup lists the remaining paths and reasons, counts
-  only successful deletions, and lets you go back and retry.
-- **A backup interrupted mid-copy is not hidden.** The partial copy holds the
-  credential it was copying, so Status lists it with a warning until
-  **Clear ccset backups** removes it.
+TUI secret fields fully hide values shorter than 16 characters; longer values show the first/last four with a fixed-width mask. Managed credential fields are omitted from command output. This is masking, not encryption: configuration/profile/backups can contain plaintext.
 
-A failed save retains your draft and its unsaved-edits confirmation. If an
-operation stops after writing some files, its error names those paths and
-available backups, plus any rollback failure. Inspect that state before retrying.
+POSIX staging creates files at `0600`; reasserting chmod is best effort on filesystems that refuse it. Windows ACLs are unmanaged.
+
+Each Agent directory's `backups/ccset/` retains ten completed backups per basename. Old keys remain until **Status → Clear ccset backups**. Cleanup counts successful removals and reports failed paths with retry; interrupted copies remain visible as partial-backup warnings.
+
+Status output for arbitrary URL components or model metadata has [known projection gaps](../review.md); do not treat raw output as automatically safe to share. Reporting requirements are in [SECURITY.md](../SECURITY.md).
 
 ## Windows
 
-Windows is best-effort. CI builds and smoke-tests the CLI on Windows;
-native interactive behavior remains unverified. The intended terminals are
-Windows Terminal and PowerShell; `cmd.exe` is out of scope.
+macOS/Linux are supported. WSL and Windows Terminal/PowerShell are best effort; native interactive behavior is not established by Windows CI. `cmd.exe` is unsupported.
 
-**The `0600` guarantee is POSIX-only.** Node's `fs.chmod` on win32 can only
-toggle the read-only bit: owner/group/other are not implemented and NTFS ACLs are
-left untouched. On Windows a settings file holding a token inherits the parent
-directory's ACL, so restrict `%USERPROFILE%\.claude` yourself if that matters to
-you.
+`0600` is a POSIX-filesystem guarantee. Node chmod cannot enforce NTFS owner/group/other access; inherited directory ACLs govern files. See [SUPPORT.md](../SUPPORT.md).
 
 ## CLI
 
-```
-ccset [--agent <id>]             # the interactive interface
-ccset <agent> <command> …        # short explicit selector
-ccset --agent <id> <command> …   # compatible long selector
-ccset -v | --version | -h | --help
+```text
+ccset [--agent <id>]           # TUI
+ccset <agent> <command> …
+ccset --agent <id> <command> …
+ccset --help | --version
 ```
 
-`--agent` takes `claude-code`, `opencode`, `codex`, `pi` or `grok-build`.
-With no command, ccset starts the interactive interface; run through a pipe
-or in CI, that prints a message and exits `2` rather than emitting control
-sequences into a log. With a command, ccset runs it headlessly: a
-line-oriented report by default, or one JSON envelope on stdout with
-`--json`.
+An invocation without a command and with non-TTY stdin exits 2; explicit commands run headlessly. Human output is line-oriented; `--json` emits one envelope. All exact options, unset field IDs, JSON fields, and exit codes live in [the command contract](milestone-3-non-interactive.md).
 
 ### Select, add, and use a provider
 
 ```bash
 ccset presets list
-ccset presets list openrouter --json
 ccset claude-code add relay --preset openrouter
+ccset claude-code use relay
 ccset claude-code run relay -- --help
 ccset codex add relay --preset openrouter
-ccset codex use relay --model openai/gpt-5.4
 CCSET_AGENT=pi ccset use relay
 ```
 
-`add [id] --preset <id>` supplies public endpoints, protocol settings, and model
-suggestions from bundled JSON. It asks only for a hidden key when both stdin and
-stdout are terminals; Enter saves and Ctrl+C cancels without writing. Scripts,
-`--json`, and `--dry-run` require `CCSET_TOKEN` or `--token-stdin`. Both secret
-sources together are refused. Saving sends no request to the Provider.
+Preset `add` may ask for a hidden key only with stdin+stdout TTYs, human output, and no dry-run. Enter saves; Ctrl+C cancels without writing. Scripts/JSON/dry-run require `CCSET_TOKEN` or `--token-stdin`. Both sources together fail.
 
-The default Provider ID is the preset ID. If that name is reserved by the Agent,
-it is suffixed with `-ccset` (for example, opencode uses `openrouter-ccset`). Give
-an explicit ID such as `relay` to choose another name. `add` applies defaults to
-an existing Provider too; explicit field options and `--unset` override those
-defaults, and all other managed fields retain their disk values. Review a
-`--dry-run` before reapplying a preset to a customized Provider.
-
-OpenRouter has entries for all five Agents; DeepSeek has no Codex entry because
-its documented APIs do not include Responses. Entries are configuration starting
-points, not live compatibility claims. Model availability changes; override the
-suggestion using the Agent's model option. Codex stores its model globally, so
-`add` prints a `use --model` command instead of changing the current model while
-saving a new Provider. Preset data and contribution checks live in
-[`presets/README.md`](../presets/README.md).
-
-`use <id>` aliases `provider use <id>` for every Agent:
-
-| Agent | Result of `use` | Timing |
-| --- | --- | --- |
-| Claude Code | Validate its Provider file and print `claude --settings <path>`; write nothing | Only the session started with that command |
-| opencode | Save `model = "provider/model"`; `--model` selects a listed model, otherwise use the first listed model | Next start |
-| Codex | Switch routing and Auth profile; optional `--model` changes the model in the same plan, including rollback on credential failure | Next start |
-| pi | Save default Provider and model; keep existing `--model` behavior | Next start |
-| Grok Build | Save the default model | Next start |
-
-opencode refuses an absent Provider, a missing model, or a Provider excluded by
-`disabled_providers` or `enabled_providers`; it does not change those lists.
-Project configuration and Agent command-line options can override startup
-settings. Existing sessions are not reconfigured. The JSON envelope adds
-`activation: "next-start" | "session"` to a successful `use` result; preset saves
-also add a copyable `nextCommand`.
-
-`run <id> -- <arguments>` is available only for Claude Code. It validates the
-Provider file, starts the installed `claude` executable from PATH with an
-argument array, and inherits stdin/stdout/stderr. Arguments after `--`, including
-`--help`, belong to Claude; ccset does not evaluate them through a shell. The
-child owns its output and requests, and its exit code becomes ccset's exit code
-(a signal exits with 128 plus the signal number). No global settings are changed.
-`run --dry-run --json` previews without starting a child; live `run --json` is
-refused because child output is not a ccset JSON envelope.
-
-A CLI Agent selector overrides `CCSET_AGENT`; conflicting CLI selectors are a
-usage error. With neither, commands may select one detected Agent only when both
-stdin and stdout are terminals. Scripts always fail with 64 and candidate IDs
-until a selector is explicit, even when only one Agent is installed. Detection
-is local, read-only, and never runs an Agent. `presets list` needs no Agent;
-an optional selector filters its catalog.
+OpenRouter has all five Agent entries; DeepSeek has no Codex Responses entry. Model suggestions can age; defaults are reviewed starting data, not live evidence. Reapplying a preset patches existing Providers too; inspect dry-run before overriding custom fields. The default ID is the preset ID, suffixed `-ccset` when reserved. See [preset contribution rules](../presets/README.md).
 
 ### Commands
 
-| Agent | Commands |
+All five Agents serve `status`, `global set`, `provider set <id>`, and `use <id>` (alias `provider use`). Claude Code additionally serves `run <id>` and `state init`.
+
+| Agent | `use` effect |
 | --- | --- |
-| `claude-code` | `status` · `global set` · `provider set <id>` · `provider use <id>` · `run <id>` · `state init` |
-| `opencode` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
-| `codex` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
-| `pi` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
-| `grok-build` | `status` · `global set` · `provider set <id>` · `provider use <id>` |
+| Claude Code | Validate Provider file and print the session command; no write |
+| opencode | Save `model = "provider/model"`; optional `--model` |
+| Codex | Switch routing/Auth profile; optional global `--model` |
+| pi | Save default Provider/model; optional `--model` |
+| Grok Build | Save `models.default` |
 
-`status` reads everything and writes nothing. The `set` commands patch only the
-fields you name: omitted fields keep their disk values, `--unset <field>`
-deletes one explicitly, including a managed leaf in a TOML inline table, and
-unmanaged siblings survive. TOML and JSONC edits also preserve the formatting
-around those keys. Saving a provider does not switch to it: select it with
-`use`, or start a Claude Code session directly with `run`. `state init` creates Claude Code's
-`~/.claude.json` when it is absent and otherwise leaves the file alone.
-
-Options the commands share:
-
-| Option | Effect |
-| --- | --- |
-| `--json` | One JSON envelope on stdout instead of human lines |
-| `--dry-run` | Read, validate and plan; no backup, no write. State-changing commands only — `status` refuses it |
-| `--unset <field>` | Remove an optional field using its field ID, such as `model`, `smallModel`, or `modelProvider` |
-| `--replace-invalid` | Allow replacement of an invalid target on supported commands; the unreadable original is backed up first. `status`, `state init`, `run`, and Claude Code/opencode/Codex `provider use` refuse this option |
-| `--token-stdin` | Read the API key from stdin |
-
-In scripts, a key reaches ccset only through `CCSET_TOKEN` or `--token-stdin` — never an
-option, a positional or a file, all of which are usage refusals — and is then
-written only to that provider's own target: the provider file for Claude Code,
-`options.apiKey` in the named block for opencode, the `auth.<id>.json` sidecar
-for Codex, `apiKey` in the named `providers` block for pi, and the
-`[model.<id>]` block's `api_key` for Grok Build. It is never
-printed in human output, JSON, errors, or warnings. Backup files still contain
-the previous credentials.
-
-Codex details worth knowing: `provider set` re-asserts `wire_api = "responses"`
-and `requires_openai_auth = true` on every save, and lands the key in
-`auth.<id>.json` — never in `config.toml`, never in the live `auth.json`.
-`provider use` copies the named profile into `auth.json` and moves
-`model_provider` in the same operation, routing first. If `auth.json` holds
-something that is none of the saved profiles, the switch refuses until you pass
-exactly one of `--adopt-current-as <name>` (keep it as a new, switchable
-profile) or `--replace-current-auth` (discard it — backed up either way).
-The choice is only asked for when it is needed: passing `--adopt-current-as`
-against a live `auth.json` that already matches a saved profile is refused,
-because nothing is being replaced and there is nothing to adopt.
-
-| Exit code | Meaning |
-| --- | --- |
-| 0 | Success |
-| 1 | Runtime error — a refused operation, or an environment the operation cannot be honest in |
-| 2 | Not a TTY (interactive mode only) |
-| 3 | Permission denied on a target path (the path and required mode are named) |
-| 4 | An existing file could not be parsed (JSON, JSONC, or TOML) |
-| 64 | Usage error — unknown field or option, invalid value, empty patch |
-| 65 | Unknown agent id |
-| 66 | A command this agent does not serve |
-
-In the interactive app a failed action does not end the session: the error is a
-screen of its own, everything you typed is kept, and `esc` returns to the form
-so you can fix the cause and try again. An exit code reaches the process only
-when a failure happens outside the interface — at start-up, or if the render
-tree itself crashes.
+Existing sessions do not change; Agent CLI/project settings can override startup defaults. `run` executes Claude Code's argument array without a shell, inherits I/O, and returns the child's status. `run --dry-run --json` previews only; live `run --json` is refused.
 
 ### Environment
 
-| Variable | Effect |
+| Variable | Behavior |
 | --- | --- |
-| `CCSET_LOCALE` | Per-run language override: `zh-Hans` selects Simplified Chinese; any other set value selects English. It suppresses the first-use prompt and is never persisted. When unset, the UI uses the saved choice or asks once; commands default to English. ccset never infers the language from the environment's locale. |
-| `CCSET_ASCII=1` | Use a seven-bit interface: decorative glyphs, help punctuation, prose punctuation, and masked values are folded to printable ASCII. Leave it unset for the Unicode glyphs. Chinese text is not transliterated; a seven-bit terminal cannot draw it. |
-| `CCSET_AGENT` | Default explicit Agent selector for commands and TUI; a CLI selector takes precedence. Empty/unknown values are errors. |
-| `CCSET_HOME` | Overrides the home directory ccset reads and writes under. Intended for isolated test runs, not daily use. |
-| `CCSET_TOKEN` | Provider API key for a `provider set` command. Supply it through a secret store or an already-exported environment, and do not combine it with `--token-stdin`. |
+| `CCSET_LOCALE` | `zh-Hans` selects Chinese; any other set value selects English. Overrides and suppresses TUI prompting/persistence; commands use it or English. Unset TUI uses saved choice or asks once. No `LANG` inference. |
+| `CCSET_ASCII=1` | Fold decorative glyphs/punctuation to ASCII; Chinese remains Chinese |
+| `CCSET_AGENT` | Explicit Agent fallback; CLI selection wins; empty/unknown values fail |
+| `CCSET_HOME` | Scratch-home override for ccset writes; does not isolate an upstream Agent |
+| `CCSET_TOKEN` | Provider secret source for set/preset add; conflicts with `--token-stdin` |
 
-Colour is not ccset's switch: it renders through Ink, which already honours
-`NO_COLOR`.
+Ink honors `NO_COLOR`. The website's browser language preference is independent of CLI settings.

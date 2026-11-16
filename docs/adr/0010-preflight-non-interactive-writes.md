@@ -1,7 +1,5 @@
 # Preflight non-interactive writes
 
-A Non-interactive command reads and validates every target before its first
-write, so a known parse failure cannot leave a multi-file operation half applied.
-Invalid targets fail with exit code 4 unless the caller supplies the narrow
-`--replace-invalid` permission, in which case each invalid original is backed up
-before an empty-base write; ccset does not provide a general `--force` escape hatch.
+Accepted. Read, overlay, validate and render all ordinary command targets before the first write so a known later parse failure cannot cause a partial application. Rendered output must pass its strict checker too.
+
+Invalid Agent targets fail with 4 unless that command supports explicit `--replace-invalid`; authorized replacement preserves the malformed original in a backup. This is not a general force flag or bypass for environment/credential preconditions. Later I/O failure may still leave partial commits; [the contract](../milestone-3-non-interactive.md) specifies reporting and supported recovery flags.

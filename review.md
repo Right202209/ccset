@@ -1,201 +1,33 @@
-  The central shortcoming is that atomic file replacement is stronger than the
-  surrounding operation model: individual writes complete safely, but concurrent
-  changes, credential identity, partial progress, and safe diagnostic output are not
-  consistently protected.
+# Current safety follow-up
 
-  Standards
+Aligned to source at `03a5063`; this documentation pass adds no new failure reproductions. The original review exercised synthetic credentials/scratch homes on Linux/WSL2, Node 26.10.0; it did not transmit downstream credentials. Old line numbers and full-suite failures are not current verification results.
 
-  “Pin” names the regression fixture to extend—not an assertion that existing coverage
-  detects the issue.
+Atomic publication protects individual files better than the surrounding operation protects concurrency, credential identity and partial-progress reporting. The following findings remain visible in current source. A fixture named here is a regression **to extend**, not proof its current assertions detect the gap.
 
-  ID: B-1
-  Grade: Blocker
-  File:line: src/cli.tsx:153; src/commands/run.ts:66
-  Rule: Secret-safe errors
-  Failure scenario: Rejected arguments can be printed verbatim. --token=<secret> without
+## Open findings
 
-  a command reaches Commander’s unsanitized error; malformed globals can place an
-  unvalidated value in the JSON agent field. Both leaks were reproduced.
-  Pin: verify:commands-secret
-  ────────────────────────────────────────
-  ID: B-2
-  Grade: Blocker
-  File:line: src/agents/claude-code/status-dto.ts:58
-  Rule: Secret-safe Status
-  Failure scenario: The supported setter accepts an authenticated proxy URL. Human and
-  JSON Status then print its complete password. Provider Base URLs containing userinfo
-  are similarly exposed.
-  Pin: verify:commands-status, TUI Status/review fixtures
-  ────────────────────────────────────────
-  ID: B-3
-  Grade: Blocker
-  File:line: src/agents/pi/status-dto.ts:71
-  Rule: Safe diagnostic projection
-  Failure scenario: Pi Status exports complete model objects. A model’s unmanaged
-  headers.Authorization value consequently appears in status --json, despite the main
-  API key being reduced to a presence flag.
-  Pin: verify:commands-pi
-  ────────────────────────────────────────
-  ID: B-4
-  Grade: Blocker
-  File:line: src/operations/commit.ts:128–129
-  Rule: Preserve concurrent changes
-  Failure scenario: Another writer updates a configuration after its backup but before
-  publication. The stale rendered document replaces that update; neither the resulting
-  target nor the backup contains it. Reproduced with a deterministic interleaving.
-  Pin: verify:write-safety
-  ────────────────────────────────────────
-  ID: B-5
-  Grade: Blocker
-  File:line: src/core/backup.ts:37; src/core/backup.ts:47–55
-  Rule: Backups must not overwrite one another
-  Failure scenario: Two writers select the same timestamped backup name before either
-  publishes. Both succeed and return the same path, but the later rename replaces one
-  snapshot. Reproduced with two different file versions.
-  Pin: verify:write-safety
-  ────────────────────────────────────────
-  ID: B-6
-  Grade: Blocker
-  File:line: scripts/verify-commands-pi.ts:52
-  Rule: Mandatory verification must pass
-  Failure scenario: The new API-removal helper creates models.json inside the
-  fresh-provider test’s home. The subsequent operation correctly makes a backup,
-  contradicting the test’s “fresh file” assertion and stopping npm test. This is
-  fixture contamination, not a runtime  backup defect.
-  Pin: verify:commands-pi, then npm test
-  ────────────────────────────────────────
-  ID: H-1
-  Grade: High
-  File:line: src/agents/codex/provider-use.ts:80–82;
-  src/agents/codex/preconditions.ts:23
-  Rule: One credential authority
-  Failure scenario: Activation succeeds while a Provider’s overriding env_key remains
-  configured. Routing and auth.json change, but Codex ignores the credential just
-  activated. Provider saving already refuses this conflict; activation does not.
-  Pin: CLI/TUI Codex activation fixtures
-  ────────────────────────────────────────
-  ID: H-2
-  Grade: High
-  File:line: src/agents/codex/activate.ts:93–96
-  Rule: Report all committed progress
-  Failure scenario: Adoption creates auth.kept.json, then live-auth publication fails.
-  Successful routing rollback returns a plain error and hides the surviving adopted
-  profile. Retrying the retained form then fails because kept already exists.
-  Pin: verify-codex-recovery.ts
+| ID / grade | Source | Current gap | Regression boundary |
+| --- | --- | --- | --- |
+| B-1 Blocker, partly fixed | [cli.tsx](src/cli.tsx), [run.ts](src/commands/run.ts) | Command fallback Agent values are now validated; no-command Commander unknown-option errors can still echo raw rejected argv | commands-secret, CLI no-command refusal |
+| B-2 Blocker | [Claude status DTO](src/agents/claude-code/status-dto.ts) and other Status presenters | Credential-bearing proxy/Base URLs can expose userinfo/password despite managed token masking | commands-status, TUI Status/review |
+| B-3 Blocker | [pi status DTO](src/agents/pi/status-dto.ts) | Complete model objects export unmanaged headers/credentials in JSON | commands-pi |
+| B-4 Blocker | [commit.ts](src/operations/commit.ts) | External changes between read/backup/publication can be lost; no lock/CAS conflict policy | write-safety, deterministic interleaving |
+| B-5 Blocker | [backup.ts](src/core/backup.ts) | Existence-based final-name selection followed by overwriting rename can collide between writers | write-safety, concurrent snapshots |
+| H-1 High | [provider-use.ts](src/agents/codex/provider-use.ts), [preconditions.ts](src/agents/codex/preconditions.ts) | Activation lacks the save-time env_key/experimental token authority refusal | CLI/TUI Codex activation |
+| H-2 High | [activate.ts](src/agents/codex/activate.ts) | Failed live-auth publication plus successful routing rollback can hide a surviving adopted profile and break retry | codex recovery |
+| H-3 High | [auth.ts](src/agents/codex/auth.ts), [preconditions.ts](src/agents/codex/preconditions.ts) | Separate saved-credential removal leaves adopted routing metadata; name reuse can pair a new key with an old route | adoption → remove → recreate → activate |
+| H-4 High | [activate.ts](src/agents/codex/activate.ts) | TUI Provider activation uses its ID directly while CLI resolves recorded profile route; adoption names matching tables can diverge | Cross-surface adoption roundtrip |
+| H-5 High | [commit.ts](src/operations/commit.ts) | Invalid-but-authorized base becomes missing; empty replacement is falsely reported as no-op, leaving malformed bytes | commands, deletion-only replace-invalid |
+| Post-delete follow-up | [provider-actions.ts](src/core/provider-actions.ts) | Ignore-note persistence failure after removal omits completed deletion report | provider-management, partial progress |
 
-  Required handling
+## Resolved entries
 
-  - B-1: Centralize safe usage-error presentation, including the no-command parser.
-    Never serialize fallback context unless it matches a validated Agent ID.
-  - B-2/B-3: Build diagnostic DTOs from explicitly safe fields. Redact
-    credential-bearing URL components; project model IDs and approved metadata rather
-    than exporting arbitrary stored objects. Preserving unmanaged configuration does not
-    authorize printing it.
-  - B-4: Serialize cooperating writers and detect stale snapshots before committing.
-    Define an explicit conflict policy for external writers; a whole-file rename alone
-    cannot guarantee preservation against them.
-  - B-5: Publish backups exclusively, with collision retry or genuinely unique names. An
-    existence check followed by overwriting rename() is insufficient.
-  - B-6: Give the API-removal regression its own scratch home. Keep the fresh-provider
-    test genuinely fresh.
-  - H-1/H-2: Share activation preconditions and committed-target accounting across CLI
-    and TUI. Successful rollback of routing must not erase facts about other files
-    already created.
+- B-6 fixture contamination: `0569b3e` gave pi API removal an independent scratch home; the old fresh-file backup failure is not a runtime defect.
+- M-1 conflicting selectors: `ceffd80` refuses conflicting CLI selectors before writes. Repeating the same selection is allowed; do not demand rejection of every repeated selector.
+- Earlier September/October findings are summarized in [the remediation retrospective](Remediation-Guide.md) and [resilience retrospective](docs/reviews/2026-10-01-resilience-audit.md). Their closure does not close this later list.
 
-  Spec
+## Distilled correction rules
 
-  These findings concern promised behavior, rather than style or implementation
-  conventions.
+Project diagnostics must explicitly project safe fields, including URL components and unmanaged metadata. Never serialize raw usage input. Preserve external changes through an explicit concurrency policy; publish backup names exclusively. Pair credential identity and effective routing through a shared lifecycle, and report all surviving changes even when one rollback succeeds.
 
-  ID: H-3
-  Grade: High
-  File:line: src/agents/codex/preconditions.ts:29–32; src/agents/codex/auth.ts:223–229
-  Requirement: Keep credentials paired with their route
-  Failure scenario: Adopt as saved → delete that profile → create a new Provider named
-  saved → activate it. Stale adoption metadata wins over the new Provider table,
-  pairing the new key with the old route while reporting success.
-  Pin: Codex adoption round-trip fixture
-  ────────────────────────────────────────
-  ID: H-4
-  Grade: High
-  File:line: src/agents/codex/activate.ts:91
-  Requirement: Either surface restores adopted routing
-  Failure scenario: An adoption name can match an existing Provider table without an
-  Auth
-  profile. Later TUI activation routes to that name instead of its recorded original
-  route. CLI and TUI consequently activate the same saved credential differently.
-  Pin: Cross-surface Codex adoption fixture
-  ────────────────────────────────────────
-  ID: H-5
-  Grade: High
-  File:line: src/operations/commit.ts:68–70; src/operations/commit.ts:84
-  Requirement: Malformed-target recovery must produce an honest result
-  Failure scenario: A deletion-only command with --replace-invalid returns ok: true,
-  changed: false while leaving the original malformed file untouched. Replacement
-  converts the base into “missing,” so empty output is incorrectly classified as a
-  no-op.
-  Pin: verify:commands
-  ────────────────────────────────────────
-  ID: M-1
-  Grade: Medium
-  File:line: src/commands/globals.ts:26–34
-  Requirement: Reject duplicate scalar options
-  Failure scenario: Two --agent selectors silently choose the last Agent. A wrapper and
-  caller can therefore disagree about the destination without receiving an ambiguity
-  error. Confirmed using dry-run.
-  Pin: verify:commands-parser
-
-  Required handling
-
-  - H-3: Give adoption metadata an explicit lifecycle. Deleting or rebinding a profile
-    must invalidate its old routing association; a reused name is not the same
-    credential identity.
-  - H-4: Use one effective-route resolver for all activation paths. Reject ambiguous
-    adoption names or represent their meaning explicitly.
-  - H-5: Distinguish absent, valid, and invalid-but-authorized-for-replacement targets
-    during planning. Do not return success with a known malformed target still present.
-  - M-1: Reject duplicate selectors before filesystem access or secret consumption,
-    including mixed --agent value and --agent=value forms.
-
-  The wrong Codex routing/credential pairings were reproduced in files and operation
-  results. No downstream credential transmission was performed or claimed.
-
-  Verification
-
-  Environment: Linux x86_64 / WSL2, Node.js 26.10.0, npm 12.1.0.
-
-  ┌────────────────────────────────┬────────────────────────────────────────────────┐
-  │             Check              │                     Result                     │
-  ├────────────────────────────────┼────────────────────────────────────────────────┤
-  │ npm run typecheck              │ Passed                                         │
-  ├────────────────────────────────┼────────────────────────────────────────────────┤
-  │ npm run build                  │ Passed                                         │
-  ├────────────────────────────────┼────────────────────────────────────────────────┤
-  │ npm run verify:code-gates      │ Passed: 273 files, 10 baseline exceptions      │
-  ├────────────────────────────────┼────────────────────────────────────────────────┤
-  │ npm test                       │ Failed in verify:commands-pi: AssertionError:  │
-  │                                │ a fresh file made a backup                     │
-  ├────────────────────────────────┼────────────────────────────────────────────────┤
-  │ Remaining fixtures, run        │ Passed, including Codex commands and           │
-  │ separately in sequence         │ release-artifact verification                  │
-  ├────────────────────────────────┼────────────────────────────────────────────────┤
-  │ git diff --check               │ Passed                                         │
-  ├────────────────────────────────┼────────────────────────────────────────────────┤
-  │ Targeted failure probes        │ Reproduced the reported failures using scratch │
-  │                                │  homes and synthetic credentials               │
-  └────────────────────────────────┴────────────────────────────────────────────────┘
-
-  No live Provider requests, real Agent-home writes, Windows/macOS validation, or
-  website checks were performed. Power-loss durability remains an already-documented
-  limitation, not a newly discovered defect.
-
-  Engineering priority
-
-  1. Close diagnostic credential leaks first.
-  2. Protect backup publication and concurrent writes.
-  3. Unify Codex activation around credential identity, effective routing, and explicit
-     progress records.
-  4. Make recovery truthful: report what changed, what was restored, what remains, and
-     what retry will do.
-  5. Test transitions, especially open → external change → save, adopt → fail → retry,
-     and delete → recreate → activate.
+Prioritize output leaks, concurrent-write/backup loss, Codex route identity, then truthful recovery. Assertions should cover transitions: external edit → save, adopt → fail → retry, remove → recreate → activate, delete → settings failure. [Verification](docs/verification.md) and [release gates](<Important Documentation.md#6-build-and-publish>) govern future fixes; no new runtime fix is claimed here.

@@ -2,96 +2,32 @@
 
 [简体中文](docs/zh-CN/CONTRIBUTING.zh-CN.md) | English
 
-ccset accepts bug fixes, documentation, tests, and product changes from external
-contributors. A pull request may be both the proposal and the implementation; a
-preceding issue is optional.
-
-Submitting an implementation does not create an obligation to merge it. The
-maintainer may decline a technically correct change because of product scope,
-complexity, security risk, or long-term maintenance cost. Final merge and npm
-release authority stays with the maintainer unless explicitly delegated.
+Bug fixes, docs, tests, and complete product proposals are welcome. A PR may be the proposal and implementation; a preceding issue is optional. Submission does not oblige acceptance: the maintainer decides scope, merge, and npm release unless explicitly delegated.
 
 ## Working on a change
 
-Follow the shared workflow in [AGENTS.md](AGENTS.md): inspect the affected code
-and decisions, identify the intended behavior, implement through the existing
-interfaces, verify the change, and report the evidence. The
-[architecture guide](docs/architecture.md) explains the runtime boundaries; the
-[verification guide](docs/verification.md) maps change areas to executable checks.
-Website changes follow [pages/README.md](pages/README.md), whose checks run from
-`pages/` with their own toolchain.
+Follow [AGENTS.md](AGENTS.md) and [scope-selected verification](docs/verification.md). Website work uses [its separate SOP](pages/README.md).
 
 ## Pull requests
 
-A product-changing pull request must:
+Use [the template](.github/PULL_REQUEST_TEMPLATE.md). Explain the user problem, resulting complete path, scope/maintenance cost, actual checks and pending evidence. Update covered English/Chinese docs. Significant TUI or visible website changes need terminal or desktop/mobile screenshots respectively; behavior changes need repeatable manual scenarios.
 
-- explain the user problem and the proposed scope change;
-- implement the complete user path, without demo-only gaps in the main flow;
-- pass the verification checks relevant to the change;
-- update English documentation and update Chinese documentation when it covers the
-  changed behavior;
-- include terminal screenshots for significant TUI changes; and
-- describe executable manual verification scenarios.
-
-Reviews apply the [code review rules](docs/agents/code-review.md): findings are
-graded on the data-loss and credential-exposure scale, and a Blocker or High
-finding stops a merge until fixed.
-
-Implementation proposals are triaged like issues. Draft pull requests are welcome
-when the direction is still being demonstrated, but only complete changes are
-eligible to merge.
+[Review rules](docs/agents/code-review.md) grade data-loss and credential risks; unresolved Blocker/High findings stop merging. Draft proposals are welcome; only complete verified changes can merge.
 
 ## New agents
 
-A new Agent integration must:
+An integration must serve a concrete user scenario, have repeatable format/behavior checks, reuse core safety, and preserve startup/interaction quality. Do not bundle the target Agent or execute it for detection/configuration. Explicit session launch is a separate capability.
 
-- address a concrete user scenario rather than exist only to demonstrate
-  extensibility;
-- have a repeatable way to verify its configuration format and behavior;
-- reuse the file safety, merging, backup, masking, and error handling in `src/core`,
-  or explain why the core must be extended;
-- avoid bundling or executing the target Agent;
-- avoid materially degrading startup time or interaction for existing users; and
-- include executable manual verification scenarios.
+Ship the module, registry entry, fixtures, bilingual documentation, and executable manual scenarios; see [integration mechanics](docs/adding-an-agent.md). State any shared-core extension and its regression scope. Limited continuing evidence may justify an experimental label; merging creates neither permanent support nor a lifetime maintenance obligation for the contributor.
 
-An integration that cannot be continuously verified may be marked experimental.
-Experimental integrations can be changed, downgraded, or removed. A contributor
-delivers the initial implementation and evidence; merging does not create a
-permanent support promise or require that contributor to maintain it forever.
-
-Provider-specific product branches are not accepted by default. A capability tied
-to one named Provider should enter the core only when it can be expressed as a
-general user-facing capability or has strong evidence of broader need.
+Provider-specific runtime branches require a general capability or strong evidence of broader need. Presets are public data, subject to [neutral contribution rules](presets/README.md).
 
 ## Verification
 
-For runtime or tooling changes, start with:
+Use [the guide](docs/verification.md), not a copied command checklist. Runtime/tooling changes need full-suite evidence locally or in CI before merge; run fixtures sequentially. Regressions must fail without the fix. Platform-specific changes need evidence on that platform.
 
-```bash
-npm run typecheck
-npm run build
-```
-
-Run the relevant `verify:*` fixtures and code-quality gate listed in the
-[verification guide](docs/verification.md). Shared behavior, dependencies, build,
-or test/CI changes also require `npm test`. Fixtures share output directories, so
-run them sequentially. The full suite must pass locally or in CI before merging
-runtime or tooling changes.
-
-For documentation-only changes, check the diff, links, examples, and factual
-claims; typecheck/build are needed only when a changed example or instruction
-requires them. Extend the existing assertion fixtures for behavior changes and
-bug regressions; no separate test framework is required.
-
-Use [Important Documentation.md](<Important Documentation.md>) for the affected
-manual data-safety and interactive scenarios. Platform-specific paths,
-permissions, and terminal behavior require evidence on that platform. Report
-commands, environments, results, and pending checks; append new runtime evidence
-to the register's §9 without rewriting earlier entries. Release requirements are
-in §6, separate from the verification needed for an individual change.
+Append new runtime results to [register §9](<Important Documentation.md#9-implementation-register-code-complete>), preserving old entries. Documentation-only checks belong in the handoff/PR; release gates remain in §6.
 
 ## License
 
-By contributing, you agree that your contribution is licensed under this project's
-MIT License and confirm that you have the right to submit it. The project does not
-require a CLA or DCO sign-off.
+Contributions use the project's MIT License; confirm you have the right to submit them. No CLA or DCO sign-off is required.

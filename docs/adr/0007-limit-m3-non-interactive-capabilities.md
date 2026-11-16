@@ -1,8 +1,5 @@
-# Limit Milestone 3 non-interactive capabilities
+# Limit non-interactive capabilities to explicit local operations
 
-Milestone 3 covers local deployment and inspection operations whose choices can
-all be supplied explicitly: status, global settings, provider writes, Claude Code
-state creation when absent, and Codex provider switching. It does not promise TUI
-menu parity; credential-bearing network probes and destructive maintenance such as
-clearing backups or removing Auth profiles remain outside this milestone until
-they have their own safety contracts.
+Accepted, extended by [ADR 0020](0020-add-short-commands-presets-and-session-launch.md). Commands cover status, managed global/Provider writes, create-only Claude state, all-Agent use, presets and explicit Claude run. This does not promise TUI parity.
+
+Provider deletion/ignore, Auth-profile removal, backup cleanup and credential-bearing probes remain TUI-only until separately specified script safety contracts exist. A proposed destructive command is not authorized by the ordinary set/use contract.

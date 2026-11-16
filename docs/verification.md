@@ -2,204 +2,101 @@
 
 [简体中文](zh-CN/verification.zh-CN.md) | English
 
-Use this guide to choose checks for a change. [AGENTS.md](../AGENTS.md) defines
-the shared workflow; [Important Documentation.md](<../Important Documentation.md>)
-holds manual scenarios, release requirements, unknowns, and recorded evidence.
+[AGENTS.md](../AGENTS.md) owns the workflow. This guide selects checks; [the register](<../Important Documentation.md>) owns manual scenarios, release gates (§6), and dated evidence (§9).
 
 ## Choose checks by scope
 
-| Change | Required local checks |
+| Change | Required checks |
 | --- | --- |
-| Documentation only | `git diff --check`; check changed links, anchors, examples, and claims against the referenced source. Runtime checks are needed only when a changed instruction or example needs execution to verify it. |
-| Runtime TypeScript or verification fixtures | `npm run typecheck`, `npm run build`, `npm run verify:code-gates`, and the relevant fixtures below. |
-| Shared writes, codecs, credentials, or behavior used by multiple Agents/surfaces | The runtime checks plus `npm test`; cover the affected manual data-safety scenarios. |
-| Dependencies, build configuration, package contents, or test/CI wiring | `npm run typecheck`, `npm run build`, and `npm test`; inspect the artifact and affected CI jobs. |
-| TUI layout, navigation, or input | The runtime checks and relevant UI fixtures; manually exercise the changed flow in a real terminal, including narrow/resize behavior when affected. |
-| Website (`pages/`) | From `pages/` with Node 22.22+/24.15+/26+: `npm run typecheck`, `npm test` (Vitest with enforced coverage), `npm run build`, `npm run smoke`; manually check the dev server at desktop and mobile widths. See [pages/README.md](../pages/README.md). |
-| Release | All requirements in the register's §6, including automated fixtures and the applicable platform evidence. |
+| Documentation only | Links, anchors, examples, source-backed claims, `git diff --check`; execute changed instructions when needed |
+| Runtime TypeScript or fixtures | Root typecheck, build, `verify:code-gates`, affected fixtures |
+| Shared writes/Codecs/credentials, dependencies, build, test/CI wiring | Runtime checks plus full `npm test`; inspect affected artifacts/manual safety scenarios |
+| TUI input/layout/navigation | Runtime checks, affected UI fixtures, real-terminal flow; narrow/resize checks when affected |
+| Website or rendered Markdown | From `pages/`: typecheck, test with coverage, build, smoke; visible UI changes also need desktop/mobile checks and PR screenshots |
+| Release | Register §6 and applicable platform evidence |
 
-Run focused fixtures while developing. Before merging runtime or tooling changes,
-the full suite must pass locally or in CI on the applicable supported platforms.
-A command's inclusion in CI is not a record that a particular run passed.
+Before merging runtime/tooling changes, the full suite must pass locally or in CI on applicable supported platforms. A workflow definition is not evidence that a run passed.
 
 ## Setup and execution
 
-Use Node.js 18+ and install the locked dependencies:
+CLI: Node ≥18; root `npm ci`, `npm run typecheck`, `npm run build`. There is no root lint command or separate unit-test framework: `scripts/` contains executable assertion fixtures. [package.json](../package.json) is the authoritative command inventory; `npm test` runs its named fixtures sequentially.
 
-```bash
-npm ci
-npm run typecheck
-npm run build
-```
+**Never run fixtures concurrently in one checkout.** They clean the shared `.verify/` directory; several also rebuild `dist/`. Do not build alongside those fixtures. POSIX shell scripts and PTY checks need Linux/macOS and `python3`; report permission skips on root/win32.
 
-There is no separate lint command or unit-test framework. The tests are executable
-TypeScript fixtures under `scripts/`, using assertions and the shipped modules.
-Run an individual fixture with its `npm run verify:<name>` command. `npm test`
-runs every named `verify:*` fixture in sequence, including locale parity and
-error recovery. [package.json](../package.json) is the command inventory; do not
-maintain a separate fixture count in entry-point instructions.
-
-**Run fixtures sequentially in a checkout.** Each fixture bundles into `.verify/`
-with `--clean` and removes that directory afterward. Concurrent fixtures can
-delete each other's bundle. Several also rebuild `dist/`, so do not run a build
-alongside a fixture that uses the built CLI.
-
-The npm scripts use POSIX shell syntax. The PTY fixtures require `python3` and
-its POSIX `pty` module. Run the full suite on Linux or macOS; native Windows CI
-runs the boundary smoke and packaging checks described below. Permission checks
-can be skipped by a fixture on root/win32; report those skips as unverified.
+Website: separate package/lockfile, with Node `^22.22.2 || ^24.15.0 || >=26`. Run `npm ci` and its checks from `pages/`; see [site SOP](../pages/README.md).
 
 ## Fixture map
 
-Choose all rows reached by the change, including the other surface when behavior
-is shared between a TUI save and a Non-interactive command.
+Run every row reached by the change, including both surfaces when they share behavior. Each name below is an `npm run verify:<name>` suffix. Coverage describes fixture assertions, not a guarantee for arbitrary unmanaged input.
 
-| Command | Covers |
+| Fixture | Boundary covered |
 | --- | --- |
-| `npm run verify:global-settings` | Claude Code managed writes, unmanaged-key preservation, proxy deletion, no-op re-save, backup bytes and modes |
-| `npm run verify:provider-safety` | Claude Code provider preservation, activation command quoting, rotation, masking, secret-free failures |
-| `npm run verify:provider-management` | Provider deletion per Agent (file or shared block, siblings and comments preserved, backup taken, no-op when absent, Codex routing refusal and credential sidecar), the ignore list in ccset's settings file, the list and probe Screens that honor it, the ignore note cleared by a delete, the Rendered paint after a delete landing on the provider list, and the Edit entry of an open provider Screen reading its document again each time it is chosen: after a save and after an outside delete for Claude Code, after an outside change for the other four Agents |
-| `npm run verify:write-safety` | Create-only state and adoption publication races, atomic writes under SIGKILL, backup integrity, permission failures |
-| `npm run verify:opencode` | Global/provider semantics, per-key models merging, JSONC corpus and target selection, masking and backups |
-| `npm run verify:codex` | TOML corpus, provider invariants, Auth profiles, switching/adoption, recovery failures, screen string resolution |
-| `npm run verify:ui-render` | Full Ink component flow, local Agent filtering, focus, masking, Unicode/ASCII paints, short viewports and scrolling |
-| `npm run verify:header-path` | Frame titles on push/back and path elision at narrow widths |
-| `npm run verify:layout` | Application frame and Panels: aligned borders under Unicode and ASCII, key help in the border or wrapped and reserved in both locales at 80 and 100 columns, side Panels at 100+ columns and never beside a message, the frameless short terminal, visible-screen clear on narrowing |
-| `npm run verify:side-info` | Secret-free Glance and focused Previews, Status findings, refresh after save, read-only scratch-home hashes, SGR mouse clicks including split input and outside-row no-op, both locales, strip breakpoints, and side-panel height budgeting |
-| `npm run verify:review-form` | Changed rows, hints, Advanced toggle, `ctrl+s`, long-value cursor visibility |
-| `npm run verify:error-recovery` | Failed-save draft and dirty-guard retention, partial-commit paths/backups/rollback, denied and mixed cleanup with retry |
-| `npm run verify:malformed-dirty` | Malformed-target confirmation and unsaved-edit prompts through a real PTY |
-| `npm run verify:pty-isolation` | PTY children ignore inherited Agent-home overrides and stay in scratch homes |
-| `npm run verify:first-run-locale` | First-use language choice, persistence, overrides, cancellation, help/version/non-TTY boundaries |
-| `npm run verify:status-terminal` | Status refresh/scrolling, narrow layout, version and non-TTY behavior |
-| `npm run verify:i18n-zh` | English/Chinese key and placeholder parity, locale normalization and CLI language selection |
-| `npm run verify:short-commands` | Positional/environment selectors, TTY-only inference, every bundled preset/Agent combination, unified use, Codex model rollback, shell-free Claude run, and hidden-key PTY save/cancel. |
-| `npm run verify:commands` | Parser and operation boundary, exit codes, patch preservation/deletion, dry-run, no-op, recovery and output |
-| `npm run verify:commands-parser` | The parser's own normalization contract: int fields refuse NaN without a field validator, and a following flag is never an option value |
-| `npm run verify:commands-status` | Secret-free status payloads, findings, partial-readable parse failures and state creation |
-| `npm run verify:commands-secret` | Secret sources/rejections, provider writes, omitted-secret preservation, output masking |
-| `npm run verify:commands-opencode` | opencode status/global commands, typed values, nested preservation, JSONC findings |
-| `npm run verify:commands-opencode-provider` | Provider patches, per-key models merge, token placement, new-provider validation, malformed recovery |
-| `npm run verify:pi` | pi settings/provider saves through the TUI seam, per-member models merging, comment preservation, blank-field omission, external-modification re-read, byte-identical JSONC corpus, backup rotation and modes, detection, `PI_CODING_AGENT_DIR` rule, status masking |
-| `npm run verify:pi-screens` | pi screen string resolution: every action run and descended, labels/help/details/choices against the catalog |
-| `npm run verify:commands-pi` | pi provider patches, models merge and secret sources (stdin and `CCSET_TOKEN`), unset/dry-run refusals, secret-free status, malformed recovery, dry-run/no-op zero writes, exit codes |
-| `npm run verify:commands-pi-use` | pi global patching and provider use writing both startup leaves, off-list model warning, unreadable-models and no-model refusals |
-| `npm run verify:grok-build` | grok-build settings/provider saves through the TUI seam, TOML preservation, blank-field omission, external-modification re-read, byte-identical corpus, backup rotation and modes, detection, `GROK_HOME` rule, status masking |
-| `npm run verify:grok-build-screens` | grok-build screen string resolution: every action run and descended, labels/help/details/choices against the catalog |
-| `npm run verify:commands-grok-build` | grok-build provider patches, built-in-override shape, secret sources (stdin and `CCSET_TOKEN`), unset/dry-run refusals, secret-free status, malformed recovery, dry-run/no-op zero writes, exit codes |
-| `npm run verify:commands-grok-build-use` | grok-build global patching and provider use writing `models.default`, unknown-id warning, built-in id through free text, unreadable-config refusal |
-| `npm run verify:commands-codex` | Codex status/global commands, TOML preservation, typed integers, environment findings and replacement backups |
-| `npm run verify:commands-codex-provider` | Provider invariants, Auth profile preservation, credential-source refusals, untouched live auth |
-| `npm run verify:commands-codex-use` | Switch ordering, adoption/restoration across CLI and TUI, routing metadata, replacement choices, idempotence, environment preconditions, partial failures |
-| `npm run verify:code-gates` | TypeScript file/function size and complexity over `src/`, `scripts/`, and `pages/`, plus stale or new baseline violations |
-| `npm run verify:release-artifact` | Clean-tree and release-tag guard, pinned-action and least-privilege/provenance workflow contracts, build, pack, temporary install, allowed package contents, executable/shebang and CLI smoke, plus the unscoped forwarding package's contents and command/output/exit-code parity |
+| `global-settings` | Claude global leaves, preservation, proxy deletion, backups/modes |
+| `provider-safety` | Claude Provider preservation, command quoting, key rotation/masking |
+| `provider-management` | Five-Agent delete/ignore, Codex route refusal/sidecar, list return and fresh Edit reads |
+| `write-safety` | Exclusive create-only publication, SIGKILL atomicity, backups and permission failures |
+| `opencode` | Global/Provider saves, model-map merging, JSONC target/editor corpus |
+| `codex` | TOML corpus, Provider invariants, Auth profiles, switching/adoption/recovery |
+| `pi` | TUI saves, models by-member merge, JSONC preservation, detection/path overrides |
+| `grok-build` | TUI saves, TOML preservation, built-in overrides, detection/path overrides |
+| `pi-screens`, `grok-build-screens` | Every reachable Screen string and indirect catalog key |
+| `ui-render` | Ink flow, discovery, focus, masking, glyphs, short Viewports/scrolling |
+| `header-path` | Navigation titles and narrow path elision |
+| `layout` | Panel borders/help, side-panel breakpoints, frameless short terminals |
+| `side-info` | Read-only Glance/Preview, refresh, SGR mouse input, locale/width/height budgets |
+| `review-form` | Changed rows, hints, Advanced toggle, save shortcut, cursor visibility |
+| `error-recovery` | Draft/dirty retention, partial commits/rollback, failed backup cleanup/retry |
+| `malformed-dirty` | Malformed replacement and unsaved-edit prompts through a PTY |
+| `pty-isolation` | PTY children clear inherited Agent-home overrides |
+| `first-run-locale` | First-use choice/persistence, overrides, cancel, help/version/non-TTY |
+| `status-terminal` | Refresh/scrolling, narrow layout, version/non-TTY boundaries |
+| `i18n-zh` | Both catalogs' keys/placeholders, normalization and CLI locale |
+| `short-commands` | Selectors/TTY inference, every preset combination, unified use, Claude run/hidden key |
+| `commands` | Parser/operation contract, exit codes, patches/unsets, dry-run/no-op/recovery |
+| `commands-parser` | Integer normalization and flags refused as values |
+| `commands-status` | Status DTO assertions, partial-readable failures, state init |
+| `commands-secret` | Secret sources/refusals, omitted-key preservation, output assertions |
+| `commands-opencode` | Global/status, typed fields, nested preservation and JSONC findings |
+| `commands-opencode-provider` | Provider/model patches, token placement and malformed recovery |
+| `commands-pi` | Provider/model patches, secrets, unset, malformed recovery, zero-write plans |
+| `commands-pi-use` | Global patches, both startup leaves, off-list warning/no-model refusal |
+| `commands-grok-build` | Provider patches, built-in shape, secrets/unsets/replacement/no-op |
+| `commands-grok-build-use` | Global/default-model patches, built-in free text, unreadable config |
+| `commands-codex` | Global/status, TOML/integers, environment findings and replacement |
+| `commands-codex-provider` | Provider/Auth-profile patches, credential preconditions, untouched live auth |
+| `commands-codex-use` | Switch order, adoption/restoration/routing, preconditions and partial failure |
+| `code-gates` | TypeScript size/complexity in CLI, fixtures, website; baseline ratchet |
+| `release-artifact` | Release guards/workflows, pack/install/contents/shebang, scoped and forwarded CLI parity |
 
-All `verify:commands` / `verify:commands-*` scripts build before running and
-exercise `dist/cli.js`; some also assert directly against the operation seam.
-`verify:malformed-dirty`, `verify:first-run-locale`, `verify:status-terminal`, and
-`verify:i18n-zh` also build first. The release-artifact fixture builds internally,
-packs and installs the tarball into a temporary project; it does not publish.
-The forwarding package in `packages/ccset/` is packed and installed into a
-second temporary project. Its dependency pins a published version of
-`@droite/ccset`, and the fixture asserts from npm's install record that this
-version was not taken from a local tarball: installed beside the tarball
-packed above, a pin equal to this checkout's version would be satisfied by
-that build. The forwarded CLI is then compared with the dependency it resolves
-for version, help, non-TTY refusal, and invalid-option behavior. This needs
-network access to the npm registry.
-Other fixtures import source modules and are bundled for execution by tsup.
+`commands` and `commands-*` build and exercise `dist/cli.js`; some also call the operation seam. `short-commands`, `malformed-dirty`, `first-run-locale`, `status-terminal`, and `i18n-zh` build too. Agent/Codec corpora and helpers run inside these named fixtures, not as extra standalone commands.
 
-The release guard checks each package against its own GitHub Release tag:
-`v<version>` for `@droite/ccset`, `ccset-v<version>` for the forwarding `ccset`
-package. The fixture covers clean matching releases, cross-package and
-mismatched tags, local publishing, and dirty checkouts. `publish.yml` routes
-those tags to separate jobs in the same `npm-publish` environment, with
-provenance enabled. Each npm package needs its own trusted publisher and
-publishing permissions; passing a local fixture does not prove either is set.
-npm attaches a trusted publisher only to a package that already exists, so a
-package's first version cannot be published by the workflow.
-
-Not every `scripts/verify-*.ts` file is independently runnable. Codec corpora and
-Codex recovery helpers run inside the Agent fixtures; `verify-viewport.ts` and
-`verify-agent-discovery.ts` run inside `verify:ui-render`, `layout-rules.ts`
-runs inside `verify:layout`, `verify-release-state.ts` runs inside
-`verify:release-artifact`, and `verify-provider-screens.ts` runs inside
-`verify:provider-management`. `verify-side-info.ts` can print scratch visual
-previews at 130, 100, 90, and 79 columns with `CCSET_VISUAL=1 npm run
-verify:side-info`. `ui-session.ts` and
-`ui-assertions.ts` drive component tests; `pty-session.ts` drives a real terminal; `cli-harness.ts` runs commands with
-isolated homes; `kill-harness.ts` supports `verify:write-safety`.
+The artifact fixture builds/packs without publishing. It installs the forwarding package into a **separate** temporary project and resolves its exact scoped dependency from npm. Installing it beside the local CLI tarball can falsely satisfy the pin from the checkout. This fixture needs registry network access; passing it does not prove trusted-publisher setup.
 
 ## Add or extend verification
 
-Prefer extending the fixture for the affected behavior. Assert observable
-results: file contents and untouched siblings, backups, permissions, exit codes,
-secret-free output, or Rendered paints. Exercise the public operation/CLI boundary
-when that is the changed contract. Reuse the harnesses instead of recreating
-the behavior being tested.
+Extend the affected fixture; assert observable file bytes/values, untouched siblings, backups/modes, exit codes, output or Rendered paints. Use `cli-harness.ts`, `ui-session.ts`/`ui-assertions.ts`, `pty-session.ts`, and `kill-harness.ts` rather than duplicating the implementation.
 
-For a bug, show that the regression assertion fails without the fix. A new Agent
-or data-safety fixture also needs a deliberate mutation that makes it fail; see
-[adding an Agent](adding-an-agent.md#prove-it). Restore the mutation and run the
-fixture again before handing off. Documentation-only changes do not need new
-runtime assertions.
+A regression must fail without its fix. New Agent/data-safety fixtures need a deliberate mutation that turns them red, followed by restoration and a passing run; see [Prove it](adding-an-agent.md#prove-it). Register standalone fixtures in both a `verify:*` script and the sequential `test` chain, then update this map. Never add quality-baseline exceptions for new violations.
 
-Wire a new standalone fixture into both a `verify:*` script and the sequential
-`test` script in `package.json`, then add its scope to the table above. Keep helper
-modules out of the command inventory. Do not expand the code-quality baseline to
-make new violations pass.
+Direct `App` fixtures bypass the CLI: inject scratch `ctx.home`, terminal glyphs and Viewport; import `src/registry.js` before resolving Agent message keys. Optional visual output: `CCSET_VISUAL=1 npm run verify:side-info`.
 
 ## Manual runs and evidence
 
-Use a scratch home for every local write scenario. For example, after building,
-run this in a real terminal:
+After building, run in a real terminal with a scratch home:
 
 ```bash
 ccset_scratch="$(mktemp -d)"
 CCSET_HOME="$ccset_scratch" CCSET_LOCALE=en node dist/cli.js --agent claude-code
 ```
 
-Inspect only the files under that directory and remove it when finished. Omit
-`CCSET_LOCALE` to exercise first-use language selection. Use placeholder tokens
-such as `sk-TEST-DO-NOT-USE` for local checks. A piped interactive invocation exits
-2 by design; use a real PTY for input/navigation checks.
+Use placeholder keys; inspect only scratch files. Omit locale to exercise first use. A no-command invocation with non-TTY stdin exits 2. `CCSET_HOME` isolates ccset writes, **not** an upstream Agent launched by `run`; isolate that process separately.
 
-Fixtures mounting `App` directly bypass `cli.tsx`: supply the scratch home via
-`ctx`, the glyph set via `terminal`, and fixed dimensions via `viewport` when
-testing layout. Import `src/registry.js` before resolving Agent message keys,
-because message registration happens when that module loads.
-
-Record the command/scenario, result, OS, Node version, and terminal/shell or Agent
-version when relevant. Append new runtime evidence to the register's §9; leave
-old entries as history. Record failed, skipped, and pending checks explicitly.
-Routine documentation checks belong in the handoff or PR description. A fixture
-with synthetic files does not prove a live Provider request or another platform.
+Record commands/scenarios, result, OS/Node and relevant Agent/terminal/shell versions, including failures/skips/pending checks. Append new runtime evidence to register §9; leave prior entries intact. Routine documentation checks belong in the handoff/PR. Synthetic files do not prove live requests or another platform.
 
 ## CI and release
 
-[ci.yml](../.github/workflows/ci.yml) is the CI definition. It currently runs
-typecheck, build, a built-CLI smoke, and `npm pack --dry-run` on Ubuntu, macOS,
-and Windows with Node 18/20/22. The smoke requires non-empty `--version` output
-without ANSI escapes and a non-TTY interactive refusal with exit 2 and no ANSI.
-Ubuntu and macOS also run `npm test`; Windows skips the POSIX fixture suite.
+[CLI CI](../.github/workflows/ci.yml): Ubuntu/macOS/Windows × Node 18/20/22 run install, typecheck, build, built-CLI version/non-TTY smoke, and pack dry-run. Ubuntu/macOS also run `npm test`; Windows skips POSIX fixtures.
 
-The website has its own workflows. [pages-ci.yml](../.github/workflows/pages-ci.yml)
-runs the site's checks (install, typecheck, Vitest, build, smoke) on pull
-requests touching `pages/**`, `docs/**`, root `*.md`, or either workflow.
-[deploy-pages.yml](../.github/workflows/deploy-pages.yml) runs the same checks
-on every push to `master` (no path filter, so doc edits never leave the site
-stale) and on `workflow_dispatch`, then deploys `pages/dist` through the
-official Pages actions; the build takes its base path from
-`actions/configure-pages`. These workflows pin Actions to commit SHAs; only the
-build job reads repository contents, and only the deploy job receives Pages and
-OIDC permissions. [publish.yml](../.github/workflows/publish.yml) publishes a
-version-matched GitHub Release from a clean checkout through npm trusted
-publishing, which generates provenance without a long-lived npm token. The
-npm Trusted Publisher must be configured for this repository, workflow, and
-`npm-publish` environment before a release can publish. Root `ci.yml` does not
-build the site.
+[Site CI](../.github/workflows/pages-ci.yml) checks PRs touching site/docs/root Markdown/workflows. [Pages deployment](../.github/workflows/deploy-pages.yml) repeats checks on every `master` push and manual dispatch, takes the configured base path, and deploys `pages/dist/`. Root CI does not build the site.
 
-Release checks and platform exceptions are defined in the register's §6 and
-[SUPPORT.md](../SUPPORT.md). Platform-specific path, permission, or terminal
-changes need manual evidence on that platform. Keep those requirements separate
-from the checks needed for a local documentation edit.
+[Publishing](../.github/workflows/publish.yml) routes `v<version>` to `@droite/ccset` and `ccset-v<version>` to the forwarder. Both require a clean matching release, package-specific trusted publisher in `npm-publish`, and provenance. Initial package registration is a maintainer bootstrap step; subsequent releases use the workflow. [Register §6](<../Important Documentation.md#6-build-and-publish>) and [SUPPORT.md](../SUPPORT.md) define release/platform requirements.

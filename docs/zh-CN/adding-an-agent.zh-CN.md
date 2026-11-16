@@ -2,143 +2,69 @@
 
 [English](../adding-an-agent.md) | 简体中文
 
-把现有的 Claude Code、opencode、Codex、pi 和 Grok Build 模块当作同一个扩展边界在不同文件布局下的示例。一次接入包括其运行时模块、注册表条目、验证 fixture 和文档。现有的 JSON、JSONC 和 TOML Codec 均可复用。
+先满足[贡献标准](CONTRIBUTING.zh-CN.md#新-agent)，阅读[术语](CONTEXT.zh-CN.md)、[架构](architecture.zh-CN.md)、[命令契约](milestone-3-non-interactive.zh-CN.md)。[编码助手 SOP](../agents/add-agent-workflow.md) 定义执行顺序。
 
-开始之前，先阅读 [`CONTEXT.md`](../../CONTEXT.md) 了解术语（Screen、Frame、Agent、Provider）。阅读 [`CONTRIBUTING.md`](../../CONTRIBUTING.md) 了解新接入必须跨过的门槛；本指南只讲具体机制。分步的编码助手工作流程、交付物和可复用的任务模板，见[中文工作流程](../agents/add-agent-workflow.md)。
+## 交付内容
 
-## 你实际在构建什么
+Agent 读取本地配置，返回 form／list／status／confirm／message 形态的 `ActionResult`，映射提交值为托管写入；View 渲染数据，模块不导入 `src/ui/`。
 
-Agent 模块把磁盘上的文件变成 `src/types.ts` 中五种 `ActionResult` 形态——`form`、`list`、`status`、`confirm`、`message`——再把提交的表单变回写入操作。它绝不从 `src/ui/` 导入。如果你发现自己产生了这种念头，说明你需要的形态在 `types.ts` 中缺失，那才是应当提出的改动。
+编码前记录上游来源／版本、路径／优先级、格式、托管叶子／类型、删除语义、ID、凭据优先级、生效时机、检测与验证限制。其他 Agent 仅作结构参考，不能证明新 Agent 的策略。
 
 ## 扩展边界
 
-PRD §2.2 准则 5 将 Agent 模块和 `src/registry.ts` 定义为扩展边界。该模块是一个包含多个文件的目录。复用既有能力的 Agent，除注册表外不改动其模块之外的任何运行时代码。fixture、`package.json` 接线和文档是预期的额外改动。
-
-如果你还需要另一处运行时改动，先明确它属于什么职责：
-
-- **你需要一条文案。**把它放进你自己的 `messages.ts`（见下文），而不是放进 `src/i18n/en.ts`。
-- **你需要一个路径辅助函数。**把它放进你模块的 `paths.ts`。`src/core/paths.ts` 只容纳 `resolveHome`、`backupsDirFor` 和 `listNamedFiles`，其中 `listNamedFiles` 以回调形式接受你的命名规则。
-- **你需要一项共享能力。**把核心/接口改动写明确，让它能单独评审，并为既有 Agent 和新 Agent 都配上检查。它可以作为完整实现提案的一部分；按 [CONTRIBUTING.md](../../CONTRIBUTING.md)，前置 issue 是可选的。
+复用能力时运行时只改 `src/agents/<id>/` 和 `src/registry.ts`；fixture、npm 脚本、文档也是交付。新 Codec／Screen／operation 属共享接口扩展，要说明职责与已有 Agent 回归范围；前置 issue 仍可选。
 
 ## 模块布局
 
-在模块内使用职责单一的文件，并遵守可执行的质量限制。这只是一种常见布局，不是对文件数量的硬性要求：
+按职责拆分，不限定文件数量。
 
-| 文件 | 内容 |
+| 文件 | 职责 |
 | --- | --- |
-| `index.ts` | `Agent` 对象：`id`、`name`、`messages`、`detect`、`getActions`，以及可选的 `commands` |
-| `manifest.ts` | **纯数据。**每个受管键只声明一次 |
-| `constants.ts` | 模板默认值、枚举值和传输细节 |
-| `paths.ts` | 配置存放在哪里，备份放到哪里 |
-| `global.ts` | 顶层配置的 `seed*` / `emit*` / `save*` |
-| `providers.ts` | 针对单个提供商的同套函数，外加发现逻辑 |
-| `status.ts` | 只读视图。读取一切，不写入任何内容 |
-| `actions.ts` | 组装菜单的各个 Action |
-| `messages.ts` | 你的文案，位于唯一的 Agent 命名空间下，同时提供两种语言 |
-| `commands.ts` | 命令声明与处理器，在暴露非交互命令时提供 |
-| `status-dto.ts` | 结构化、不含密钥的 Status 数据，供命令输出共用 |
+| index.ts | 身份、消息、检测、动作、可选 commands |
+| paths.ts／constants.ts | 路径／覆盖、初值／边界／协议 |
+| manifest.ts | 托管字段声明与映射 |
+| global.ts／providers.ts | read／seed／emit／save、Provider 发现 |
+| status.ts／status-dto.ts | 只读状态、显式安全投影 |
+| actions.ts／messages.ts | Screen 组合与双语目录 |
+| commands.ts | Agent 自有字段声明与结构化 handler |
 
-Codex 还把凭据处理拆分到 `auth.ts`、`activate.ts` 和 `provider-use.ts`，因为它的 Auth profile 存放在配置文档之外。当 Agent 的职责需要时，可以使用更多文件。
+Codex 分离 profile／激活／路由恢复；借鉴职责，不复制认证策略。
 
-## 容易出错的部分
+## 易错点
 
-### 删除不是优化
-
-带 `value: undefined` 的 `ManagedWrite` 表示**删除该键**。当字段契约要求省略时，TUI 里留空或选择 Unmanaged 都必须移除该键，而不是写入 `""` 或 `null`。关闭代理会删除其环境变量键，而像 `autoupdate = false` 这样受支持的布尔设置仍然是一个值。对应的表单类型转换请使用 `src/core/values.ts` 中的 `textOrUndefined`、`intOrUndefined` 和 `csvOrUndefined`。
-
-### 写入前立即重新读取
-
-在 ccset 打开期间，Agent 会改写自己的配置。`save*` 在保存时重新读取目标，而不是在启动时。沿用 Screen 打开时的解析结果，会覆盖 Agent 在这期间写入的任何内容。
-
-重新读取保护的是表单不携带的键。表单自己的字段会按表单里的值写入，所以表单的初始值必须来自打开它时的那次读取。提供商自己的 Screen 在多次保存之间一直开着；它的编辑入口每次都要重新读取该提供商，不能沿用列表加载时的记录。
-
-### 绝不整体写入子树
-
-写叶子，而不是它的父对象。opencode 的 provider options 看起来像一个适合整体赋值的对象：
-
-```ts
-// 错误：会毁掉 options.headers，以及用户放在那里的其他任何内容。
-{ path: ['provider', id, 'options'], value: { baseURL, apiKey } }
-
-// 正确：两个叶子，每个非受管的同级键都得以幸存。
-{ path: ['provider', id, 'options', 'baseURL'], value: baseURL }
-{ path: ['provider', id, 'options', 'apiKey'], value: apiKey }
-```
-
-如果映射里的条目用户也会编辑，道理相同。opencode 的 `provider.<id>.models` 按键合并——磁盘上已有的 id 保留自身设置，新增的 id 会被添加，从列表中移除的 id 会被删除——因为整体写入该映射会丢弃每个模型各自的设置。这需要当前磁盘状态，因此 `emitProvider` 把它作为参数接收。
-
-### 备份归你所有
-
-`backupFile(dir, path)` 接收的是目录。传入 `backupsDirFor(yourConfigDir)`，这样你的轮转就不会挤掉另一个 Agent 的备份，ccset 也绝不会写进目标 Agent 会按自己的节奏清理的目录。
-
-### 文案随模块一起交付
-
-```ts
-export const yourMessages: Record<string, Record<string, string>> = {
-  en: { 'yourAgent.field.apiKey': 'API key' },
-  'zh-Hans': { 'yourAgent.field.apiKey': 'API 密钥' },
-}
-```
-
-每个键都使用唯一的 Agent 命名空间。注册表会合并这些文案并**在遇到重复时抛出异常**，因此你无法悄然重定义一条 shell 通用文案。复用 `src/i18n/en.ts` 中的共享词汇——`field.baseUrl`、`action.status`、每一条 `write.*` 和 `confirm.*`——而不是重新表述一遍。
-
-下面两个字段之所以存在，是因为两个 Agent 的说法不一致：
-
-- `Action.detailKey`——两个 Agent 都把某个 Screen 标注为 “Global settings”，但描述的却是不同的文件。
-- `WriteReport.activateKey`——Claude Code 需要 `claude --settings <path>`；opencode 在启动时读取自己的配置，没有什么可激活的。
-
-### 说明你做不到的事
-
-在 Status 中指明不受支持的格式、凭据存储或激活路径，并把验证缺口记录在案。把尚未解决的兼容性假设记录到 `Important Documentation.md` §1，而不是把合成的 fixture 当作真实环境下的兼容性结论。
-
-例如，opencode 的 JSONC 缺口已用格式保留的 Codec（ADR 0004）解决：已存在的 `.jsonc` 现在是受管目标，其遗留的 `.json` 保持原样。复用这套选择逻辑与 Codec 行为；针对真实运行的合并顺序核查仍单独记录为 U6。
+- **删除**：ManagedWrite 的 undefined 删除；TUI 空／Unmanaged 按契约省略，false 保持布尔。复用值转换；CLI 省略保留，unset 用声明 ID。
+- **新鲜度**：每次表单进入重读，包括持续打开 Screen 的 Edit；保存再重读。托管字段仍可能覆盖外部同字段变更，不能声称有锁／CAS。
+- **叶子／集合**：写 options.baseURL／apiKey，不替换 options；留下的模型 ID 保留元数据，仅增删选定成员。
+- **安全**：复用 plan／apply、备份／原子／create-only／删除；备份用 backupsDirFor(configDir) 防止跨 Agent 清理。显式恢复留损坏原文，命令先 preflight 后写。
+- **凭据**：明确上游优先级；DTO 不导出任意 model／header 对象或 URL 凭据成分。保留磁盘数据不代表可以打印。
+- **字符串**：独立 Agent namespace，messages.ts 同供 en／zh-Hans，复用 shell 键；registry 拒绝重复。detailKey／activateKey 提供专属说明。
+- **检测**：仅轻量本地文件／目录，不执行、不请求；覆盖规则确保临时 home 隔离。
+- **限制**：不支持 store／format／activation 明确诊断与文档；真实兼容假设写入[登记册 §1](<../../Important Documentation.md#1-blocking-unknowns>)。
 
 ## 非交互命令
 
-Agent 可以通过 `AgentCommands` 接口暴露 `commands`。在 Agent 模块内部声明其命令字段与处理器，使共享的解析器和分发器无需任何 Agent 特定分支。没有 `commands` 的 Agent 只服务 TUI；请明确记录其支持的界面范围。
+AgentCommands 的字段／handler 属模块；磁盘播种不带 TUI 默认值，校验最终结果并复用 executeOperation／commit。禁止 Screen 回调式脚本或共享 parser／UI 的 Agent-ID 分支。显式说明支持命令，不能推断界面或 Agent 功能一致。
 
-命令是受管补丁：给出的字段被修改，省略的字段保留磁盘状态，`--unset` 删除一个受管键。从磁盘取初值而不带入 TUI 模板默认值，校验完整的提案，并复用 operation 与 commit 核心。不要通过调用 Screen 回调来实现命令。关于密钥来源、预检、输出与退出契约，遵循[命令规范](../milestone-3-non-interactive.md)和 ADR 0006–0014。
+## 注册
 
-## 注册它
+[registry.ts](../../src/registry.ts) 静态导入并加入列表，不扫描路径动态导入，bundle 无法解析。更新枚举 Agent 的检测／选择／命令／语言 fixture。
 
-```ts
-import { yourAgent } from './agents/your-agent/index.js'
+## 证明验证有效
 
-export const AGENTS: Agent[] = [claudeCode, opencode, codex, yourAgent]
-```
+独立 mkdtemp home、占位凭据；fixture 同接 verify:* 与顺序 npm test，再登记[验证范围](verification.zh-CN.md#fixture-对照)。至少断言：
 
-这就是注册表的全部改动。没有动态 `import()`，没有扫描：发布的产物是一个 bundle，而 bundler 无法解析扫描出来的路径。
+- 最深托管层保留兄弟键，保留模型成员留元数据；
+- 空／unset 删除、CLI 省略保留、布尔类型正确；
+- 保存及每次 Edit 看到当前磁盘；
+- 每 basename 备份轮换、损坏原文保留、POSIX 权限、no-op／dry-run 零写入；
+- 输出不泄露密钥／控制序列，含间接元数据／错误；
+- 损坏／部分失败报告文件、回滚、重试行为；
+- 两语言可达 Screen 的 labelKey／helpKey／detailKey／choice 全解析。
 
-检查文件检测、Agent 选择和新的 `--agent <id>` 取值。更新枚举受支持 Agent 的 fixture，包括双语文案一致性，以及新 Agent 暴露的命令能力（若提供）。
+消息检查先导入 src/registry.js；遍历只读 run，不为查看 Screen 提交／确认写入。主动变异保留／删除路径，使断言失败，再恢复并重跑。其他检查见[验证指南](verification.zh-CN.md)，实际环境／结果追加登记册 §9。
 
-## 证明它
+## 新 Codec
 
-新 Agent 需要在 `scripts/` 中有自己的 fixture，针对一个用 `mkdtemp` 创建的主目录运行。把它接入 `package.json` 中的某条 `verify:*` 命令**和**顺序执行的 `npm test` 链，并登记到[验证映射](../verification.md#fixture-map)。至少覆盖：
+优先复用 JSON／JSONC／TOML。新增需产出 JsonObject 的 reader、严格写许可检查、ManagedWrite 编辑器、类型化 ConfigParseError，提交前重查生成语法。
 
-- 非受管键在一次保存后幸存，包括你的配置嵌套到最深层时受管键的同级键；
-- 留空的字段完全省略其键——没有 `null`，也没有 `""`；
-- 选择 Unmanaged 或关闭代理会删除相应键，而布尔设置保留真实的布尔值；
-- 密钥在 Status 中被遮罩，绝不会完整出现；
-- 备份按 `MAX_BACKUPS` 轮转，且在 POSIX 上权限为 `0600`。
-
-然后**变异你自己的代码，并确认这道关卡会失败。**`verify:opencode` 曾针对四个故意引入的缺陷运行——整体覆写 models、跳过一次删除、把留空写成 `""`、以及整块替换 `options` 子树——每一次都让它变红。从未失败过的数据安全关卡等于没有被测试过。
-
-然后逐个走查你的 Screen，确认每条文案都解析成功。`t()` 在未命中时返回键名，因此 `messages.ts` 里的一个拼写错误会把 `yourAgent.field.apiKey` 直接显示给用户，而不是抛出异常。`verify-codex-auth.ts` 就有这套遍历：它执行每个 Action，逐层深入 list 项——只调用 `run()`，绝不调用 `confirm()` 或 `submit()`，因为那两者才是写入——并断言两点：绘制出的字符串都不是未解析的键，且每个 `labelKey`、`helpKey`、`detailKey` 和选项标签都存在。在 fixture 中导入 `src/registry.js`：`registerMessages` 是该模块加载时的副作用，缺少它时，你的整个文案目录都会被当成缺失。
-
-既然已经在改 `messages.ts`，就把两种语言一起交付：一个 `en` 块和一个 `zh-Hans` 块。运行时，你的 Agent 未翻译的键会回退到英文而不是裸键名，但这不是跳过翻译的许可：`verify:i18n-zh` 要求每个 Agent 的两份文案目录逐键一致，缺块或缺键都会变红。未翻译的 Agent 是一道红色的关卡，而不是一个无声的缺口。
-
-把你实际运行的检查记录到 `Important Documentation.md`。本地构建通过不能作为平台关卡的证据。
-
-## 如果配置需要新的 Codec
-
-JSON、JSONC 和 TOML 已受支持。当它们与 Agent 的格式匹配时，复用它们的读取器、严格检查和编辑器。需要另一种 Codec 的格式属于 Agent 模块与注册表之外的共享核心改动；请明确说明这一范围，并同时验证既有格式。
-
-`ConfigFile` 携带一个 `codec`，`src/core/config-file.ts` 依据它分发。新增一个 Codec 意味着：
-
-- 一个产出 `JsonObject` 的读取器，使各 Agent 和 Status 永远不需要了解具体格式；
-- 一个与读取器分离的严格检查器，决定 ccset 到底能否改写该文件。未通过检查的文件会进入与解析失败的 JSON 目标相同的“备份后重新创建”确认；
-- 一个应用 `ManagedWrite[]` 的写入器。
-
-关键保证就落在写入器上。如果这种格式携带任何解析会丢弃的内容——注释、空行、键顺序、对齐——那么从解析结果重建文档就会删掉它们，“非受管键必须幸存”在第一次有人保存时就会变成假话。`src/core/toml/` 不做重建：它记录每个值*所在的位置*并对文本区间做拼接替换，因此它没有写入的每一个字节都会原样保留。在编写其他任何东西之前，先用一份语料证明它在空写入列表下逐字节不变。
-
-`ConfigParseError` 是保存流程捕获的基类。用它派生你自己的子类并提供 `messageKey` 与 `titleKey`，让用户得知这份文件不是哪种格式，而不是被告知一份 TOML 文件是坏的 JSON。
+有注释格式的 parse 后重序列化会丢原文。语料须证明空写入字节一致、托管编辑之外字节保留，并覆盖损坏、scalar parent 插入、inline、删除、深度边界、prototype 敏感自有键。Python tomllib 一致性不含 ccset 的刻意 TOML 扩展，不为错误 oracle 删除它们。

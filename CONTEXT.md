@@ -2,186 +2,136 @@
 
 [简体中文](docs/zh-CN/CONTEXT.zh-CN.md) | English
 
-ccset is a public configuration tool for developers who use coding agents with
-third-party API services. Its language distinguishes configuration generation,
-compatibility evidence, and maintenance commitments.
+Vocabulary for a local coding-Agent configuration tool. Runtime rules belong in [architecture](docs/architecture.md); maintenance commitments belong in [SUPPORT.md](SUPPORT.md).
 
 ## Language
 
-### Scope and maintenance
+### Configuration
 
 **Core user**:
-An individual developer configuring a coding agent to use a third-party
-API service.
-_Avoid_: Enterprise administrator, every Claude Code user
+An individual developer connecting a coding Agent to a third-party API.
+_Avoid_: Enterprise administrator
+
+**Agent**:
+A coding tool whose configuration ccset manages.
+_Avoid_: Provider
 
 **Provider**:
-A third-party API service selected by the core user, reached through an Agent's
-configuration. Depending on the Agent, a Provider is either a file of its own
-(Claude Code's `settings.<name>.json`) or a block inside the Agent's single
-config document (opencode's `provider.<id>`, Codex's `[model_providers.<id>]`).
+A third-party API service represented by an Agent-local configuration.
 _Avoid_: Agent, model
 
 **Provider ID**:
-A user-chosen, Agent-local identifier that distinguishes one Provider
-configuration and its saved Auth profile where applicable.
+The user-chosen identifier of a Provider within one Agent.
 _Avoid_: Provider name, profile name
 
 **Preset**:
-A reviewed, named set of public Provider endpoints, protocols, and model suggestions
-that supplies starting values for an Agent. It contains no credentials and makes
-no claim that a live request has been verified.
+Reviewed public endpoints, protocols, and model suggestions used as configuration starting values, without credentials or live-verification claims.
 _Avoid_: Provider account, verified service
 
-**Activation timing**:
-When a selected Provider takes effect: at the Agent's next start, or only in a
-session launched with the selected configuration. It does not imply changing an
-already running session.
-_Avoid_: Hot switch, immediate activation
-
-**Auth profile**:
-A credential ccset has saved for one Provider, in a file ccset owns, separate
-from the Agent's live credential. Codex is the case that needs the term: its key
-is not in the config document, so an Auth profile is stored at
-`~/.codex/auth.<id>.json` and copied over `auth.json` when the Provider is
-switched to. An Auth profile is never the file the Agent reads.
-_Avoid_: Credential, login, account
-
-**Codec**:
-How a config document is read and written for one serialization format. A Codec
-that edits the original text rather than re-serialising a parse is
-format-preserving; ccset's TOML and JSONC Codecs are, because comments and key
-order are part of what "unmanaged keys survive" has to cover.
-_Avoid_: Parser, serializer, file format
-
-**Agent**:
-A coding tool whose configuration ccset can read or write, currently Claude
-Code, opencode, Codex CLI, pi and Grok Build.
-_Avoid_: Provider
-
 **Managed key**:
-A path in an Agent's config that ccset writes, declared once in that Agent's
-`manifest.ts`. Everything else in the file is unmanaged and survives every write
-unchanged. Writing a managed key means writing the leaf, never its parent.
-_Avoid_: Supported field, known key
+A configuration leaf ccset owns; other keys are unmanaged.
+_Avoid_: Known key, entire config
 
 **Managed patch**:
-A non-interactive write proposal that changes only the Managed keys explicitly
-named by the core user. An omitted Managed key keeps its current value.
+A proposal changing only explicitly supplied Managed keys and explicit removals.
 _Avoid_: Complete config, replacement
 
-**Supported platform**:
-A platform the project intends to keep working. Platform-specific changes require
-release-blocking verification on that platform, while other releases may disclose
-a missing manual smoke test.
-_Avoid_: Probably compatible, best-effort platform
+**Codec**:
+The read/write policy for an Agent configuration format, including how unmanaged text is retained.
+_Avoid_: Parser, serializer
 
-**Best-effort platform**:
-A platform ccset is designed not to exclude, but whose failures do not block a
-release and may remain unresolved.
-_Avoid_: Supported platform
+**Auth profile**:
+A saved credential for later activation, distinct from the Agent's live credential.
+_Avoid_: Live auth, account
 
-**Verified environment**:
-A concrete agent version, Node.js version, operating system, terminal, and shell
-combination on which a documented check has passed. It is evidence, not a general
-compatibility promise.
-_Avoid_: Supported version, compatibility window
+**Activation timing**:
+The next start or selected session in which a Provider choice takes effect.
+_Avoid_: Hot switch, immediate activation
 
-**Implementation proposal**:
-A pull request whose implementation is itself the proposal for changing ccset's
-scope. It may be submitted without a preceding issue and carries no presumption of
-acceptance.
-_Avoid_: Approved feature, committed roadmap item
+**Settings file**:
+ccset-owned preferences for interface language and ignored Providers, separate from Agent configuration.
+_Avoid_: Agent config, backup
 
-**Provider-specific behavior**:
-Configuration or interaction logic that exists for one named Provider rather than
-for the general Anthropic-compatible configuration model.
-_Avoid_: Agent integration, general provider capability
-
-**Experimental integration**:
-An Agent or platform integration with a real user case but without enough ongoing
-verification to qualify as supported. It may be changed, downgraded, or removed.
-_Avoid_: Supported integration, permanent integration
-
-**Release blocker**:
-A known defect involving data loss, credential exposure, failure to start, or a
-failed mandatory release check. A release blocker prevents publishing regardless
-of schedule.
-_Avoid_: Ordinary bug, known limitation
-
-**Core flow**:
-The interactive path from launching ccset through reading, reviewing, and safely
-writing a configuration, including the resulting activation command.
-_Avoid_: Every menu action, exhaustive manual test suite
+**Ignored provider**:
+A Provider hidden from ccset's normal interface while its Agent configuration remains present.
+_Avoid_: Disabled provider, deleted provider
 
 ### Interface
 
 **Non-interactive command**:
-A stable, script-facing ccset operation that completes without a Screen or a
-prompt and requires every state-changing choice to be explicit.
+A script-facing operation that completes without a Screen or prompt, with all state-changing choices explicit.
 _Avoid_: Scripted Screen, headless TUI
 
 **Secret source**:
-The channel from which a Non-interactive command receives a Provider secret:
-`CCSET_TOKEN` or explicitly selected stdin, never a command argument.
+The explicitly selected channel carrying a Provider credential into a script invocation.
 _Avoid_: Token flag, positional token
 
 **Screen**:
-The data an Action returns for the core user to act on — one of form, list, status,
-confirm, or message. The component that renders one is a View, never a Screen.
-_Avoid_: Page, dialog
+Action-result data describing a form, list, status, confirmation, or message; its renderer is a View.
+_Avoid_: View, page
 
 **Frame**:
-One Screen on the navigation stack. Esc pops a Frame.
-_Avoid_: Rendered paint, history entry
+One Screen's position on the navigation stack.
+_Avoid_: Rendered paint
 
 **Rendered paint**:
-One draw of the terminal. Distinct from a Frame, which is a position in navigation
-rather than a moment in rendering.
+One terminal draw, distinct from a navigation Frame.
 _Avoid_: Frame, screenshot
 
 **Viewport**:
-The row and column budget a windowed region is cut to. ccset does not own the whole
-terminal, so a Viewport bounds a region, never the application. The App gives each
-View the interior of the main Panel as its Viewport.
-_Avoid_: Screen size, full screen
+The row/column budget of a windowed region inside the TUI.
+_Avoid_: Full screen, application height
 
 **Panel**:
-A bordered, titled region of the TUI's frame. The main Panel holds the View of the
-current Screen and is titled with the Frame path; side Panels show Agent context on a
-wide terminal, with a compact detail strip at medium widths. A Panel is layout, not
-navigation: it is neither a Screen nor a Frame.
-_Avoid_: Window, pane, box
+A bordered layout region containing a View or Agent context.
+_Avoid_: Screen, Frame
 
 **Glance**:
-A short, secret-free summary of an Agent's local configuration and findings, derived
-from its read-only status operation for the TUI's side Panels. It is refreshed when an
-Agent is selected and after a new message Screen.
-_Avoid_: Status Screen, config reread
+A brief configuration summary and findings derived from an Agent's read-only status.
+_Avoid_: Status Screen
 
 **Preview**:
-Secret-free details about the focused list row, shown before the core user opens it.
-It is temporary focus state, not a Screen or a second read of the row's source.
+Temporary details for the focused list row, derived from that list's loaded record.
 _Avoid_: Selection result, detail Screen
 
 **Terminal capability**:
-What the terminal in front of the core user can render: the glyph set and the color
-set. It is a property of the environment, not a user preference.
-_Avoid_: Theme, style
+The glyph and color sets available in the current terminal.
+_Avoid_: Locale preference, theme
 
 **Locale preference**:
-The catalog choice ccset uses for its interface. It is either an explicit
-`CCSET_LOCALE` invocation override or a saved choice in ccset's own settings
-file; ccset never infers it from `LANG` or other environment locale variables.
-_Avoid_: Terminal capability, detected locale
+An explicit interface catalog choice.
+_Avoid_: Detected terminal language
 
-**Settings file**:
-The ccset-owned `<home>/.ccset/settings.json` document containing the versioned
-locale preference. It is separate from every Agent configuration and backup.
-_Avoid_: Agent config, backup
+### Maintenance
 
-**Ignored provider**:
-A provider on disk that the core user has told ccset not to offer. The note lives
-in ccset's own settings document, keyed by Agent id; it is never written into an
-Agent configuration and does not change what that Agent reads.
-_Avoid_: Disabled provider, deleted provider
+**Verified environment**:
+The specific Agent/Node/OS/terminal/shell combination of a recorded successful check.
+_Avoid_: Compatibility promise
+
+**Supported platform**:
+A platform whose failures and required checks can block release.
+_Avoid_: Best-effort platform
+
+**Best-effort platform**:
+A platform the project does not intentionally exclude but does not require for general release.
+_Avoid_: Supported platform
+
+**Implementation proposal**:
+A pull request proposing a scope change through its implementation, without presumed acceptance.
+_Avoid_: Approved feature
+
+**Provider-specific behavior**:
+Logic for a named Provider rather than a general configuration capability.
+_Avoid_: Agent integration
+
+**Experimental integration**:
+An integration with a user case but insufficient continuing verification; it may be changed or removed.
+_Avoid_: Permanent integration
+
+**Release blocker**:
+A known data-loss, credential-exposure, startup, or mandatory-release-check failure.
+_Avoid_: Ordinary bug
+
+**Core flow**:
+The user path from launch through reading, review, safe saving, and the activation instruction.
+_Avoid_: Every menu action

@@ -2,101 +2,91 @@
 
 [English](../architecture.md) | 简体中文
 
-变更工作流见 [AGENTS.md](../../AGENTS.md)，领域词汇见 [CONTEXT.md](../../CONTEXT.md)。本指南解释运行时边界，以及贡献者必须维持的各项保证背后的原因。规范与已接受的决策位于 [PRD.md](../../PRD.md)、[命令规范](../milestone-3-non-interactive.md) 和 [ADR](../adr/) 中。
+[AGENTS.md](../../AGENTS.md) 管贡献规则，[CONTEXT.md](CONTEXT.zh-CN.md) 管术语。本文映射当前源码；[未解决安全项](../../review.md) 是限制，不是已完成修复。
 
 ## 入口与契约
 
-`src/cli.tsx` 负责进程参数、`CCSET_*` 覆盖、调用模式、界面语言选择和退出状态。显式的子命令会选择命令适配器；没有子命令时，TTY 守卫先于交互式渲染执行。命令模式不得加载 Ink。把边界值向内传递，而不是在辅助函数中再次读取覆盖项。
+| 源码 | 职责 |
+| --- | --- |
+| [cli.tsx](../../src/cli.tsx) | 参数、`CCSET_*`、模式分流、语言、TTY 检查、退出 |
+| [registry.ts](../../src/registry.ts) | 静态 Agent 导入、消息登记 |
+| [types.ts](../../src/types.ts)、[ctx.ts](../../src/ctx.ts) | TUI `ActionResult` 与上下文 |
+| [operations/types.ts](../../src/operations/types.ts)、[index.ts](../../src/operations/index.ts) | `OperationRequest → executeOperation → OperationResult` 或类型化错误 |
+| [commands/](../../src/commands/) | 选择器／预设展开、声明驱动解析、密钥输入、输出、启动 |
 
-`src/types.ts` 定义 TUI 契约：Agent 返回一个 `ActionResult`（`form`、`list`、`status`、`confirm` 或 `message`），Ink View 渲染这些形态而不需要任何 Agent 特定的知识。`src/ctx.ts` 负责共享上下文；`types.ts` 重新导出它。Agent 模块不得从 `src/ui/` 导入。
+无位置子命令时，检查 stdin TTY 后进入 TUI；help／version 提前结束。Ink／React 渲染器仅在 TUI 路径加载；命令不调用 Screen 回调。
 
-非交互契约是 `src/operations/types.ts` 与 `src/operations/index.ts` 中的 `executeOperation`：一个规范化的 `OperationRequest` 产生一个 `OperationResult` 或类型化错误。Screen、翻译后的展示文本和 `ManagedWrite[]` 不跨越公开的操作契约。见 ADR 0006。
+位置 Agent／`--agent` 优先于 `CCSET_AGENT`，冲突的 CLI 选择报错。仅 stdin 与 stdout 均为 TTY 的命令可推断唯一已检测 Agent；TUI 展示本地检测结果，显式选择绕过检测。检测不执行 Agent、不联系 Provider（ADR 0020）。
 
-`src/commands/` 把 argv 适配到该契约。解析器使用各 Agent 的声明，密钥读取器提供 `CCSET_TOKEN` 或显式选择的 stdin，展示器生成已本地化的行或 `schemaVersion: 1` 的 JSON 信封。打印的错误与进程退出状态必须一致。命令规范记录了已知的一致性差异；更改它们属于行为变更，而不是文档清理。
+parser 消费 Agent 自有字段声明，预设展开为相同选项，显式字段／unset 优先。仅终端预设 `add` 可隐藏输入密钥。operation 准备参数数组，[launch.ts](../../src/commands/launch.ts) 仅对 live Claude `run` 以 `shell: false` 启动。
 
 ## 共享写入与 Codec
 
-配置保存用 `src/operations/commit.ts` 规划并应用写入。流程是 `read → overlay → validate → plan → apply`：保存时读取当前磁盘状态，校验提案的结果，渲染并预检所有命令目标，然后按顺序提交。非交互的空操作跳过写入和备份；dry-run 在计划处停止。多目标提交之后发生失败时，已写入的路径会报告为部分完成，而不是已回滚的事务。
+`read → overlay → validate → render/plan → apply`
 
-TUI 表单映射与命令补丁映射保持分离。TUI 中留空的字段可以发出删除；省略的命令选项保留磁盘值，命令删除必须显式给出。模板默认值不得填充被省略的补丁字段（ADR 0008）。`value` 为 `undefined` 的 `ManagedWrite` 表示删除；布尔值 `false` 仍然是一个值。
+1. Agent 重读目标，映射 TUI 表单或 CLI patch，校验最终提案。
+2. [config-file.ts](../../src/core/config-file.ts) 通过 Codec 解析／生成，并再次检查输出语法。
+3. [commit.ts](../../src/operations/commit.ts) 在变更前规划所有普通命令目标，比对输出与 baseline 字节。
+4. `applyPlan` 依次备份、原子替换，失败时报告已提交项，不提供跨文件事务。
 
-共享的文件安全辅助函数位于 `src/core/` 下：
+CLI `skipUnchanged: true`，普通 TUI 保存为 `false`。dry-run 不建目录、备份或文件；不存在的目标收到空文档为 no-op。已授权替换损坏文件却生成空结果的边界仍见[安全待办](../../review.md)。
 
-| 模块 | 职责 |
+表单写入当前持有的托管值；保存时重读保护非托管数据，不会把外部改动合入表单字段。每次 Edit 需重新播种，即使 Provider Screen 在前次保存后仍留在导航栈。
+
+| 核心源码 | 机制 |
 | --- | --- |
-| `merge.ts` | 应用受管叶子写入，同时保留非受管的同级键 |
-| `json-file.ts`、`copy.ts` | 原子的临时文件/重命名写入与整文件复制，POSIX `0600` |
-| `backup.ts` | 在 Agent 提供的目录中备份并按文件轮换 |
-| `config-file.ts` | 通过所选 Codec 读取、检查、渲染并写入 |
-| `save.ts` | 把保存错误转换为 TUI 的恢复/确认 Screen 与成功消息 |
-| `remove.ts` | 通过同一套 plan/apply 核心删除一个受管路径，或先备份再删除整个文件 |
-| `provider-actions.ts` | 所有 Agent 共享的提供商管理 Screen：隐藏被忽略提供商的列表，以及单个提供商的编辑/忽略/删除界面 |
-| `mask.ts`、`errors.ts` | 不泄露密钥的显示，以及带消息键与退出码的类型化错误 |
-| `values.ts`、`validate.ts` | 共享的强制转换与校验器工厂；Agent 策略留在 Agent 内 |
-| `paths.ts`、`settings.ts` | 共享的主目录/备份辅助函数，以及 ccset 自己的设置文档：界面语言偏好与被忽略的提供商 |
+| [merge.ts](../../src/core/merge.ts) | 逐叶 set／delete、自有属性遍历；拒绝 `__proto__`，保留 `constructor`／`prototype` 数据 |
+| [atomic-file.ts](../../src/core/atomic-file.ts)、[json-file.ts](../../src/core/json-file.ts)、[copy.ts](../../src/core/copy.ts) | 随机排他私有 stage，替换时 rename；创建时设 POSIX 权限，chmod 重申为尽力执行 |
+| [create-file.ts](../../src/core/create-file.ts) | 仅目标不存在时 hard-link 发布，无覆盖回退 |
+| [backup.ts](../../src/core/backup.ts) | 暂存复制、每 basename 保留十份、部分复制诊断／清理 |
+| [save.ts](../../src/core/save.ts)、[errors.ts](../../src/core/errors.ts) | TUI 恢复确认、类型化 parse／permission／partial 错误 |
+| [remove.ts](../../src/core/remove.ts)、[provider-actions.ts](../../src/core/provider-actions.ts) | 先备份后删除、整文件／块删除、确认式 Provider 管理 |
 
-`ConfigFile.codec` 选择 `json`、`jsonc` 或 `toml`。`LoadedConfig` 同时携带解析后的数据与原始文本。JSON 可以从合并后的对象渲染；TOML 和 JSONC 则编辑原文区间，以保留注释、空白和键顺序。对这些格式而言，空的写入列表必须做到逐字节一致，受管编辑必须不碰无关字节。
+原子 rename 防止单次发布截断，不提供锁、CAS、排他最终备份名或 fsync 耐久性；不能声称防并发覆盖或断电丢失。
 
-`src/core/toml/` 下的 TOML Codec 把扫描、读取、严格检查和编辑分开（ADR 0003）。JSONC Codec 使用 npm 的 `jsonc-parser` 处理语法和区间，但编辑器是 ccset 自己的，因为该包的格式化器会改动非受管字节（ADR 0004）。宽容读取不授权写入：未通过严格检查的目标需要 TUI 确认，或由命令显式选择 `--replace-invalid`。获得授权的替换会先备份无法读取的原文件。`ConfigParseError` 携带按格式区分的消息键；`runSave` 会捕获它。
+`LoadedConfig` 同时携带数据和原文：JSON 合并后重序列化，JSONC／TOML 编辑 span。保格式 Codec 的空写入字节一致，修改范围外的非托管文本保留。
+
+- [TOML](../../src/core/toml/) 分离 scan／read／check／edit；inline table 托管叶子可展开为 dotted assignments；删除 Provider 也删其所属表，输出重新校验（ADR 0003）。
+- [JSONC](../../src/core/jsonc/) 使用 npm `jsonc-parser` 的语法／span，编辑由 ccset 完成；库 `modify()` 改了邻近紧凑数组，未通过保留语料（ADR 0004）。
+- TOML 刻意接受 `\e`、闰秒、年份 `0000`；Python `tomllib` 仅作一致性语料 oracle，扩展单独验证。
+- 宽松读取不等于允许写入。损坏 Agent 文件需要确认或声明支持的 `--replace-invalid`，原文留在备份。
 
 ## Agent 模块
 
-每个 `src/agents/<id>/` 模块拥有自己的路径、默认值、manifest、校验器、消息、操作和命令声明。`manifest.ts` 保持为纯数据；用 `seed*` 和 `emit*` 辅助函数做表单/配置映射，保存时复用提交核心。Status 构建器只读取而不写入。命令的 status DTO 与 TUI 的 status 展示可以共享读取，同时保持各自的输出契约分离。
+路径、默认值、manifest、校验、动作、命令、消息均属 `src/agents/<id>/`。Status 无写入；具体路径／选项见[用户指南](user-guide.zh-CN.md#agent-配置) 和[命令契约](milestone-3-non-interactive.zh-CN.md)。
 
-`src/registry.ts` 是静态的：添加一个导入和一个数组条目，绝不扫描路径做动态导入。它在模块加载时合并各 Agent 的文案目录，并拒绝重复的键。解析 Agent 字符串的 fixture 也必须导入注册表。
+| Agent | 特有策略 |
+| --- | --- |
+| Claude Code | 全局／Provider 分文件 JSON；状态 create-only；唯一确认式 Messages 探测。use 生成会话命令，run 执行 |
+| opencode | 已有 JSONC 优先，否则 JSON；不创建 JSONC，不改旁边旧 JSON；模型逐 ID 合并 |
+| Codex | TOML 路由、Auth profile、接管路由元数据；保存坚持 Responses／认证不变量，拒绝覆盖密钥来源；live auth 整体替换。CLI 拒绝 home 不匹配，TUI 提示；两种激活都查 keyring，但编排不同且有待办 |
+| pi | JSONC models、JSON settings；模型数组按有效 ID 合并并保留元数据；use 同写默认 Provider／model；login auth 非托管 |
+| Grok Build | TOML `model.<id>`、`models.default`；内置覆盖可无密钥／端点；login auth 非托管 |
 
-交互式 App 会在渲染 Agent 选择界面前并行运行每个已注册 Agent 的纯文件
-`detect(ctx)` 检查，并只把检查为真的 Agent 交给选择列表。只有一个本地
-Agent 时自动进入；显式 `--agent` 会跳过这次发现流程，让用户可以有意创建
-首次配置。脚本通过位置参数、`--agent` 或 `CCSET_AGENT` 显式指定目标；仅交互
-终端中的命令可以自动选择唯一检测结果，规则见下方 ADR 0020 扩展。
-
-PRD 的扩展边界允许 Agent 模块内部包含多个文件。fixture、npm 脚本接入和文档是额外的预期改动。新的共享能力需要一次显式的核心/接口改动，并带有自己的验证范围；见[添加 Agent](../adding-an-agent.md)。
-
-容易遗漏的 Agent 特定约束：
-
-- **Claude Code：** 全局设置与每个 Provider 各用一个独立的 JSON 文件。`state.ts` 仅在 `~/.claude.json` 缺失时创建它；绝不更新这个活跃状态存储。`test-connection.ts` 是唯一的出站网络路径：发送 token 之前先确认目标主机，且绝不打印响应体。
-- **opencode：** 各 Provider 共享同一个文档，位于 `provider.<id>` 配置块之下。`provider.<id>.models` 按模型 id 合并，被保留的模型自身设置不变。`paths.ts` 中的 `opencodeTarget` 选择已存在的 `.jsonc`，否则选择 `.json`；选定 `.jsonc` 时，旧的 `.json` 保持原样。ccset 不创建 `.jsonc`。上游合并顺序的证据与待完成的运行时核实作为 U6 记录在验证登记册中。
-- **Codex：** Provider 密钥保存在 `config.toml` 之外的 `auth.<id>.json` Auth profile 中。保存 Provider 时会重新断言 `wire_api = "responses"` 与 `requires_openai_auth = true`，并拒绝与之冲突的 `env_key` 或 `experimental_bearer_token` 凭据来源。活跃的 `auth.json` 在备份之后整体复制；被收养的凭据保留 ccset 未建模的字段。切换先写路由、再写凭据，并显式处理失败。非交互切换要求显式给出凭据冲突的选择；`CODEX_HOME` 不一致与密钥链前置条件遵循 ADR 0011–0013。
-- **pi：** 各 provider 共享 `~/.pi/agent/models.json`，以 `providers.<id>` 配置块存放；启动默认项（`defaultProvider`、`defaultModel`、`defaultThinkingLevel`）位于另一个文档 `settings.json`，因此 `provider.use` 写的两个叶子在另一个文件里，与 `provider.set` 不同。`models` 数组按成员 id 合并（它是 JSON 数组，不是映射），在保存时基于重新读取的内容生成；没有可用字符串 `id` 的成员原样保留。`models.json` 使用格式保留的 JSONC Codec 编辑，因为 pi 读取该文件时会剥离注释；`settings.json` 是纯 JSON。`auth.json` 是 pi 的 `/login` 凭据存储——Status 会如实标注它，ccset 绝不编辑。`PI_CODING_AGENT_DIR` 仅在本次运行指向真实主目录时生效，与 opencode 的 `XDG_CONFIG_HOME` 规则一致。
-
-- **Grok Build：** ccset 管理的一切都集中在同一个 TOML 文档 `~/.grok/config.toml` 中：`[models].default` 指定启动模型，每个 `[model.<id>]` 表是一个 Provider。受管叶子是 `model`、`base_url`、`name`、`api_backend` 和内联的 `api_key` 密钥；Grok 按 `api_key` → `env_key` → 会话令牌 → `XAI_API_KEY` 的顺序解析凭据，因此没有任何密钥或端点是*必需的*——id 命名了内置模型的配置块可以只覆盖自己设置的字段，没有 `base_url` 的配置块只会被警告而不是被拒绝。`provider.use` 只写 `models.default` 这一个叶子，并在该 id 未定义 `[model.*]` 块时给出警告（它可能是内置模型）。`auth.json` 是 Grok 自己的凭据存储——Status 会如实标注它，ccset 绝不编辑。`GROK_HOME` 仅在本次运行指向真实主目录时生效，与 opencode 的 `XDG_CONFIG_HOME` 规则一致。Provider id 遵循共享的命名模式，因此带点的内置 id（`grok-4.6`）绝不会是 ccset 可管理的表 id；默认项通过自由文本的 `models.default` 指向它，手写的带引号表会原样保留。
-
-opencode、Codex、pi 和 Grok Build 没有 Test connection：现有的探测请求说的是 Anthropic 协议，而任意 SDK/Responses 端点需要各自的契约。实际兼容性的未知项应记入登记册，而不是被当作理所当然的保证。
+opencode 的 `XDG_CONFIG_HOME`、pi 的 `PI_CODING_AGENT_DIR`、Grok 的 `GROK_HOME` 仅在 `ctx.home` 为真实 home 时应用。Codex 不跟随 `CODEX_HOME`，CLI 写入拒绝不匹配。临时 home fixture 清除继承覆盖；上游启动需独立隔离。
 
 ## 导航与终端渲染
 
-`src/ui/useScreens.ts` 拥有一个由 `Frame` 组成的栈。只有 `list` 和 `status` 的 Frame 会保留当初生成它的任务，以便返回时重新加载，因为重跑它们只是读取。从成功消息返回绝不能重新运行产生它的那次写入。带有 `closesOrigin` 标记的消息还会关闭发起确认的那个 Screen：删除的结果带这个标记，因为那个 Screen 对应的提供商已经不存在，离开消息后会回到提供商列表。
+[useScreens.ts](../../src/ui/useScreens.ts) 返回时仅重载产生 list／status 的任务，不能保存写操作作重载任务。成功删除的 `closesOrigin` 关闭 Provider 与确认 Screen；随后清理忽略项的偏好失败可能漏报已完成删除。
 
-由 `replace()` 返回的确认会叠放在表单之上，`App` 在提交之前把已填写的值暂存在表单的 Frame 上。拒绝替换无法解析的文件、或从失败的保存返回时，必须保留草稿，包括被遮掩的密钥。未保存修改的提示让表单保持挂载但隐藏；确认提示的光标初始落在安全的选择上。
+草稿与脏 baseline 独立。保存失败或拒绝损坏替换保留草稿，仅成功保存／显式放弃清除未保存状态；确认光标初始选择安全项。
 
-Frame 标题组成主面板标题中的导航路径，空间不足时从前面开始省略。TUI 把输出留在终端的回滚缓冲区中，并对过长的区域做窗口化，而不是占用一个固定高度的屏幕（ADR 0002）；带边框的框架只与其内容等高（ADR 0017）。
+[Layout.tsx](../../src/ui/Layout.tsx) 统一计算 chrome，传主 Panel 内部 Viewport。[Viewport.tsx](../../src/ui/Viewport.tsx)、[terminal.ts](../../src/ui/terminal.ts)、[text-fit.ts](../../src/ui/text-fit.ts) 管窗口、能力、显示宽度。Frame 随内容增高，变窄只清可见绘制，不清 scrollback；数字／鼠标对应可见行。
 
-- `Layout.tsx` 负责框架。`planLayout()` 一次性计算边框、侧栏或详情条以及按键帮助的行列预算，再把主面板内部区域作为 Viewport 交给 View；低于 7 行或 30 列时，View 单独绘制。终端至少 100 列、16 行时可预算侧栏；80–99 列且至少 20 行时预算两行详情条。两种布局都会预留一行，确保框架内容高度始终短于终端；达到 130 列时侧栏从 26 列扩展到 36 列。`side-plan.ts` 在侧面板预算内按优先级丢弃或裁剪面板，并让错误诊断排在警告之前。`Panel.tsx` 绘制带边框区域，并把标签嵌入上下边框。`useGlance.ts` 从所选 Agent 的 status operation 获取无密钥摘要与诊断信息（ADR 0018）；`useFocusPreview.ts` 传递聚焦列表项的已翻译 Preview。两者都不增加文件读取路径；message Screen 仍使用完整宽度。
-- `terminal.ts` 负责字形（包括面板的边框字符）、颜色（包括面板边框的角色色与选中条）、忙碌动画帧，以及七位终端上折叠文案目录文本的 `fold()`。新的绘制位置必须使用终端辅助函数。
-- `text-fit.ts` 按显示宽度补齐和截断，省略号由调用方先经过折叠。Ink 自带的截断总会插入 `…`，因此需要截断以适应一行的文本一律在这里截断。
-- `Viewport.tsx` 负责终端尺寸、调整大小的处理、`windowAround()` 和 `WindowRegion`。宽度小于上一次绘制时，先清除可见屏幕（绝不清除回滚缓冲区）再重绘。列表、Status 和表单借助它把聚焦内容保持在行预算内。
-- `SelectList.tsx` 处理键盘导航和可见行的鼠标左键选择。`mouse.ts` 解析 SGR 鼠标报告，通过行节点的 Yoga 父级映射终端坐标；仅在 TTY 中启用鼠标报告，并在输入块可能是分片鼠标序列时短暂延迟 Esc。
-- `keymap.ts` 负责按键绑定，以及框架绘制在底部边框中的帮助文本。它在加载时拒绝重复的绑定和缺失的消息键。
-- `useReviewForm.ts` 负责编辑状态、Advanced 字段、校验、行窗口化和 `ctrl+s`；`ReviewForm.tsx` 渲染这一状态。
+Glance 在选择 Agent／消息后读状态并丢弃过期刷新；Preview 复用列表记录，只显示凭据存在性和合法 URL origin。View 不新增 Agent 文件读取路径（ADRs 0017–0018）。
 
 ## 界面语言与消息
 
-Shell 文案目录位于 `src/i18n/en.ts` 与 `src/i18n/zh-Hans.ts`；Agent 特定的字符串位于各 Agent 的 `messages.ts`。两种语言必须一同交付。`t()` 可能回退到英文，也可能原样返回原始键，因此仅凭渲染成功并不能证明文案目录覆盖完整。键还会出现在字段、校验器、选项、错误对象和由模板拼出的键族中；只搜索直接的 `t()` 调用会漏掉它们。
+TUI：调用覆盖 → 已保存偏好 → 首次提示；命令：调用覆盖或英文。均不推断 `LANG`。registry 导入时合并 Agent 消息并拒绝重复；fixture 解析 Agent 键前必须导入。
 
-CLI 在挂载主 App 之前解析界面语言（ADR 0005）。显式的 `CCSET_LOCALE` 覆盖已保存的选择且不持久化；否则 TUI 使用已保存的语言，或在首次使用时询问。最初的询问是双语的，并且绕过文案目录，因为此时还没有选定语言。帮助、版本以及非 TTY 时对交互模式的拒绝既不询问，也不持久化选择。
+## 从已修复失败提炼的禁用模式
 
-为上述任一边界选择 fixture 时，请使用[验证指南](../verification.md)。把发布状态和带日期的证据保存在登记册中，而不要在编码助手指引中复制里程碑快照。
-
-## P0 命令扩展（ADR 0020）
-
-[ADR 0020](../adr/0020-add-short-commands-presets-and-session-launch.md) 替代 ADR 0006、0016
-中强制 `--agent` 的限制。脚本可用 Agent 位置参数、`--agent` 或 `CCSET_AGENT`
-显式指定目标；只有 stdin 与 stdout 均为 TTY 时才可自动选择唯一检测结果。
-缺少选择时返回 64 并列出候选。
-
-命令适配层将内置预设展开为 Agent 已声明的选项，经相同校验进入 plan/apply。
-只有交互终端中的 `add` 可以隐藏输入密钥。`use` 由各 Agent 生成结构化生效时机：
-opencode、Codex、pi、Grok Build 保存启动默认值；Claude Code 校验文件并打印命令。
-显式 `run` 在操作校验完成后，用参数数组、不经过 shell 启动 Claude Code，并转发
-子进程退出码；dry-run 不启动。子进程自行发起请求，ccset 自身网络探测契约不变。
+| 禁止 | 原因／替代 |
+| --- | --- |
+| 后续 Edit 复用列表旧记录 | 轮换后恢复旧密钥；每次进入表单重读（`3fdbce1`） |
+| 整体替换 env／options／models | 丢失非托管成员／保留模型元数据；逐叶／成员编辑 |
+| 删除写空字符串，或把 false 当删除 | 代理仍在或布尔丢失；显式删除 |
+| 先查不存在再 rename 覆盖 create-only | 覆盖并发创建的状态／profile；排他发布（`ec668ba`） |
+| 独立 fixture 共用临时 home | 新文件场景意外产生备份；各自隔离（`0569b3e`） |
+| 模型 ID 套用 Provider ID 规则 | 拒绝含点／斜线／冒号的真实模型；用 Agent 模型校验（`59121f1`） |
+| 转发包与同版本本地 tarball 同装 | npm 由本地满足依赖，自我比较；独立安装并断言 registry 解析（`a999c4a`） |

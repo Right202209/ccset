@@ -1,17 +1,5 @@
 # Set project governance and support boundaries
 
-ccset is a reliable public tool for individual developers using third-party
-Anthropic-compatible services, maintained on a best-effort basis without response
-or release SLAs. Contributors may propose scope through complete pull requests,
-but the maintainer retains final merge and npm release authority; technically sound
-changes may still be declined for scope or long-term cost. macOS and Linux are
-supported, while WSL and Windows PowerShell are best effort. Releases are made as
-needed under SemVer, support only the latest npm version, and must not ship with a
-known data-loss, credential-exposure, startup, or mandatory-check failure.
+Accepted. ccset serves individual developers configuring third-party APIs in coding Agents, with best-effort single-maintainer support. Complete PRs may propose scope without a preceding issue; final merge/release authority stays with the maintainer. Experimental integrations may change or be removed when continuing verification is insufficient.
 
-These boundaries favor an open path for useful implementations without turning a
-single-maintainer project into a permanent compatibility or service obligation.
-Integrations may be marked experimental and later downgraded or removed when the
-project cannot verify them. Short-term maintainer silence does not imply
-abandonment; if maintenance actually stops, the project will say so while leaving
-the repository open for a possible community handoff.
+macOS/Linux are supported; WSL/Windows Terminal with PowerShell are best effort. SemVer releases support only the latest npm version and cannot knowingly ship data loss, credential exposure, startup or mandatory-check failures. These choices avoid a permanent service/compatibility obligation; [SUPPORT](../../SUPPORT.md) and [release gates](<../../Important Documentation.md#6-build-and-publish>) own the detailed policy.

@@ -2,164 +2,136 @@
 
 [English](../../CONTEXT.md) | 简体中文
 
-ccset 是一个公开的配置工具，面向把编程 Agent 接入第三方 API 服务的开发者。它的措辞
-区分配置生成、兼容性证据和维护承诺。
+本地编程 Agent 配置工具的术语。运行时规则见[架构](architecture.zh-CN.md)，维护承诺见[支持政策](SUPPORT.zh-CN.md)。
 
 ## 用语
 
-### 范围与维护
+### 配置
 
-**Core user（核心用户）**:
-正在配置编程 Agent 以接入第三方 API 服务的个人开发者。
-_避免_: Enterprise administrator, every Claude Code user
+**Core user（核心用户）**：
+为编程 Agent 配置第三方 API 的个人开发者。
+_避免_：企业管理员
 
-**Provider（提供商）**:
-核心用户选定的第三方 API 服务，经由某个 Agent 的配置访问。视具体 Agent 而定，一个
-Provider 要么是独立文件（Claude Code 的 `settings.<name>.json`），要么是 Agent 单一配置
-文档中的一个配置块（opencode 的 `provider.<id>`、Codex 的 `[model_providers.<id>]`）。
-_避免_: Agent, model
+**Agent**：
+ccset 管理其配置的编程工具。
+_避免_：Provider
 
-**Provider ID**:
-用户在某个 Agent 范围内选定的标识符，用来区分一个 Provider 配置，以及它保存的 Auth
-profile（如果该 Agent 支持）。
-_避免_: Provider name, profile name
+**Provider（提供商）**：
+以某个 Agent 的本地配置表示的第三方 API 服务。
+_避免_：Agent、模型
+
+**Provider ID**：
+用户为一个 Agent 内的 Provider 选择的标识符。
+_避免_：Provider 名称、profile 名称
 
 **Preset（预设）**：
-经过评审的具名公共 Provider 端点、协议及模型建议，为 Agent 提供初始值。
-不包含凭据，也不表示已验证真实请求。
-_避免_：Provider 账号、已验证服务
+经审查的公共端点、协议与模型初值，不含凭据或真实服务验证承诺。
+_避免_：Provider 账户、已认证服务
+
+**Managed key（托管键）**：
+ccset 负责的配置叶子，其他键为非托管键。
+_避免_：已知键、整个配置
+
+**Managed patch（托管补丁）**：
+仅改变显式提供的托管键及显式删除项的提案。
+_避免_：完整配置、替换
+
+**Codec**：
+某种 Agent 配置格式的读写策略，包括非托管文本的保留方式。
+_避免_：parser、serializer
+
+**Auth profile（凭据档案）**：
+供以后激活的已保存凭据，区别于 Agent 当前使用的凭据。
+_避免_：live auth、账户
 
 **Activation timing（生效时机）**：
-所选 Provider 在 Agent 下次启动时生效，或仅用于指定配置启动的会话。
-不表示改变已经运行中的会话。
+Provider 选择生效的下次启动或指定会话。
 _避免_：热切换、立即生效
 
-**Auth profile（凭据配置）**:
-ccset 为某个 Provider 保存的凭据，放在 ccset 自己拥有的文件里，与 Agent 的活跃凭据相互
-独立。需要这个术语的是 Codex：它的密钥不在配置文档里，所以 Auth profile 保存在
-`~/.codex/auth.<id>.json`，切换到该 Provider 时复制覆盖 `auth.json`。Auth profile 始终
-不是 Agent 实际读取的那个文件。
-_避免_: Credential, login, account
+**Settings file（偏好文件）**：
+ccset 自有的语言与忽略 Provider 偏好，独立于 Agent 配置。
+_避免_：Agent 配置、备份
 
-**Codec（编解码器）**:
-读写某种序列化格式的配置文档的方式。如果 Codec 直接编辑原文，而不是把解析结果重新
-序列化，它就是格式保留（format-preserving）的。ccset 的 TOML 和 JSONC Codec 就是这样，
-因为注释和键顺序也属于“非受管键必须幸存”要覆盖的内容。
-_避免_: Parser, serializer, file format
-
-**Agent**:
-ccset 可以读取或写入其配置的编程工具，目前是 Claude Code、opencode、Codex CLI、pi 和
-Grok Build。
-_避免_: Provider
-
-**Managed key（受管键）**:
-某个 Agent 配置中由 ccset 写入的路径，在该 Agent 的 `manifest.ts` 中声明一次。文件中的
-其余一切都是非受管的，每次写入都原样幸存。写受管键就是只写叶子，绝不写它的父对象。
-_避免_: Supported field, known key
-
-**Managed patch（受管补丁）**:
-只改动核心用户显式指定的受管键的非交互写入提案。省略的受管键保留当前值。
-_避免_: Complete config, replacement
-
-**Supported platform（支持的平台）**:
-项目打算持续保持可用的平台。平台特定的改动需要在该平台上做发布阻塞级验证，其他发布
-可以披露缺少某次人工冒烟测试。
-_避免_: Probably compatible, best-effort platform
-
-**Best-effort platform（尽力支持平台）**:
-ccset 在设计上不排除的平台，但其上的故障不阻塞发布，也可能一直不修复。
-_避免_: Supported platform
-
-**Verified environment（已验证环境）**:
-一项成文检查通过时所处的具体环境组合：Agent 版本、Node.js 版本、操作系统、终端和
-shell。它是证据，不是一般性的兼容承诺。
-_避免_: Supported version, compatibility window
-
-**Implementation proposal（实现提案）**:
-实现本身就是对 ccset 范围提出改变的 pull request。可以没有前置 issue 直接提交，也不预设
-它会被接受。
-_避免_: Approved feature, committed roadmap item
-
-**Provider-specific behavior（特定 Provider 的行为）**:
-只针对某个具名 Provider、而不是通用 Anthropic 兼容配置模型存在的配置或交互逻辑。
-_避免_: Agent integration, general provider capability
-
-**Experimental integration（实验性接入）**:
-有真实用户场景、但持续验证不足以达到受支持标准的 Agent 或平台接入。它可能被修改、
-降级或移除。
-_避免_: Supported integration, permanent integration
-
-**Release blocker（发布阻塞项）**:
-涉及数据丢失、凭据暴露、无法启动，或某项强制发布检查失败的已知缺陷。无论日程如何，
-发布阻塞项都阻止发布。
-_避免_: Ordinary bug, known limitation
-
-**Core flow（核心流程）**:
-从启动 ccset，到读取、审阅并安全写入一份配置，直至打印对应启用命令的交互路径。
-_避免_: Every menu action, exhaustive manual test suite
+**Ignored provider（已忽略提供商）**：
+从 ccset 常规界面隐藏、但 Agent 配置仍存在的 Provider。
+_避免_：已禁用、已删除
 
 ### 界面
 
-**Non-interactive command（非交互命令）**:
-面向脚本的稳定 ccset 操作，无需 Screen 或提示即可完成，并且所有改变状态的选择都必须
-显式给出。
-_避免_: Scripted Screen, headless TUI
+**Non-interactive command（非交互命令）**：
+无需 Screen 或提示即可完成、状态变更选择均显式提供的脚本操作。
+_避免_：脚本化 Screen、无界面 TUI
 
-**Secret source（密钥来源）**:
-非交互命令接收 Provider 密钥的通道：`CCSET_TOKEN` 或显式选择的 stdin，绝不接受命令
-参数。
-_避免_: Token flag, positional token
+**Secret source（密钥来源）**：
+脚本调用中显式选择的 Provider 凭据输入通道。
+_避免_：token 参数、位置参数密钥
 
-**Screen（屏幕）**:
-Action 返回给核心用户处理的数据，可能是 form、list、status、confirm 或 message。
-渲染它的组件是 View，绝不是 Screen。
-_避免_: Page, dialog
+**Screen**：
+描述表单、列表、状态、确认或消息的 Action-result 数据，由 View 渲染。
+_避免_：View、网页
 
-**Frame（导航帧）**:
-导航栈上的一层 Screen。按 Esc 弹出一层 Frame。
-_避免_: Rendered paint, history entry
+**Frame**：
+一个 Screen 在导航栈中的位置。
+_避免_：Rendered paint
 
-**Rendered paint（渲染绘制）**:
-终端的一次绘制。与 Frame 不同：Frame 是导航中的位置，Rendered paint 是渲染中的时刻。
-_避免_: Frame, screenshot
+**Rendered paint（终端绘制）**：
+一次终端绘制，与导航 Frame 不同。
+_避免_：Frame、截图
 
-**Viewport（视口）**:
-窗口化区域被裁剪到的行列预算。ccset 不占有整个终端，因此 Viewport 界定的是一个区域，
-绝不是整个应用。App 把主面板的内部区域作为 Viewport 交给每个 View。
-_避免_: Screen size, full screen
+**Viewport（视口）**：
+TUI 内窗口区域的行列预算。
+_避免_：全屏、应用高度
 
-**Panel（面板）**:
-TUI 框架中带边框和标题的区域。主面板容纳当前 Screen 的 View，标题为 Frame 路径；
-宽终端上的侧面板显示 Agent 的上下文，中等宽度时则显示紧凑详情条。Panel 属于布局
-而非导航：它既不是 Screen，也不是 Frame。
-_避免_: Window, pane, box
+**Panel（面板）**：
+包含 View 或 Agent 上下文的带边框布局区域。
+_避免_：Screen、Frame
 
-**Glance（速览）**:
-从 Agent 的只读 status operation 得出的简短、无密钥配置摘要与诊断信息，供 TUI 侧面板
-显示。选择 Agent 时以及新的 message Screen 出现后会刷新。
-_避免_: Status Screen, config reread
+**Glance（概览）**：
+由 Agent 只读状态产生的简要配置与诊断。
+_避免_：Status Screen
 
-**Preview（预览）**:
-在核心用户打开列表项之前，显示该聚焦行的无密钥详情。它是临时焦点状态，不是 Screen，
-也不会重新读取该行的数据来源。
-_避免_: Selection result, detail Screen
+**Preview（预览）**：
+由列表已加载记录产生、针对焦点行的临时详情。
+_避免_：选择结果、详情 Screen
 
-**Terminal capability（终端能力）**:
-核心用户面前的终端能够渲染的内容：字形集合与颜色集合。它是环境的属性，不是用户偏好。
-_避免_: Theme, style
+**Terminal capability（终端能力）**：
+当前终端可用的字形与颜色集合。
+_避免_：语言偏好、主题
 
-**Locale preference（界面语言偏好）**:
-ccset 界面所用的文案目录选择。它要么是显式的 `CCSET_LOCALE` 调用覆盖，要么是保存在
-ccset 自己设置文件中的选择；ccset 绝不从 `LANG` 或其他环境区域变量推断它。
-_避免_: Terminal capability, detected locale
+**Locale preference（语言偏好）**：
+显式选择的界面消息目录。
+_避免_：推断的终端语言
 
-**Settings file（设置文件）**:
-ccset 自己拥有的 `<home>/.ccset/settings.json` 文档，包含带版本号的界面语言偏好。它与
-每一个 Agent 配置和备份都相互独立。
-_避免_: Agent config, backup
+### 维护
 
-**Ignored provider（被忽略的提供商）**:
-磁盘上仍然存在、但核心用户已告知 ccset 不要再提供的提供商。该记录保存在 ccset
-自己的设置文件中，以 Agent id 为键；它不会被写入任何 Agent 配置，也不会改变该
-Agent 读取到的内容。
-_避免_: Disabled provider, deleted provider
+**Verified environment（已验证环境）**：
+成功检查记录中的具体 Agent／Node／OS／终端／shell 组合。
+_避免_：兼容承诺
+
+**Supported platform（支持平台）**：
+其故障与必要检查可阻止发布的平台。
+_避免_：尽力支持平台
+
+**Best-effort platform（尽力支持平台）**：
+不刻意排除、但不要求阻止一般发布的平台。
+_避免_：支持平台
+
+**Implementation proposal（实现提案）**：
+通过实现提出范围变化、不预设接纳的 PR。
+_避免_：已批准功能
+
+**Provider-specific behavior（具名提供商行为）**：
+针对某个 Provider 而非通用配置能力的逻辑。
+_避免_：Agent 接入
+
+**Experimental integration（实验性接入）**：
+有用户场景但持续验证不足、可能修改或移除的接入。
+_避免_：永久接入
+
+**Release blocker（发布阻塞项）**：
+已知数据丢失、凭据暴露、启动或强制发布检查失败。
+_避免_：普通缺陷
+
+**Core flow（核心流程）**：
+从启动到读取、审查、安全保存和生效指令的用户路径。
+_避免_：所有菜单动作
