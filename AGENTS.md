@@ -72,5 +72,15 @@ Two spaces, no semicolons, single quotes, `.js` relative TypeScript imports; `ca
 - Website: use the exact Node engine in [pages/package.json](pages/package.json). From `pages/`: `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run smoke`. Visible UI changes need desktop/mobile checks and PR screenshots.
 - Documentation only: check links, anchors, examples, and source-backed claims; `git diff --check`. Execute changed instructions when needed. The website imports repository Markdown: do not duplicate it under `pages/`. New viewer documents need registry entries and both catalog labels.
 - Chinese docs use `docs/zh-CN/<name>.zh-CN.md`; `README.zh-CN.md` stays at root.
-- Append new runtime evidence to [register §9](<Important Documentation.md#9-implementation-register-code-complete>); keep prior entries unchanged. Routine documentation checks belong in the handoff/PR.
+- Maintain [register §9](<Important Documentation.md#9-implementation-register-code-complete>) as a compact evidence index through the TDP loop below. Update or remove superseded summaries; retain original evidence in Git and linked PR/CI results. Routine documentation checks belong in the handoff/PR.
 - Use concise conventional commit subjects and the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Significant TUI changes need terminal screenshots. Release authority and requirements follow [CONTRIBUTING.md](CONTRIBUTING.md) and register §6.
+
+## Knowledge Base Self-Evolution Specification (TDP Loop)
+
+After a major feature, architectural refactoring, complex bug fix, or documentation consolidation, update the affected knowledge through Trace → Distill → Prune. Current source and executable fixtures govern behavior.
+
+1. **Trace**: Compare `git log`/`git show` with current source and public-boundary fixtures. Record consequential choices, rejected approaches, failure causes and direction changes with revision/source links. Link actual commands, environment, results and limitations from the PR/CI or a scoped evidence note; keep §9 summaries short.
+
+2. **Distill**: Put each validated principle, stable constraint, reusable process or failure lesson in its existing owner: architecture/command contract, verification, Agent guide, or open findings. Use an ADR for a changed trade-off; keep CONTEXT.md to definitions. Other documents link to the rule instead of copying it.
+
+3. **Prune**: Delete invalidated, duplicate and conflicting conclusions from active guidance and evidence summaries, including covered translations and incoming links. Replace the old rule at its owner; do not leave an obsolete rule beside its correction or require old summaries to remain unchanged. Git preserves provenance. Keep unresolved gaps explicit; an old passing check cannot close a different failure.

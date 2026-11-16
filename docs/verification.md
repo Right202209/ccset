@@ -2,7 +2,7 @@
 
 [简体中文](zh-CN/verification.zh-CN.md) | English
 
-[AGENTS.md](../AGENTS.md) owns the workflow. This guide selects checks; [the register](<../Important Documentation.md>) owns manual scenarios, release gates (§6), and dated evidence (§9).
+[AGENTS.md](../AGENTS.md) owns the workflow and TDP loop. This guide selects checks; [architecture](architecture.md) owns runtime constraints; [the register](<../Important Documentation.md>) distills design lessons, owns release gates (§6) and indexes evidence (§9).
 
 ## Choose checks by scope
 
@@ -91,7 +91,7 @@ CCSET_HOME="$ccset_scratch" CCSET_LOCALE=en node dist/cli.js --agent claude-code
 
 Use placeholder keys; inspect only scratch files. Omit locale to exercise first use. A no-command invocation with non-TTY stdin exits 2. `CCSET_HOME` isolates ccset writes, **not** an upstream Agent launched by `run`; isolate that process separately.
 
-Record commands/scenarios, result, OS/Node and relevant Agent/terminal/shell versions, including failures/skips/pending checks. Append new runtime evidence to register §9; leave prior entries intact. Routine documentation checks belong in the handoff/PR. Synthetic files do not prove live requests or another platform.
+Record commands/scenarios, result, OS/Node and relevant Agent/terminal/shell versions, including failures/skips/pending checks, in the PR/CI or a scoped evidence note. Keep a concise linked runtime summary in register §9; update or remove superseded summaries through [Trace → Distill → Prune](../AGENTS.md#knowledge-base-self-evolution-specification-tdp-loop). Original evidence remains in Git. Routine documentation checks belong in the handoff/PR. Synthetic files do not prove live requests or another platform.
 
 ## CI and release
 

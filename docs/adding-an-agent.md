@@ -61,7 +61,7 @@ Use a separate `mkdtemp` home and placeholder credentials. Register a fixture in
 - malformed/partial failures report committed files, rollback and retry behavior;
 - every Screen key (`labelKey`, `helpKey`, `detailKey`, choices) resolves in both locales.
 
-Import `src/registry.js` before resolving messages. Walk read-only `run()` paths; do not submit or confirm writes merely to inspect a Screen. Deliberately mutate a preservation/deletion path and prove the assertion fails; restore and rerun. Select remaining checks in [verification](verification.md), document actual environments and append runtime evidence to register §9.
+Import `src/registry.js` before resolving messages. Walk read-only `run()` paths; do not submit or confirm writes merely to inspect a Screen. Deliberately mutate a preservation/deletion path and prove the assertion fails; restore and rerun. Select remaining checks in [verification](verification.md), link actual environments/results from a concise register §9 summary, and apply [Trace → Distill → Prune](../AGENTS.md#knowledge-base-self-evolution-specification-tdp-loop) to the affected rules.
 
 ## If the config needs a new Codec
 

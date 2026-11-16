@@ -26,7 +26,7 @@ Provider-specific runtime branches require a general capability or strong eviden
 
 Use [the guide](docs/verification.md), not a copied command checklist. Runtime/tooling changes need full-suite evidence locally or in CI before merge; run fixtures sequentially. Regressions must fail without the fix. Platform-specific changes need evidence on that platform.
 
-Append new runtime results to [register §9](<Important Documentation.md#9-implementation-register-code-complete>), preserving old entries. Documentation-only checks belong in the handoff/PR; release gates remain in §6.
+Maintain concise runtime summaries in [register §9](<Important Documentation.md#9-implementation-register-code-complete>) through [Trace → Distill → Prune](AGENTS.md#knowledge-base-self-evolution-specification-tdp-loop). Link detailed results, update superseded summaries and keep original evidence in Git/PR/CI. Documentation-only checks belong in the handoff/PR; release gates remain in §6.
 
 ## License
 

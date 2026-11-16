@@ -53,7 +53,7 @@ diff 上下文可能泄露其他 Provider 密钥或自定义 Authorization；脱
 | D4 | 脚本生命周期／备份清理先于凭据引用，声明式 apply 有门槛 |
 | D5 | docs/reviews 保留带日期结论，原始叙述在 git；数字引用前重查一手来源 |
 | D6 | ADR 0012 保持：CODEX_HOME 提示、不跟随；CLI 拒绝不匹配，TUI 当前警告 |
-| D7 | Important Documentation.md 留根目录，§9 追加式保存历史证据 |
+| D7 | Important Documentation.md 留根目录作精简指南和可更新证据索引；摘要遵循 Trace → Distill → Prune，原始证据固定保存在 Git 中（[ADR 0021](../adr/0021-keep-the-active-register-concise-and-pin-historical-evidence.md)） |
 
 ## 信号与限制
 

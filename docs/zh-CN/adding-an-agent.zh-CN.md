@@ -61,7 +61,7 @@ AgentCommands 的字段／handler 属模块；磁盘播种不带 TUI 默认值�
 - 损坏／部分失败报告文件、回滚、重试行为；
 - 两语言可达 Screen 的 labelKey／helpKey／detailKey／choice 全解析。
 
-消息检查先导入 src/registry.js；遍历只读 run，不为查看 Screen 提交／确认写入。主动变异保留／删除路径，使断言失败，再恢复并重跑。其他检查见[验证指南](verification.zh-CN.md)，实际环境／结果追加登记册 §9。
+消息检查先导入 src/registry.js；遍历只读 run，不为查看 Screen 提交／确认写入。主动变异保留／删除路径，使断言失败，再恢复并重跑。其他检查见[验证指南](verification.zh-CN.md)；登记册 §9 以精简摘要链接实际环境／结果，并按 [Trace → Distill → Prune](../../AGENTS.md#knowledge-base-self-evolution-specification-tdp-loop) 更新受影响规则。
 
 ## 新 Codec
 

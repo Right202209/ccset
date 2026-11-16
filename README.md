@@ -8,6 +8,12 @@ npx @droite/ccset
 
 [简体中文](README.zh-CN.md) · [Documentation](https://right202209.github.io/ccset/)
 
+## Demo
+
+![ccset demo: add a Claude Code provider, enter example settings, and save](https://raw.githubusercontent.com/Right202209/ccset/master/docs/media/ccset-demo.gif)
+
+[View the animation](https://github.com/Right202209/ccset/blob/master/docs/media/ccset-demo.gif). Captured from the actual UI with fictional settings in an isolated temporary directory; no personal configuration or live API requests.
+
 ## Quick Start
 
 Requires **Node.js 18+**.
@@ -57,11 +63,7 @@ The [CLI guide](docs/user-guide.md#cli) and [command contract](docs/milestone-3-
 
 Editing is local. Claude Code's optional Test connection confirms the host, refuses redirects, and discards response bodies; `run` starts Claude Code, which makes its own requests. Per-file atomicity does not protect concurrent writers. [Current safety follow-ups](review.md) and [the user guide](docs/user-guide.md#what-it-will-not-do-to-your-files) document limits.
 
-## Demo and project guides
-
-![Add a Claude Code Provider with fictional configuration](docs/media/ccset-demo.gif)
-
-The demo uses an isolated home and fictional settings. [View the animation](docs/media/ccset-demo.gif).
+## Project guides
 
 macOS/Linux are supported; WSL and Windows Terminal/PowerShell are best effort; `cmd.exe` is unsupported. Windows ACLs are not managed. Only the latest npm release is supported.
 

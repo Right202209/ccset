@@ -53,7 +53,7 @@ Maintainer decisions from 2026-11-10, with the 2026-11-13 release/bootstrap upda
 | D4 | Script lifecycle and backup cleanup precede credential references; declarative apply stays gated |
 | D5 | Keep review conclusions under docs/reviews as dated history; original narratives are available in git, figures require fresh primary-source checks |
 | D6 | ADR 0012 stands: CODEX_HOME is reported, not followed; CLI writes refuse mismatch, TUI currently warns |
-| D7 | Keep Important Documentation.md at root; §9 remains append-only historical evidence |
+| D7 | Keep Important Documentation.md at root as a concise guide and editable evidence index; apply Trace → Distill → Prune to summaries, with original evidence pinned in Git ([ADR 0021](adr/0021-keep-the-active-register-concise-and-pin-historical-evidence.md)) |
 
 ## Signals and limits
 

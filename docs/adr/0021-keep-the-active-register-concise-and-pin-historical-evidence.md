@@ -1,0 +1,5 @@
+# Keep the active register concise and pin historical evidence
+
+Accepted for the user-requested Trace → Distill → Prune consolidation on 2026-11-16. An append-only root diary retained obsolete rules beside corrections and obscured current constraints. Keep Important Documentation.md at root as a concise guide; make [§9](<../../Important Documentation.md#9-implementation-register-code-complete>) an editable evidence index. Update or delete superseded summaries, put rules at their existing owners, and link detailed results from PR/CI or scoped notes.
+
+Git retains original evidence: the full legacy §9.0–§9.78 register is pinned to `b4d1c1f719eda676a98d9ba90457c2b008628c1b`. Retain referenced section anchors and the pre-existing §9.79 record verbatim. This supersedes D7's append-only policy and AGENTS.md's instruction to keep old entries unchanged. Source/fixtures govern current behavior; routine documentation checks stay in the handoff/PR. Historical commands and blockers are only for tracing past work.

@@ -2,7 +2,7 @@
 
 [English](../verification.md) | 简体中文
 
-[AGENTS.md](../../AGENTS.md) 定义工作流；本文选择检查。[登记册](<../../Important Documentation.md>) 保存人工场景、发布门槛（§6）与带日期的证据（§9）。
+[AGENTS.md](../../AGENTS.md) 定义工作流和 TDP 循环；本文选择检查。[架构](architecture.zh-CN.md) 定义运行时约束；[登记册](<../../Important Documentation.md>) 提炼设计教训、定义发布门槛（§6）并索引证据（§9）。
 
 ## 按改动范围选择检查
 
@@ -91,7 +91,7 @@ CCSET_HOME="$ccset_scratch" CCSET_LOCALE=en node dist/cli.js --agent claude-code
 
 只用占位密钥、检查临时文件；省略 locale 测试首次选择。没有子命令且 stdin 非 TTY 时退出 2。`CCSET_HOME` 隔离 ccset 写入，**不能**隔离 `run` 启动的上游 Agent；后者需另行隔离。
 
-记录命令／场景、结果、OS／Node 及相关 Agent／终端／shell 版本，明确失败、跳过和待验证项。新运行时证据追加到登记册 §9，旧条目不改；日常文档检查写入交接／PR。合成文件不证明真实请求或其他平台。
+在 PR／CI 或专项证据说明中记录命令／场景、结果、OS／Node 及相关 Agent／终端／shell 版本，明确失败、跳过和待验证项。登记册 §9 只保留带链接的精简运行时摘要，按 [Trace → Distill → Prune](../../AGENTS.md#knowledge-base-self-evolution-specification-tdp-loop) 更新或删除已失效摘要；原始证据留在 Git 中。日常文档检查写入交接／PR。合成文件不证明真实请求或其他平台。
 
 ## CI 与发布
 

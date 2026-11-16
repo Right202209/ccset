@@ -26,7 +26,7 @@
 
 使用[验证指南](verification.zh-CN.md)，不复制命令清单。运行时／工具链合并前需本地或 CI 完整套件证据，fixture 顺序运行。回归断言必须在撤销修复后失败；平台特定改动需要该平台证据。
 
-新运行时结果追加到[登记册 §9](<../../Important Documentation.md#9-implementation-register-code-complete>)，保留旧条目。纯文档检查写入交接／PR；发布门槛仍在 §6。
+按 [Trace → Distill → Prune](../../AGENTS.md#knowledge-base-self-evolution-specification-tdp-loop) 维护[登记册 §9](<../../Important Documentation.md#9-implementation-register-code-complete>) 的精简运行时摘要：链接详细结果，更新已失效摘要，原始证据留在 Git／PR／CI。纯文档检查写入交接／PR；发布门槛仍在 §6。
 
 ## 许可证
 

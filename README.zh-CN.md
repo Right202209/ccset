@@ -8,6 +8,12 @@ npx @droite/ccset
 
 [English](README.md) · [文档网站](https://right202209.github.io/ccset/)
 
+## 动图演示
+
+![ccset 演示：添加 Claude Code 提供商，填写示例配置并保存](https://raw.githubusercontent.com/Right202209/ccset/master/docs/media/ccset-demo.gif)
+
+[查看动图](https://github.com/Right202209/ccset/blob/master/docs/media/ccset-demo.gif)。使用隔离临时目录和虚构配置，从实际界面采集；不含个人配置，也未向真实 API 发送请求。
+
 ## 快速开始
 
 需要 **Node.js 18+**。
@@ -57,11 +63,7 @@ ccset opencode global set --model example/model --dry-run
 
 配置编辑在本地完成。Claude Code 的可选连接测试确认目标主机、拒绝重定向并丢弃响应体；`run` 启动 Claude Code，由它自行发请求。逐文件原子写入不保护并发写入。[安全待处理项](review.md)和[用户指南](docs/zh-CN/user-guide.zh-CN.md#不会对你的文件做的事)记录实际限制。
 
-## 演示与项目指南
-
-![使用虚构配置添加 Claude Code 提供商](docs/media/ccset-demo.gif)
-
-动图使用隔离 home 与虚构配置。[查看动图](docs/media/ccset-demo.gif)。
+## 项目指南
 
 支持 macOS/Linux；WSL、Windows Terminal/PowerShell 为尽力支持；`cmd.exe` 不受支持。ccset 不管理 Windows ACL。只维护 npm 最新发布版。
 
